@@ -10,6 +10,7 @@ y el proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 ### Añadido
 - Sección **FAQ** (acordeón) en el sidebar, editable desde *Ajustes → Checkout CCM* (`CCMCK_Faq`).
 - Resumen del pedido como **tarjetas**: miniatura del producto + badge de cantidad + precio unitario ("c/u"); totales como *summary-lines*.
+- **Cache-busting** automático de los assets del checkout vía `filemtime()` (`CCMCK_Assets::asset_version()`): cada cambio en `ccmck-checkout.css`/`.js` actualiza el `?ver=` y rompe caché del navegador. `CCMCK_VERSION` se mantiene como *fallback* si el archivo no existe.
 
 ### Corregido
 - **P1** — Campos del formulario con el look del mockup sobre el markup real de WooCommerce (`.form-row`/`.input-text`).
