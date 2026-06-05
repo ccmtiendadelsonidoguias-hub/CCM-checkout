@@ -1,0 +1,9 @@
+.DS_Store
+node_modules/
+vendor/
+*.log
+.env
+
+# Tests (artefactos locales, no se versionan)
+phpunit.phar
+.phpunit.result.cache

@@ -1,0 +1,1514 @@
+/* CCM Checkout — estilos portados de los mockups, namespaced bajo .ccmck */
+
+/* ===== RESET & BASE ===== */
+.ccmck *, .ccmck *::before, .ccmck *::after { box-sizing: border-box; margin: 0; padding: 0; }
+.ccmck {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  color: var(--ccmck-sidebar, #1a1a1a);
+  background: #fff;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+.ccmck a { color: var(--ccmck-sidebar, #1a1a1a); text-decoration: underline; }
+.ccmck a:hover { color: #555; }
+
+/* ===== CHECKOUT LAYOUT ===== */
+.ccmck .checkout-wrapper {
+  display: grid;
+  grid-template-columns: 1fr 420px;
+  max-width: 1200px;
+  margin: 0 auto;
+  min-height: 100vh;
+}
+.ccmck .checkout-main {
+  padding: 40px 60px 60px;
+  max-width: 680px;
+  margin: 0 auto;
+  width: 100%;
+}
+.ccmck .checkout-sidebar {
+  background: var(--ccmck-sidebar, #1a1a1a);
+  color: #fff;
+  padding: 40px 36px;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  box-shadow: 9999px 0 0 9999px var(--ccmck-sidebar, #1a1a1a);
+  scrollbar-width: thin;
+  scrollbar-color: #333 transparent;
+}
+.ccmck .checkout-sidebar::-webkit-scrollbar { width: 6px; }
+.ccmck .checkout-sidebar::-webkit-scrollbar-track { background: transparent; }
+.ccmck .checkout-sidebar::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+.ccmck .checkout-sidebar::-webkit-scrollbar-thumb:hover { background: #555; }
+
+/* ===== THANKYOU LAYOUT ===== */
+.ccmck .page-wrapper {
+  display: grid;
+  grid-template-columns: 1fr 420px;
+  max-width: 1200px;
+  margin: 0 auto;
+  min-height: 100vh;
+}
+.ccmck .page-main {
+  padding: 40px 60px 60px;
+  max-width: 680px;
+  margin: 0 auto;
+  width: 100%;
+}
+.ccmck .page-sidebar {
+  background: var(--ccmck-sidebar, #1a1a1a);
+  color: #fff;
+  padding: 40px 36px;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  box-shadow: 9999px 0 0 9999px var(--ccmck-sidebar, #1a1a1a);
+  scrollbar-width: thin;
+  scrollbar-color: #333 transparent;
+}
+.ccmck .page-sidebar::-webkit-scrollbar { width: 6px; }
+.ccmck .page-sidebar::-webkit-scrollbar-track { background: transparent; }
+.ccmck .page-sidebar::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+.ccmck .page-sidebar::-webkit-scrollbar-thumb:hover { background: #555; }
+
+/* ===== CHECKOUT HEADER ===== */
+.ccmck .checkout-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 60px;
+  border-bottom: 1px solid #e5e5e5;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+}
+.ccmck .checkout-header .logo {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  color: var(--ccmck-sidebar, #1a1a1a);
+  text-decoration: none;
+}
+.ccmck .checkout-header .logo span { color: var(--ccmck-accent, #e63946); }
+.ccmck .cart-icon {
+  position: relative;
+  cursor: pointer;
+}
+.ccmck .cart-icon svg { width: 24px; height: 24px; }
+.ccmck .cart-badge {
+  position: absolute;
+  top: -6px;
+  right: -8px;
+  background: var(--ccmck-accent, #e63946);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ===== THANKYOU PAGE HEADER ===== */
+.ccmck .page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 60px;
+  border-bottom: 1px solid #e5e5e5;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+}
+.ccmck .logo {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  color: var(--ccmck-sidebar, #1a1a1a);
+  text-decoration: none;
+}
+.ccmck .logo span { color: var(--ccmck-accent, #e63946); }
+.ccmck .header-links { display: flex; gap: 20px; font-size: 13px; }
+.ccmck .header-links a { color: #888; text-decoration: none; font-weight: 500; }
+.ccmck .header-links a:hover { color: var(--ccmck-sidebar, #1a1a1a); }
+
+/* ===== BREADCRUMB ===== */
+.ccmck .breadcrumb {
+  display: flex;
+  gap: 8px;
+  font-size: 13px;
+  color: #888;
+  margin-bottom: 28px;
+}
+.ccmck .breadcrumb a { color: var(--ccmck-accent, #e63946); text-decoration: none; font-weight: 500; }
+.ccmck .breadcrumb .sep { color: #ccc; }
+.ccmck .breadcrumb .active { color: var(--ccmck-sidebar, #1a1a1a); font-weight: 600; }
+
+/* ===== SECTION TITLES ===== */
+.ccmck .section-title {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+.ccmck .section-title a {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--ccmck-accent, #e63946);
+}
+.ccmck .section-subtitle {
+  font-size: 13px;
+  color: #777;
+  margin-bottom: 20px;
+}
+
+/* ===== FORM ===== */
+.ccmck .form-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.ccmck .form-group {
+  flex: 1;
+  position: relative;
+}
+.ccmck .form-group.full { flex: 1 1 100%; }
+.ccmck .form-group label {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: #666;
+  margin-bottom: 4px;
+}
+.ccmck .form-group input,
+.ccmck .form-group select {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid #d1d1d1;
+  border-radius: 6px;
+  font-size: 14px;
+  color: var(--ccmck-sidebar, #1a1a1a);
+  background: #fff;
+  transition: border-color 0.2s, box-shadow 0.2s, transform 0.1s;
+  appearance: none;
+  -webkit-appearance: none;
+}
+.ccmck .form-group input:focus,
+.ccmck .form-group select:focus {
+  outline: none;
+  border-color: var(--ccmck-sidebar, #1a1a1a);
+  box-shadow: 0 0 0 2px rgba(26, 26, 26, 0.08);
+  transform: translateY(-1px);
+}
+.ccmck .form-group input::placeholder { color: #aaa; }
+
+/* Select arrow */
+.ccmck .form-group select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 36px;
+}
+
+.ccmck .checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 16px 0 24px;
+  font-size: 13px;
+  color: #555;
+}
+.ccmck .checkbox-row input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--ccmck-sidebar, #1a1a1a);
+  cursor: pointer;
+}
+
+.ccmck .section-divider {
+  border: none;
+  border-top: 1px solid #e8e8e8;
+  margin: 28px 0;
+}
+
+/* ===== SHIPPING METHOD ===== */
+.ccmck .shipping-option {
+  border: 2px solid var(--ccmck-sidebar, #1a1a1a);
+  border-radius: 8px;
+  padding: 16px 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+.ccmck .shipping-option:hover { border-color: #555; }
+.ccmck .shipping-option .shipping-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.ccmck .shipping-option input[type="radio"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--ccmck-sidebar, #1a1a1a);
+}
+.ccmck .shipping-option .shipping-name {
+  font-weight: 600;
+  font-size: 14px;
+}
+.ccmck .shipping-option .shipping-desc {
+  font-size: 12px;
+  color: #888;
+}
+.ccmck .shipping-option .shipping-price {
+  font-weight: 700;
+  font-size: 15px;
+}
+
+/* ===== PAYMENT ===== */
+.ccmck .payment-box {
+  border: 2px solid var(--ccmck-sidebar, #1a1a1a);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+.ccmck .payment-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 18px;
+  background: #fafafa;
+  border-bottom: 1px solid #e8e8e8;
+}
+.ccmck .payment-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.ccmck .payment-header-left input[type="radio"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--ccmck-sidebar, #1a1a1a);
+}
+.ccmck .payment-header-left span {
+  font-weight: 600;
+  font-size: 14px;
+}
+.ccmck .payment-icons {
+  display: flex;
+  gap: 6px;
+}
+.ccmck .payment-icons .card-icon {
+  background: #f0f0f0;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #333;
+}
+.ccmck .payment-body {
+  padding: 20px 18px;
+}
+
+/* Payment stack */
+.ccmck .payment-methods-stack .payment-box {
+  border-color: #d1d1d1;
+  border-radius: 0;
+  margin-bottom: 0;
+  border-bottom-width: 0;
+}
+.ccmck .payment-methods-stack .payment-box:first-child {
+  border-radius: 8px 8px 0 0;
+}
+.ccmck .payment-methods-stack .payment-box:last-child {
+  border-radius: 0 0 8px 8px;
+  border-bottom-width: 2px;
+}
+.ccmck .payment-methods-stack .payment-box:only-child {
+  border-radius: 8px;
+}
+.ccmck .payment-methods-stack .payment-box.selected {
+  border-color: var(--ccmck-sidebar, #1a1a1a);
+  position: relative;
+  z-index: 1;
+  border-bottom-width: 2px;
+}
+.ccmck .payment-methods-stack .payment-box.selected + .payment-box {
+  border-top-width: 0;
+}
+.ccmck .payment-methods-stack .payment-header {
+  cursor: pointer;
+  transition: background 0.15s;
+  border-bottom: none;
+}
+.ccmck .payment-methods-stack .payment-box.selected .payment-header {
+  border-bottom: 1px solid #e8e8e8;
+}
+.ccmck .payment-methods-stack .payment-header:hover {
+  background: #f5f5f5;
+}
+
+/* Payment info message */
+.ccmck .payment-info-msg {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 14px 16px;
+  background: #f8f8f8;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #666;
+  line-height: 1.5;
+}
+.ccmck .payment-info-msg svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+/* WooCommerce payment markup — scoped but selector names preserved */
+.ccmck #payment { /* WC emitted */ }
+.ccmck .wc_payment_method { /* WC emitted */ }
+.ccmck #order_review { /* WC emitted */ }
+.ccmck .shop_table { /* WC emitted */ }
+
+/* ===== PAY BUTTON ===== */
+.ccmck .pay-button {
+  width: 100%;
+  padding: 18px;
+  background: var(--ccmck-accent, #e63946);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+  margin-top: 28px;
+  letter-spacing: 0.3px;
+}
+.ccmck .pay-button:hover { background: #d62839; }
+.ccmck .pay-button:active { transform: scale(0.99); }
+
+/* ===== FOOTER LINKS ===== */
+.ccmck .checkout-footer {
+  margin-top: 32px;
+  padding-top: 20px;
+  border-top: 1px solid #e8e8e8;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  font-size: 12px;
+}
+.ccmck .checkout-footer a { color: #888; text-decoration: underline; }
+
+/* ===== PAGE FOOTER (THANKYOU) ===== */
+.ccmck .page-footer {
+  margin-top: 32px;
+  padding-top: 20px;
+  border-top: 1px solid #e8e8e8;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  font-size: 12px;
+}
+.ccmck .page-footer a { color: #888; text-decoration: underline; }
+
+/* ===== SIDEBAR ===== */
+.ccmck .sidebar-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 16px;
+}
+.ccmck .sidebar-product {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #333;
+  margin-bottom: 20px;
+  transition: opacity 0.3s, transform 0.3s, max-height 0.3s;
+  max-height: 200px;
+  overflow: hidden;
+}
+.ccmck .sidebar-product.removing {
+  opacity: 0;
+  transform: translateX(20px);
+  max-height: 0;
+  padding-bottom: 0;
+  margin-bottom: 0;
+  border-bottom-color: transparent;
+}
+.ccmck .product-img-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+.ccmck .product-img-wrap img {
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+  border-radius: 8px;
+  background: #2a2a2a;
+}
+.ccmck .product-qty {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  background: var(--ccmck-accent, #e63946);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ccmck .product-qty-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  background: var(--ccmck-accent, #e63946);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ccmck .product-info {
+  flex: 1;
+  min-width: 0;
+}
+.ccmck .product-name {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+.ccmck .product-variant {
+  font-size: 12px;
+  color: #999;
+  margin-top: 2px;
+}
+.ccmck .product-price {
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* Quantity controls */
+.ccmck .product-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+.ccmck .qty-control {
+  display: flex;
+  align-items: center;
+  border: 1px solid #444;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #2a2a2a;
+}
+.ccmck .qty-control button {
+  width: 30px;
+  height: 30px;
+  background: transparent;
+  border: none;
+  color: #ccc;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, color 0.15s;
+}
+.ccmck .qty-control button:hover {
+  background: #383838;
+  color: #fff;
+}
+.ccmck .qty-control button:active { background: #444; }
+.ccmck .qty-control .qty-value {
+  width: 32px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  border-left: 1px solid #444;
+  border-right: 1px solid #444;
+  line-height: 30px;
+  background: #252525;
+}
+.ccmck .btn-remove {
+  background: transparent;
+  border: none;
+  color: #777;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s, background 0.15s;
+}
+.ccmck .btn-remove:hover {
+  color: var(--ccmck-accent, #e63946);
+  background: rgba(230, 57, 70, 0.1);
+}
+.ccmck .btn-remove svg { width: 16px; height: 16px; }
+
+.ccmck .product-price-col {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.ccmck .product-line-total {
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.ccmck .product-unit-price {
+  font-size: 11px;
+  color: #777;
+  white-space: nowrap;
+}
+
+/* Empty cart state */
+.ccmck .cart-empty {
+  text-align: center;
+  padding: 32px 0;
+  color: #777;
+}
+.ccmck .cart-empty svg {
+  width: 48px;
+  height: 48px;
+  margin-bottom: 12px;
+  opacity: 0.4;
+}
+.ccmck .cart-empty p {
+  font-size: 14px;
+  margin-bottom: 16px;
+}
+.ccmck .cart-empty a {
+  color: var(--ccmck-accent, #e63946);
+  font-weight: 600;
+  font-size: 13px;
+}
+
+/* Coupon */
+.ccmck .coupon-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+.ccmck .coupon-row input {
+  flex: 1;
+  padding: 12px 14px;
+  border: 1px solid #444;
+  border-radius: 6px;
+  background: #2a2a2a;
+  color: #fff;
+  font-size: 13px;
+}
+.ccmck .coupon-row input::placeholder { color: #777; }
+.ccmck .coupon-row input:focus {
+  outline: none;
+  border-color: var(--ccmck-accent, #e63946);
+}
+.ccmck .coupon-row button {
+  padding: 12px 20px;
+  background: #333;
+  color: #fff;
+  border: 1px solid #555;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.ccmck .coupon-row button:hover { background: #444; }
+
+/* Summary lines */
+.ccmck .summary-line {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+  color: #ccc;
+  margin-bottom: 10px;
+}
+.ccmck .summary-line.discount { color: #4caf50; }
+.ccmck .summary-line.total {
+  border-top: 1px solid #333;
+  padding-top: 16px;
+  margin-top: 16px;
+  font-size: 13px;
+  color: #999;
+}
+.ccmck .summary-line.total .total-amount {
+  font-size: 22px;
+  font-weight: 800;
+  color: #fff;
+}
+.ccmck .summary-line .currency {
+  font-size: 12px;
+  color: #888;
+  margin-right: 6px;
+}
+
+/* Delivery info cards */
+.ccmck .delivery-info {
+  margin-top: 28px;
+  border-top: 1px solid #333;
+  padding-top: 24px;
+}
+.ccmck .delivery-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  background: #222;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  border: 1px solid #333;
+}
+.ccmck .delivery-card .dc-icon {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  background: #2a2a2a;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+}
+.ccmck .delivery-card .dc-text strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 1px;
+}
+.ccmck .delivery-card .dc-text span {
+  font-size: 12px;
+  color: #888;
+}
+
+/* FAQ Accordion */
+.ccmck .faq-section {
+  margin-top: 20px;
+}
+.ccmck .faq-section-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #777;
+  margin-bottom: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.ccmck .faq-item {
+  border: 1px solid #333;
+  border-radius: 8px;
+  margin-bottom: 6px;
+  overflow: hidden;
+  background: #222;
+}
+.ccmck .faq-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.ccmck .faq-header:hover { background: #2a2a2a; }
+.ccmck .faq-header .faq-icon {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  background: #2a2a2a;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+}
+.ccmck .faq-header:hover .faq-icon { background: #333; }
+.ccmck .faq-header .faq-title {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+  color: #ddd;
+}
+.ccmck .faq-header .faq-arrow {
+  color: #666;
+  transition: transform 0.25s;
+  flex-shrink: 0;
+}
+.ccmck .faq-item.open .faq-header .faq-arrow {
+  transform: rotate(180deg);
+}
+.ccmck .faq-body {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease, padding 0.3s ease;
+}
+.ccmck .faq-item.open .faq-body {
+  max-height: 300px;
+}
+.ccmck .faq-body-inner {
+  padding: 0 16px 14px 60px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: #999;
+}
+.ccmck .faq-body-inner strong { color: #ccc; }
+.ccmck .faq-body-inner a {
+  color: var(--ccmck-accent, #e63946);
+  text-decoration: none;
+  font-weight: 600;
+}
+.ccmck .faq-body-inner a:hover { text-decoration: underline; }
+
+/* Secure badge */
+.ccmck .secure-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 24px;
+  padding: 12px 16px;
+  background: #222;
+  border-radius: 8px;
+  font-size: 12px;
+  color: #888;
+}
+.ccmck .secure-badge svg { flex-shrink: 0; }
+
+/* ===== MOBILE-ONLY BOTTOM INFO ===== */
+.ccmck .mobile-bottom-info { display: none; }
+.ccmck .mobile-bottom-info .delivery-info {
+  margin-top: 0; border-top: none; padding-top: 0;
+}
+.ccmck .mobile-bottom-info .delivery-card {
+  background: #f5f5f5; border-color: #e5e5e5;
+}
+.ccmck .mobile-bottom-info .dc-icon { background: #eee !important; }
+.ccmck .mobile-bottom-info .dc-text strong { color: var(--ccmck-sidebar, #1a1a1a) !important; }
+.ccmck .mobile-bottom-info .dc-text span { color: #777 !important; }
+.ccmck .mobile-bottom-info .faq-section-title { color: #999 !important; }
+.ccmck .mobile-bottom-info .faq-item {
+  background: #f5f5f5; border-color: #e5e5e5;
+}
+.ccmck .mobile-bottom-info .faq-header .faq-icon { background: #eee !important; }
+.ccmck .mobile-bottom-info .faq-header .faq-title { color: #333 !important; }
+.ccmck .mobile-bottom-info .faq-header:hover { background: #eee; }
+.ccmck .mobile-bottom-info .faq-header:hover .faq-icon { background: #ddd !important; }
+.ccmck .mobile-bottom-info .faq-header .faq-arrow { color: #aaa !important; }
+.ccmck .mobile-bottom-info .faq-body-inner { color: #666 !important; }
+.ccmck .mobile-bottom-info .faq-body-inner strong { color: #333 !important; }
+
+/* ===== CONFIRMATION HERO (THANKYOU) ===== */
+.ccmck .confirm-hero {
+  text-align: center;
+  padding: 48px 0 36px;
+}
+.ccmck .confirm-icon {
+  width: 72px;
+  height: 72px;
+  background: #e8f5e9;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 20px;
+  animation: ccmck-scaleIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+.ccmck .confirm-icon svg {
+  width: 36px;
+  height: 36px;
+  color: #2e7d32;
+}
+@keyframes ccmck-scaleIn {
+  0% { transform: scale(0); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.ccmck .confirm-hero h1 {
+  font-size: 26px;
+  font-weight: 800;
+  margin-bottom: 6px;
+}
+.ccmck .confirm-hero .order-number {
+  font-size: 14px;
+  color: #888;
+  margin-bottom: 8px;
+}
+.ccmck .confirm-hero .order-number strong {
+  color: var(--ccmck-sidebar, #1a1a1a);
+  font-weight: 700;
+}
+.ccmck .confirm-hero .confirm-msg {
+  font-size: 14px;
+  color: #666;
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+/* ===== STATUS TRACKER (THANKYOU) ===== */
+.ccmck .status-tracker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  margin: 36px 0;
+  padding: 0 10px;
+}
+.ccmck .status-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+  z-index: 1;
+}
+.ccmck .status-dot {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+  border: 2px solid #ddd;
+  background: #fff;
+  color: #bbb;
+  transition: all 0.3s;
+}
+.ccmck .status-step.completed .status-dot {
+  background: #2e7d32;
+  border-color: #2e7d32;
+  color: #fff;
+}
+.ccmck .status-step.active .status-dot {
+  background: var(--ccmck-accent, #e63946);
+  border-color: var(--ccmck-accent, #e63946);
+  color: #fff;
+  box-shadow: 0 0 0 4px rgba(230, 57, 70, 0.15);
+}
+.ccmck .status-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #bbb;
+  text-align: center;
+  max-width: 80px;
+}
+.ccmck .status-step.completed .status-label,
+.ccmck .status-step.active .status-label {
+  color: var(--ccmck-sidebar, #1a1a1a);
+}
+.ccmck .status-line {
+  width: 60px;
+  height: 2px;
+  background: #ddd;
+  margin-bottom: 24px;
+}
+.ccmck .status-line.done {
+  background: #2e7d32;
+}
+
+/* ===== INFO CARDS (THANKYOU) ===== */
+.ccmck .info-section-title {
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+.ccmck .info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+.ccmck .info-card {
+  background: #fafafa;
+  border: 1px solid #eee;
+  border-radius: 10px;
+  padding: 20px;
+}
+.ccmck .info-card-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #999;
+  margin-bottom: 8px;
+}
+.ccmck .info-card-value {
+  font-size: 14px;
+  color: #333;
+  line-height: 1.5;
+}
+.ccmck .info-card-value strong {
+  color: var(--ccmck-sidebar, #1a1a1a);
+  display: block;
+  margin-bottom: 2px;
+}
+
+/* Map placeholder */
+.ccmck .map-placeholder {
+  background: #f0f0f0;
+  border: 1px solid #e5e5e5;
+  border-radius: 10px;
+  height: 160px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #aaa;
+  font-size: 13px;
+  margin-bottom: 24px;
+  overflow: hidden;
+  position: relative;
+}
+.ccmck .map-placeholder::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    repeating-linear-gradient(0deg, transparent, transparent 19px, #e8e8e8 19px, #e8e8e8 20px),
+    repeating-linear-gradient(90deg, transparent, transparent 19px, #e8e8e8 19px, #e8e8e8 20px);
+  opacity: 0.5;
+}
+.ccmck .map-placeholder span {
+  position: relative;
+  z-index: 1;
+  background: #fff;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-weight: 600;
+  color: #888;
+  border: 1px solid #ddd;
+}
+
+/* ===== ACTION BUTTONS (THANKYOU) ===== */
+.ccmck .action-buttons {
+  display: flex;
+  gap: 12px;
+  margin-top: 28px;
+}
+.ccmck .btn-primary {
+  flex: 1;
+  padding: 16px;
+  background: var(--ccmck-accent, #e63946);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: none;
+  text-align: center;
+  transition: background 0.2s;
+}
+.ccmck .btn-primary:hover { background: #d62839; color: #fff; }
+.ccmck .btn-secondary {
+  flex: 1;
+  padding: 16px;
+  background: #fff;
+  color: var(--ccmck-sidebar, #1a1a1a);
+  border: 2px solid var(--ccmck-sidebar, #1a1a1a);
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: none;
+  text-align: center;
+  transition: background 0.2s;
+}
+.ccmck .btn-secondary:hover { background: #f5f5f5; color: var(--ccmck-sidebar, #1a1a1a); }
+
+/* ===== WHATSAPP CTA (THANKYOU) ===== */
+.ccmck .whatsapp-cta {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 20px;
+  padding: 16px 20px;
+  background: #e8f5e9;
+  border: 1px solid #c8e6c9;
+  border-radius: 10px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.15s;
+}
+.ccmck .whatsapp-cta:hover { background: #c8e6c9; }
+.ccmck .whatsapp-cta .wa-icon {
+  width: 40px;
+  height: 40px;
+  background: #25d366;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.ccmck .whatsapp-cta .wa-icon svg { width: 22px; height: 22px; fill: #fff; }
+.ccmck .whatsapp-cta .wa-text strong {
+  display: block;
+  font-size: 13px;
+  color: var(--ccmck-sidebar, #1a1a1a);
+  margin-bottom: 1px;
+}
+.ccmck .whatsapp-cta .wa-text span {
+  font-size: 12px;
+  color: #555;
+}
+
+/* ===== PAYMENT USED (THANKYOU SIDEBAR) ===== */
+.ccmck .payment-used {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 24px;
+  padding: 14px 16px;
+  background: #222;
+  border-radius: 8px;
+  border: 1px solid #333;
+}
+.ccmck .payment-used .pu-icon {
+  width: 40px;
+  height: 28px;
+  background: #1a1f71;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+.ccmck .payment-used .pu-text {
+  font-size: 13px;
+  color: #ccc;
+}
+.ccmck .payment-used .pu-text strong {
+  color: #fff;
+  display: block;
+  font-size: 13px;
+}
+
+/* ===== MOBILE ===== */
+@media (max-width: 960px) {
+  .ccmck .checkout-wrapper {
+    grid-template-columns: 1fr;
+    max-width: 100%;
+  }
+  .ccmck .checkout-header {
+    padding: 16px 20px;
+    max-width: 100%;
+  }
+  .ccmck .checkout-main {
+    padding: 24px 20px 40px;
+    max-width: 100%;
+  }
+  .ccmck .checkout-sidebar {
+    position: relative;
+    height: auto;
+    order: -1;
+    padding: 0;
+    box-shadow: none;
+    overflow: visible;
+  }
+  .ccmck .checkout-sidebar .delivery-info,
+  .ccmck .checkout-sidebar .faq-section {
+    display: none;
+  }
+  .ccmck .sidebar-inner {
+    padding: 20px;
+  }
+
+  /* Mobile order summary toggle */
+  .ccmck .mobile-summary-toggle {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    background: #222;
+    cursor: pointer;
+    border-bottom: 1px solid #333;
+  }
+  .ccmck .mobile-summary-toggle .toggle-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    color: var(--ccmck-accent, #e63946);
+    font-weight: 500;
+  }
+  .ccmck .mobile-summary-toggle .toggle-left svg {
+    width: 20px;
+    height: 20px;
+    transition: transform 0.3s;
+  }
+  .ccmck .mobile-summary-toggle.open .toggle-left svg {
+    transform: rotate(180deg);
+  }
+  .ccmck .mobile-summary-toggle .toggle-price {
+    font-size: 16px;
+    font-weight: 700;
+    color: #fff;
+  }
+  .ccmck .sidebar-inner {
+    display: none;
+  }
+  .ccmck .checkout-sidebar.open .sidebar-inner {
+    display: block;
+  }
+
+  /* Form rows: stack vertically */
+  .ccmck .form-row {
+    flex-direction: column;
+    gap: 12px;
+  }
+  .ccmck .form-row.keep-row {
+    flex-direction: row;
+  }
+
+  /* Payment methods */
+  .ccmck .payment-header {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .ccmck .payment-header-left span {
+    font-size: 13px;
+  }
+  .ccmck .payment-icons .card-icon {
+    font-size: 10px;
+    padding: 3px 6px;
+  }
+
+  /* Shipping options */
+  .ccmck .shipping-option {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .ccmck .shipping-option .shipping-price {
+    width: 100%;
+    text-align: right;
+  }
+
+  /* Product cards */
+  .ccmck .product-name { font-size: 13px; }
+  .ccmck .product-actions { gap: 8px; }
+  .ccmck .qty-control button { width: 28px; height: 28px; font-size: 14px; }
+  .ccmck .qty-control .qty-value { width: 28px; line-height: 28px; font-size: 12px; }
+
+  /* Delivery cards */
+  .ccmck .delivery-card { padding: 12px 14px; gap: 10px; }
+  .ccmck .delivery-card .dc-icon { width: 36px; height: 36px; font-size: 16px; }
+
+  /* FAQ */
+  .ccmck .faq-header { padding: 12px 14px; gap: 10px; }
+  .ccmck .faq-header .faq-icon { width: 28px; height: 28px; font-size: 13px; }
+  .ccmck .faq-body-inner { padding: 0 14px 12px 50px; font-size: 11px; }
+
+  /* Pay button */
+  .ccmck .pay-button { padding: 16px; font-size: 15px; }
+
+  /* Show mobile bottom info */
+  .ccmck .mobile-bottom-info { display: block; margin-top: 28px; }
+
+  /* Thankyou page layout */
+  .ccmck .page-wrapper { grid-template-columns: 1fr; max-width: 100%; }
+  .ccmck .page-header { padding: 16px 20px; max-width: 100%; }
+  .ccmck .page-main { padding: 24px 20px 40px; max-width: 100%; }
+  .ccmck .page-sidebar {
+    position: relative;
+    height: auto;
+    order: -1;
+    padding: 20px;
+    box-shadow: none;
+    overflow: visible;
+  }
+  .ccmck .info-grid { grid-template-columns: 1fr; }
+  .ccmck .action-buttons { flex-direction: column; }
+  .ccmck .status-line { width: 30px; }
+  .ccmck .status-label { font-size: 10px; max-width: 60px; }
+  .ccmck .status-dot { width: 32px; height: 32px; font-size: 12px; }
+  .ccmck .confirm-hero { padding: 32px 0 24px; }
+  .ccmck .confirm-hero h1 { font-size: 22px; }
+  .ccmck .header-links { display: none; }
+}
+
+@media (min-width: 961px) {
+  .ccmck .mobile-summary-toggle { display: none; }
+  .ccmck .sidebar-inner { display: block !important; }
+}
+
+/* =============================================================
+   Resumen del pedido: tabla de WooCommerce (review-order) dentro
+   del sidebar oscuro. La tabla .shop_table sustituye a los divs
+   .sidebar-product del mockup, así que aquí la tematizamos en
+   oscuro (texto claro, filas separadas, total destacado).
+   ============================================================= */
+.ccmck .checkout-sidebar .shop_table { width: 100%; border-collapse: collapse; color: #fff; }
+.ccmck .checkout-sidebar .shop_table thead { display: none; }
+.ccmck .checkout-sidebar .shop_table td,
+.ccmck .checkout-sidebar .shop_table th { padding: 14px 0; border: 0; vertical-align: top; font-size: 14px; }
+.ccmck .checkout-sidebar .shop_table .cart_item td { border-bottom: 1px solid #333; }
+.ccmck .checkout-sidebar .shop_table .product-name { color: #fff; font-weight: 600; line-height: 1.3; }
+.ccmck .checkout-sidebar .shop_table .product-total { text-align: right; white-space: nowrap; font-weight: 700; color: #fff; }
+/* Ocultamos el "× N" textual de WC: la cantidad se ve/edita en el control +/-. */
+.ccmck .checkout-sidebar .shop_table .product-quantity { display: none; }
+.ccmck .checkout-sidebar .shop_table tfoot th,
+.ccmck .checkout-sidebar .shop_table tfoot td { color: #ccc; font-size: 14px; padding: 8px 0; font-weight: 400; }
+.ccmck .checkout-sidebar .shop_table tfoot td { text-align: right; }
+.ccmck .checkout-sidebar .shop_table tfoot .order-total th,
+.ccmck .checkout-sidebar .shop_table tfoot .order-total td { border-top: 1px solid #333; padding-top: 16px; }
+.ccmck .checkout-sidebar .shop_table tfoot .order-total th { color: #999; font-size: 13px; }
+.ccmck .checkout-sidebar .shop_table tfoot .order-total .amount,
+.ccmck .checkout-sidebar .shop_table tfoot .order-total td { font-size: 22px; font-weight: 800; color: #fff; }
+.ccmck .checkout-sidebar a { color: #fff; }
+/* El control de cantidad/eliminar hereda .qty-control y .btn-remove (tema oscuro)
+   del port del mockup; aquí solo aseguramos su separación bajo el nombre. */
+.ccmck .checkout-sidebar .ccmck-qty-controls { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+
+/* =============================================================
+   Logo: si se sube una imagen, limitar su altura (el CSS del
+   mockup asumía logo de texto). Y asegurar el header como barra.
+   ============================================================= */
+.ccmck .checkout-header { display: flex; justify-content: space-between; align-items: center; }
+.ccmck .checkout-header img,
+.ccmck .checkout-header .logo img { max-height: 48px; width: auto; display: block; }
+
+/* Defensa de layout: forzar el grid de 2 columnas y el sidebar oscuro
+   por si el tema/Elementor lo sobrescribe con mayor especificidad. */
+.ccmck .checkout-wrapper { display: grid; grid-template-columns: 1fr 420px; max-width: 1200px; margin: 0 auto; }
+.ccmck .checkout-sidebar { background: var(--ccmck-sidebar, #1a1a1a); color: #fff; }
+@media (max-width: 960px) {
+  .ccmck .checkout-wrapper { grid-template-columns: 1fr; }
+}
+
+/* =============================================================
+   PUENTE WooCommerce → MOCKUP
+   El markup real de WC no usa .form-group/.form-row del mockup,
+   sino <p class="form-row form-row-first|last|wide"> con
+   <input class="input-text"> dentro de .woocommerce-input-wrapper.
+   Aquí replicamos el look del mockup sobre ese markup real, sin
+   tocar IDs, hooks ni el AJAX (solo CSS).
+   ============================================================= */
+
+/* --- P2: Facturación a ancho completo de la columna principal ---
+   #customer_details es .col2-set y WC flota .col-1/.col-2 a ~48%,
+   partiendo "Facturación" a media columna. Lo apilamos para que
+   tanto Facturación como Información adicional usen todo el ancho. */
+.ccmck .checkout-main #customer_details.col2-set { display: block; width: 100%; }
+.ccmck .checkout-main #customer_details .col-1,
+.ccmck .checkout-main #customer_details .col-2 {
+  float: none;
+  width: 100%;
+  max-width: none;
+  margin: 0 0 8px;
+  padding: 0;
+}
+
+/* --- P1: Campos con el look del mockup sobre el markup de WC ---
+   Las filas se distribuyen en una grilla de 2 columnas; "first" y
+   "last" ocupan una celda y "wide" abarca toda la fila. */
+.ccmck .checkout-main .woocommerce-billing-fields__field-wrapper,
+.ccmck .checkout-main .woocommerce-shipping-fields__field-wrapper,
+.ccmck .checkout-main .woocommerce-additional-fields__field-wrapper {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.ccmck .checkout-main .form-row {
+  display: flex;
+  flex-direction: column;
+  float: none;
+  width: auto;
+  margin: 0;
+  padding: 0;
+}
+.ccmck .checkout-main .form-row-wide { grid-column: 1 / -1; }
+.ccmck .checkout-main .form-row label {
+  font-size: 12px;
+  font-weight: 500;
+  color: #666;
+  margin-bottom: 4px;
+}
+.ccmck .checkout-main .form-row .required {
+  color: var(--ccmck-accent, #e63946);
+  border: 0;
+  text-decoration: none;
+}
+.ccmck .checkout-main .woocommerce-input-wrapper { display: block; width: 100%; }
+.ccmck .checkout-main .form-row .input-text,
+.ccmck .checkout-main .form-row textarea,
+.ccmck .checkout-main .form-row select {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid #d1d1d1;
+  border-radius: 6px;
+  font-size: 14px;
+  color: var(--ccmck-sidebar, #1a1a1a);
+  background: #fff;
+  box-sizing: border-box;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.ccmck .checkout-main .form-row textarea { min-height: 90px; resize: vertical; }
+.ccmck .checkout-main .form-row .input-text:focus,
+.ccmck .checkout-main .form-row textarea:focus,
+.ccmck .checkout-main .form-row select:focus {
+  outline: none;
+  border-color: var(--ccmck-sidebar, #1a1a1a);
+  box-shadow: 0 0 0 2px rgba(26, 26, 26, 0.08);
+}
+.ccmck .checkout-main .form-row .input-text::placeholder { color: #aaa; }
+/* Country/state usan select2: igualamos altura y borde al resto. */
+.ccmck .checkout-main .select2-container .select2-selection--single {
+  height: auto;
+  min-height: 46px;
+  display: flex;
+  align-items: center;
+  border: 1px solid #d1d1d1;
+  border-radius: 6px;
+  padding: 4px 8px;
+}
+@media (max-width: 600px) {
+  .ccmck .checkout-main .woocommerce-billing-fields__field-wrapper,
+  .ccmck .checkout-main .woocommerce-shipping-fields__field-wrapper,
+  .ccmck .checkout-main .woocommerce-additional-fields__field-wrapper {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* --- P3: Botón de pago en rojo CCM ---
+   Elementor pisa #place_order con su morado de marca por
+   especificidad; reafirmamos con el id (gana a las clases de
+   Elementor) + !important por lo agresivo de su override. */
+.ccmck #place_order,
+.ccmck #payment #place_order {
+  background: var(--ccmck-accent, #e63946) !important;
+  color: #fff !important;
+  border: none !important;
+}
+.ccmck #place_order:hover { background: #d62839 !important; }
+
+/* --- P4: bloque "Carrito" de WC colado encima del checkout ---
+   La página /pago/ incrusta un wp-block-woocommerce-cart (hermano del
+   checkout, fuera de .ccmck) que sangra sobre el layout. En DESKTOP el
+   resumen vive en el sidebar oscuro, así que ocultamos ese bloque
+   duplicado. En MÓVIL (≤960px) el .sidebar-inner se colapsa, por lo que
+   ahí lo dejamos visible como único resumen del pedido. */
+@media (min-width: 961px) {
+  body.woocommerce-checkout .wp-block-woocommerce-cart { display: none !important; }
+}
+
+/* --- P5: Puente de la sección de Pago ---
+   WooCommerce pinta por defecto #payment y .payment_box con su morado
+   (rgba(129,110,153,.14) y rgb(220,215,226)) desde woocommerce.css. El
+   port del mockup no los neutralizó (el placeholder #payment quedó vacío
+   y .payment_box nunca se mapeó a .payment-info-msg). Los limpiamos al
+   look del mockup (#f8f8f8). */
+.ccmck #payment { background: transparent !important; }
+.ccmck #payment .payment_box {
+  background: #f8f8f8 !important;
+  color: #666;
+  border-radius: 6px;
+  padding: 14px 16px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+/* WC dibuja un triángulo morado encima de .payment_box; el mockup no lo usa. */
+.ccmck #payment .payment_box::before { display: none !important; }
+
+/* --- P6: labels ocultos de WC que desalinean las filas ---
+   WC rotula algunos campos (p. ej. "Nombre") con label.screen-reader-text
+   (oculto fuera de pantalla) y otros con label visible, por lo que en una
+   misma fila de la grilla un input arranca arriba (sin rótulo) y el otro
+   abajo (con rótulo). El mockup rotula TODOS los campos: hacemos visibles
+   esos labels y los igualamos al resto. */
+.ccmck .checkout-main .form-row > label.screen-reader-text {
+  position: static !important;
+  width: auto !important;
+  height: auto !important;
+  margin: 0 0 4px !important;
+  padding: 0 !important;
+  clip: auto !important;
+  clip-path: none !important;
+  overflow: visible !important;
+  white-space: normal !important;
+  border: 0 !important;
+  font-size: 12px;
+  font-weight: 500;
+  color: #666;
+}
+
+/* --- P7: compactar filas (eliminar 36px fantasma) ---
+   El puente P1 hizo .form-row display:flex para apilar label sobre input,
+   pero eso convierte los pseudo-elementos de clearfix de WooCommerce
+   (.form-row::before/::after, content:" ") en flex items que inyectan ~36px
+   de espacio vertical por fila → el formulario se ve "separado". label y
+   span ya son block, así que basta display:block para apilarlos compacto,
+   tal cual el mockup. */
+.ccmck .checkout-main .form-row { display: block !important; }
+.ccmck .checkout-main .form-row::before,
+.ccmck .checkout-main .form-row::after { content: none !important; display: none !important; }
+
+/* --- P8: resumen del pedido como tarjetas del mockup ---
+   review-order.php mete toda la tarjeta (.product-img-wrap + .product-info
+   + .product-price-col) en la celda .product-name; esas clases ya están
+   tematizadas (oscuras) arriba. Aquí solo hacemos que la fila/celda de la
+   tabla se comporte como la .sidebar-product flex y ocultamos la celda
+   .product-total vacía. La tabla se conserva para el AJAX y los totales. */
+/* Rompemos el layout de tabla a block/flex: las filas-item se vuelven
+   tarjetas a ancho completo y el tfoot se vuelve summary-lines. La tabla
+   sigue siendo .woocommerce-checkout-review-order-table (AJAX intacto). */
+.ccmck .checkout-sidebar .shop_table,
+.ccmck .checkout-sidebar .shop_table tbody,
+.ccmck .checkout-sidebar .shop_table tfoot { display: block; width: 100%; }
+.ccmck .checkout-sidebar .shop_table tr.cart_item { display: block; width: 100%; border-bottom: 1px solid #333; }
+.ccmck .checkout-sidebar .shop_table tr.cart_item td.product-total { display: none; }
+.ccmck .checkout-sidebar .shop_table tr.cart_item td.product-name {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 16px 0;
+  border: 0;
+}
+.ccmck .checkout-sidebar .product-title {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: #fff;
+}
+/* tfoot como summary-lines: label izquierda / monto derecha */
+.ccmck .checkout-sidebar .shop_table tfoot tr {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  width: 100%;
+}
+.ccmck .checkout-sidebar .shop_table tfoot tr th,
+.ccmck .checkout-sidebar .shop_table tfoot tr td { display: block; }
