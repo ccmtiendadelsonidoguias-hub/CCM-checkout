@@ -6,16 +6,29 @@
     var busy = false;
 
     /* ------------------------------------------------------------------ */
-    /*  Acordeón de métodos de pago (cosmético sobre WC)                   */
+    /*  Estado visual del método de pago seleccionado                     */
+    /*  Sincroniza la clase .selected con el radio realmente marcado.     */
+    /*  No toca la lógica de WooCommerce: WC sigue gestionando el radio,  */
+    /*  la visibilidad de .payment_box y payment_fields(). Aquí solo      */
+    /*  reflejamos visualmente qué li.wc_payment_method está elegido.     */
     /* ------------------------------------------------------------------ */
-    $( document ).on( 'click', '.wc_payment_method label, .wc_payment_method > input', function () {
-        var $li = $( this ).closest( '.wc_payment_method' );
-        // Marca el radio nativo y dispara el evento WC para que los gateways reaccionen
-        $li.find( 'input[name="payment_method"]' ).prop( 'checked', true ).trigger( 'change' );
-        $( document.body ).trigger( 'payment_method_selected' );
-        // Clase visual opcional; WC maneja la visibilidad de .payment_box
-        $li.addClass( 'open' ).siblings().removeClass( 'open' );
-    } );
+    function ccmckSyncSelectedPayment() {
+        var $methods = $( '.wc_payment_method' );
+        if ( ! $methods.length ) {
+            return;
+        }
+        $methods.removeClass( 'selected' );
+        $( 'input[name="payment_method"]:checked' )
+            .closest( '.wc_payment_method' )
+            .addClass( 'selected' );
+    }
+
+    // Cambio de método: el click en radio/label dispara 'change' de forma nativa.
+    $( document ).on( 'change', 'input[name="payment_method"]', ccmckSyncSelectedPayment );
+    // Tras un refresco AJAX del checkout, WooCommerce repinta #payment: re-sincronizamos.
+    $( document.body ).on( 'updated_checkout', ccmckSyncSelectedPayment );
+    // Estado inicial al cargar.
+    $( ccmckSyncSelectedPayment );
 
     /* ------------------------------------------------------------------ */
     /*  Acordeón de preguntas frecuentes                                   */

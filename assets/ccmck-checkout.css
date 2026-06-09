@@ -1514,3 +1514,43 @@
 }
 .ccmck .checkout-sidebar .shop_table tfoot tr th,
 .ccmck .checkout-sidebar .shop_table tfoot tr td { display: block; }
+
+/* =============================================================
+   Sprint C — Métodos de pago: refinamiento visual SEGURO.
+   Solo CSS sobre el markup NATIVO de WooCommerce (#payment,
+   ul.wc_payment_methods, li.wc_payment_method, label, .payment_box).
+   El estado .selected lo sincroniza ccmck-checkout.js con el radio
+   marcado. No altera hooks, payment_fields(), #place_order ni nonce.
+   ============================================================= */
+/* Reset de la lista nativa de WC (evita viñetas/márgenes del tema/Elementor). */
+.ccmck #payment ul.wc_payment_methods {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+/* El título del método en payment.php es un <label> (el mockup usaba <span>);
+   igualamos su tipografía sin cambiar el markup. */
+.ccmck .payment-header-left label {
+  font-weight: 600;
+  font-size: 14px;
+  margin: 0;
+  cursor: pointer;
+}
+/* Iconos que entrega el propio gateway ($gateway->get_icon() => <img>) o los
+   configurados en Ajustes: altura uniforme, sin deformar ni desbordar. */
+.ccmck .payment-icons img,
+.ccmck .payment-icons img.ccmck-pay-icon {
+  height: 22px;
+  width: auto;
+  display: block;
+}
+/* Contenido que inyecta el gateway dentro de su .payment_box (descripción y
+   campos propios): respiración y contención, SIN ocultar nada. */
+.ccmck #payment .payment_box p:last-child { margin-bottom: 0; }
+.ccmck #payment .payment_box input,
+.ccmck #payment .payment_box select,
+.ccmck #payment .payment_box textarea { max-width: 100%; }
+/* Responsive móvil: iconos algo más pequeños para no empujar el título. */
+@media (max-width: 960px) {
+  .ccmck .payment-icons img { height: 20px; }
+}
