@@ -1402,11 +1402,13 @@
   color: var(--ccmck-sidebar, #1a1a1a);
   background: #fff;
   box-sizing: border-box;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  transition: border-color 0.2s;
 }
 .ccmck .checkout-main .form-row textarea { min-height: 90px; resize: vertical; }
 /* El kit de Elementor inyecta `border-radius: 100px` en input/textarea :focus.
-   Anulamos ese radius (!important) y mantenemos el borde negro de 2px. */
+   Anulamos ese radius (!important) y damos borde negro de 2px en hover/focus.
+   El padding baja 1px por lado para compensar el +1px de borde y que el campo
+   NO se desplace (estable en box-sizing content-box o border-box). Sin sombra. */
 .ccmck .checkout-main .form-row .input-text:hover,
 .ccmck .checkout-main .form-row textarea:hover,
 .ccmck .checkout-main .form-row select:hover,
@@ -1416,7 +1418,7 @@
   outline: none;
   border: 2px solid #000;
   border-radius: 6px !important;
-  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.12);
+  padding: 11px 13px;
 }
 .ccmck .checkout-main .form-row .input-text::placeholder { color: #aaa; }
 /* Country/state usan select2: igualamos altura y borde al resto. */
@@ -1433,6 +1435,7 @@
 .ccmck .checkout-main .select2-container--focus .select2-selection--single {
   border: 2px solid #000;
   border-radius: 6px !important;
+  padding: 3px 7px;
 }
 @media (max-width: 600px) {
   .ccmck .checkout-main .woocommerce-billing-fields__field-wrapper,
