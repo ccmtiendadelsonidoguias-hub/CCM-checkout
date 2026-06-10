@@ -16,6 +16,38 @@ final class CCMCK_Assets {
             'ajaxUrl' => admin_url( 'admin-ajax.php' ),
             'nonce'   => wp_create_nonce( 'ccmck_cart' ),
         ) );
+
+        // Este sitio tiene un optimizador (LiteSpeed descartado; probable snippet/tema que
+        // engancha style_loader_src/script_loader_src) que ELIMINA el ?ver= de TODOS los
+        // assets. Con max-age de 1 año del hosting, eso deja la caché del navegador clavada.
+        // Re-aplicamos la versión SOLO a los assets de ccmck con prioridad máxima y registro
+        // tardío (estamos en wp_enqueue_scripts) para ejecutarnos DESPUÉS del stripper.
+        add_filter( 'style_loader_src',  array( __CLASS__, 'force_version' ), PHP_INT_MAX, 2 );
+        add_filter( 'script_loader_src', array( __CLASS__, 'force_version' ), PHP_INT_MAX, 2 );
+    }
+
+    /**
+     * Reañade ?ver=<filemtime> a los assets de ccmck si un filtro global lo quitó.
+     *
+     * Ambos assets comparten el handle 'ccmck-checkout' (uno como style, otro como
+     * script), así que distinguimos el archivo por la extensión presente en $src.
+     *
+     * @param string $src    URL del asset (posiblemente ya sin query string).
+     * @param string $handle Handle registrado del asset.
+     * @return string
+     */
+    public static function force_version( string $src, string $handle ): string {
+        if ( 'ccmck-checkout' !== $handle ) {
+            return $src;
+        }
+
+        $relative = ( false !== strpos( $src, '.js' ) )
+            ? 'assets/ccmck-checkout.js'
+            : 'assets/ccmck-checkout.css';
+
+        $src = remove_query_arg( 'ver', $src );
+
+        return add_query_arg( 'ver', self::asset_version( $relative ), $src );
     }
 
     /**
