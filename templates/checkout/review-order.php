@@ -89,7 +89,10 @@ defined( 'ABSPATH' ) || exit;
 
 			<?php do_action( 'woocommerce_review_order_before_shipping' ); ?>
 
-			<?php wc_cart_totals_shipping_html(); ?>
+			<tr class="cart-shipping">
+				<th><?php esc_html_e( 'Envío', 'woocommerce' ); ?></th>
+				<td><?php echo wp_kses_post( WC()->cart->get_cart_shipping_total() ); ?></td>
+			</tr>
 
 			<?php do_action( 'woocommerce_review_order_after_shipping' ); ?>
 
