@@ -1734,9 +1734,11 @@ body > .addi_description_container { display: none !important; }
 /* select2 (Departamento/Población): caja más alta y valor empujado bajo el label. */
 .ccmck .checkout-main .form-row.ccmck-fl-row .select2-container .select2-selection--single { height: 56px; }
 .ccmck .checkout-main .form-row.ccmck-fl-row .select2-container .select2-selection--single .select2-selection__rendered { margin-top: 13px; }
-/* Estado flotado: input enfocado/lleno, o siempre para select/textarea. */
+/* Estado flotado: input enfocado, fila marcada como "llena" por el JS
+   (.ccmck-fl-filled — estable ante el re-render de WC, a diferencia de
+   :placeholder-shown), o siempre para select/textarea. */
 .ccmck .checkout-main .form-row.ccmck-fl-row:has(.input-text:focus) > label.ccmck-fl:not(.checkbox),
-.ccmck .checkout-main .form-row.ccmck-fl-row:has(.input-text:not(:placeholder-shown)) > label.ccmck-fl:not(.checkbox),
+.ccmck .checkout-main .form-row.ccmck-fl-row.ccmck-fl-filled > label.ccmck-fl:not(.checkbox),
 .ccmck .checkout-main .form-row.ccmck-fl-row > label.ccmck-fl.ccmck-fl-always:not(.checkbox) {
   top: 15px;
   transform: translateY(-50%) scale(0.72);

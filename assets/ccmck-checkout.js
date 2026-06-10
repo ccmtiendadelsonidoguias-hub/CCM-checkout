@@ -141,6 +141,9 @@
                 if ( $input.is( 'textarea' ) ) {
                     $label.addClass( 'ccmck-fl-always' );
                 }
+                // Estado "lleno" estable (no depende de :placeholder-shown, que el
+                // re-render de direcciones de WC altera al quitar el placeholder).
+                $row.toggleClass( 'ccmck-fl-filled', $.trim( $input.val() || '' ) !== '' );
             } else if ( $select.length ) {
                 var sid = $select.attr( 'id' ) || '';
                 if ( ! $label.hasClass( 'ccmck-fl' ) ) {
@@ -155,6 +158,11 @@
             }
         } );
     }
+
+    // Mantiene .ccmck-fl-filled al escribir (estado flotado estable).
+    $( document ).on( 'input change', '.checkout-main .form-row .input-text', function () {
+        $( this ).closest( '.form-row' ).toggleClass( 'ccmck-fl-filled', $.trim( $( this ).val() || '' ) !== '' );
+    } );
 
     // Tras un refresco AJAX del checkout, reasegura las clases (idempotente).
     $( document.body ).on( 'updated_checkout', ccmckFloatLabels );
