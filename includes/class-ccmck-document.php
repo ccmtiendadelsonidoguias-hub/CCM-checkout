@@ -13,6 +13,10 @@ final class CCMCK_Document {
         // Prioridad alta (100) para ganarle a cualquier filtro previo que reetiquete
         // billing_postcode (p. ej. una config heredada de CheckoutWC o un snippet).
         add_filter( 'woocommerce_checkout_fields', array( __CLASS__, 'register_fields' ), 100 );
+        // Limpieza final de campos: quita la "Cédula" duplicada, restaura el código postal
+        // y pone placeholders. Prioridad tardía (9999) para correr después de cualquier
+        // filtro que registre/reetiquete campos (plugin viejo, CheckoutWC, etc.).
+        add_filter( 'woocommerce_checkout_fields', array( __CLASS__, 'finalize_fields' ), 9999 );
         add_action( 'woocommerce_after_checkout_validation', array( __CLASS__, 'validate' ), 10, 2 );
         add_action( 'woocommerce_checkout_create_order', array( __CLASS__, 'save_meta' ), 10, 2 );
         add_action( 'woocommerce_admin_order_data_after_billing_address', array( __CLASS__, 'render_admin' ) );
@@ -84,6 +88,81 @@ final class CCMCK_Document {
             $fields['billing']['billing_postcode']['required'] = false;
             $fields['billing']['billing_postcode']['priority'] = 90;
             $fields['billing']['billing_postcode']['class']    = array( 'form-row-wide' );
+        }
+
+        return $fields;
+    }
+
+    /**
+     * Limpieza final de los campos de facturación:
+     *  1. Elimina el campo "Cédula" (billing_id) residual de una config previa
+     *     (CheckoutWC/DB). El documento ya se captura con Tipo + Número de documento;
+     *     ningún gateway lee billing_id (verificado), así que es seguro quitarlo.
+     *  2. Restaura billing_postcode a su rol original (un plugin viejo lo reetiquetaba
+     *     como "Cédula / NIT"): código postal opcional, fuera del bloque de documento.
+     *  3. Garantiza placeholder en cada campo de texto que no lo trae (diseño
+     *     solo-placeholder: los labels se ocultan por CSS).
+     *
+     * @param array $fields Campos del checkout de WooCommerce.
+     * @return array
+     */
+    public static function finalize_fields( array $fields ): array {
+        if ( empty( $fields['billing'] ) || ! is_array( $fields['billing'] ) ) {
+            return $fields;
+        }
+
+        // (1) Cédula duplicada.
+        unset( $fields['billing']['billing_id'] );
+
+        // (2) Código postal original (opcional) — el plugin viejo lo reetiquetaba "Cédula/NIT".
+        if ( isset( $fields['billing']['billing_postcode'] ) && is_array( $fields['billing']['billing_postcode'] ) ) {
+            $fields['billing']['billing_postcode']['label']       = __( 'Código postal (opcional)', 'ccm-checkout' );
+            $fields['billing']['billing_postcode']['placeholder'] = __( 'Código postal', 'ccm-checkout' );
+            $fields['billing']['billing_postcode']['required']    = false;
+        }
+
+        // (3) Orden y columnas según el mockup (checkout-ccm.html): email arriba, país,
+        //     nombre|apellidos, tipo|número de documento, dirección, casa/apto,
+        //     departamento|ciudad (depto primero por la cascada de ciudades), c.postal|teléfono.
+        //     Se preservan las clases funcionales (validate-required, address-field, etc.);
+        //     solo se intercambia la clase de columna (form-row-first/last/wide).
+        $layout = array(
+            'billing_email'      => array( 5,   'form-row-wide' ),
+            'billing_country'    => array( 10,  'form-row-wide' ),
+            'billing_first_name' => array( 20,  'form-row-first' ),
+            'billing_last_name'  => array( 30,  'form-row-last' ),
+            self::TYPE_KEY       => array( 40,  'form-row-first' ),
+            self::NUMBER_KEY     => array( 50,  'form-row-last' ),
+            'billing_address_1'  => array( 60,  'form-row-wide' ),
+            'billing_address_2'  => array( 70,  'form-row-wide' ),
+            'billing_state'      => array( 80,  'form-row-first' ),
+            'billing_city'       => array( 90,  'form-row-last' ),
+            'billing_postcode'   => array( 100, 'form-row-first' ),
+            'billing_phone'      => array( 110, 'form-row-last' ),
+        );
+        $row_classes = array( 'form-row-first', 'form-row-last', 'form-row-wide' );
+        foreach ( $layout as $key => $cfg ) {
+            if ( ! isset( $fields['billing'][ $key ] ) || ! is_array( $fields['billing'][ $key ] ) ) {
+                continue;
+            }
+            $fields['billing'][ $key ]['priority'] = $cfg[0];
+            $classes = isset( $fields['billing'][ $key ]['class'] ) ? (array) $fields['billing'][ $key ]['class'] : array();
+            $classes = array_values( array_diff( $classes, $row_classes ) );
+            $classes[] = $cfg[1];
+            $fields['billing'][ $key ]['class'] = $classes;
+        }
+
+        // (4) Placeholders faltantes.
+        $placeholders = array(
+            self::NUMBER_KEY => __( 'Número de documento', 'ccm-checkout' ),
+            'billing_phone'  => __( 'Teléfono', 'ccm-checkout' ),
+            'billing_email'  => __( 'Correo electrónico', 'ccm-checkout' ),
+        );
+        foreach ( $placeholders as $key => $placeholder ) {
+            if ( isset( $fields['billing'][ $key ] ) && is_array( $fields['billing'][ $key ] )
+                && empty( $fields['billing'][ $key ]['placeholder'] ) ) {
+                $fields['billing'][ $key ]['placeholder'] = $placeholder;
+            }
         }
 
         return $fields;

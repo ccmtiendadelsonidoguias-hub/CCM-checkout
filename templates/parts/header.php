@@ -29,4 +29,14 @@ $s = isset( $s ) ? $s : CCMCK_Settings::all();
 			<?php endforeach; ?>
 		</nav>
 	<?php endif; ?>
+
+	<?php // Acceso al carrito del cliente, en la esquina opuesta al logo. ?>
+	<a href="<?php echo esc_url( function_exists( 'wc_get_cart_url' ) ? wc_get_cart_url() : home_url( '/' ) ); ?>" class="header-cart" aria-label="<?php esc_attr_e( 'Ir al carrito', 'ccm-checkout' ); ?>">
+		<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+			<circle cx="9" cy="21" r="1"></circle>
+			<circle cx="20" cy="21" r="1"></circle>
+			<path d="M1 1h4l2.7 13.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6"></path>
+		</svg>
+		<span><?php esc_html_e( 'Carrito', 'ccm-checkout' ); ?></span>
+	</a>
 </header>
