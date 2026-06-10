@@ -1421,21 +1421,52 @@
   padding: 11px 13px;
 }
 .ccmck .checkout-main .form-row .input-text::placeholder { color: #aaa; }
-/* Country/state usan select2: igualamos altura y borde al resto. */
+
+/* ===== Dropdowns unificados (País, Tipo de documento nativos + select2) =====
+   Chevron consistente y misma altura/borde que los inputs. */
+.ccmck .checkout-main .form-row select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  cursor: pointer;
+  padding: 12px 38px 12px 14px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  background-size: 14px;
+}
+/* En hover/focus el padding baja 1px (vertical e izq) por el borde de 2px;
+   el espacio derecho del chevron (38px) se mantiene. */
+.ccmck .checkout-main .form-row select:hover,
+.ccmck .checkout-main .form-row select:focus { padding: 11px 38px 11px 13px; }
+
+/* Departamento y Ciudad usan select2: igualamos altura (47px), borde y chevron. */
 .ccmck .checkout-main .select2-container .select2-selection--single {
-  height: auto;
-  min-height: 46px;
+  height: 47px;
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   border: 1px solid #d1d1d1;
   border-radius: 6px;
-  padding: 4px 8px;
+  padding: 0 38px 0 14px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  background-size: 14px;
 }
+.ccmck .checkout-main .select2-container .select2-selection--single .select2-selection__rendered {
+  padding: 0;
+  line-height: normal;
+  color: var(--ccmck-sidebar, #1a1a1a);
+  font-size: 14px;
+}
+/* Ocultamos la flecha propia de select2 (usamos el chevron de fondo). */
+.ccmck .checkout-main .select2-container .select2-selection--single .select2-selection__arrow { display: none; }
 .ccmck .checkout-main .select2-container--open .select2-selection--single,
 .ccmck .checkout-main .select2-container--focus .select2-selection--single {
   border: 2px solid #000;
   border-radius: 6px !important;
-  padding: 3px 7px;
+  padding: 0 37px 0 13px;
 }
 @media (max-width: 600px) {
   .ccmck .checkout-main .woocommerce-billing-fields__field-wrapper,
