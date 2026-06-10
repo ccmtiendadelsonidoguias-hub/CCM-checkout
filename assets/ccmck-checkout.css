@@ -1715,9 +1715,9 @@ body > .addi_description_container { display: none !important; }
   color: #9a9a9a;
   pointer-events: none;
   z-index: 2;
-  transition: top 0.22s cubic-bezier(0.22, 0.61, 0.36, 1),
-              transform 0.22s cubic-bezier(0.22, 0.61, 0.36, 1),
-              color 0.22s ease, opacity 0.22s ease;
+  /* Sin transición de posición: el label se reubica al instante. El único
+     efecto visible es el fade-in al reaparecer (animación ccmck-fl-fade). */
+  transition: color 0.22s ease;
   max-width: calc(100% - 52px);
   white-space: nowrap;
   overflow: hidden;
@@ -1741,11 +1741,10 @@ body > .addi_description_container { display: none !important; }
   top: 15px;
   transform: translateY(-50%) scale(0.72);
   color: #555;
-  /* Disolución: el label se desvanece a la mitad mientras sube. */
-  animation: ccmck-fl-dissolve 0.34s ease;
+  /* El label reaparece arriba con un fade-in (sin deslizarse). */
+  animation: ccmck-fl-fade 0.26s ease both;
 }
-@keyframes ccmck-fl-dissolve {
-  0%   { opacity: 1; }
-  45%  { opacity: 0.15; }
-  100% { opacity: 1; }
+@keyframes ccmck-fl-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
