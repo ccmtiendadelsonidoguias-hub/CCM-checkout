@@ -8,6 +8,8 @@ y el proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 ## [Sin publicar]
 
 ### Añadido
+- **Checkout en secciones**: el formulario se reorganiza en **Contacto / Entrega / Métodos de envío / Pago** (encabezados `<h2>`), manteniendo el layout de 2 columnas. El override `templates/checkout/form-billing.php` parte los campos: `billing_email` → Contacto (con enlace "Iniciar sesión" y checkbox de novedades, ambos visuales); el resto → Entrega.
+- **Métodos de envío en la columna principal** como cards (`CCMCK_Shipping`): renderiza los métodos que ya ofrecen las Zonas de Envío de WooCommerce (Coordinadora, Local Pickup) y los mantiene actualizados vía el filtro nativo `woocommerce_update_order_review_fragments`. La selección usa radios `shipping_method[]` nativos (recotización de Coordinadora intacta). El sidebar deja de mostrar el selector y muestra el envío como línea de total.
 - Sección **FAQ** (acordeón) en el sidebar, editable desde *Ajustes → Checkout CCM* (`CCMCK_Faq`).
 - Resumen del pedido como **tarjetas**: miniatura del producto + badge de cantidad + precio unitario ("c/u"); totales como *summary-lines*.
 - **Cache-busting** automático de los assets del checkout vía `filemtime()` (`CCMCK_Assets::asset_version()`): cada cambio en `ccmck-checkout.css`/`.js` actualiza el `?ver=` y rompe caché del navegador. `CCMCK_VERSION` se mantiene como *fallback* si el archivo no existe.
