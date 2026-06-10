@@ -1748,3 +1748,12 @@ body > .addi_description_container { display: none !important; }
   from { opacity: 0; }
   to   { opacity: 1; }
 }
+/* El texto visible de cada campo lo aporta el label flotado, NO el placeholder
+   nativo. WooCommerce re-renderiza los campos de dirección por país y, en ese
+   instante, restaura el placeholder nativo dejando un parpadeo de doble texto
+   (placeholder + label) durante la carga. Lo ocultamos siempre en las filas
+   con floating label para que ese solape no pueda verse nunca. */
+.ccmck .checkout-main .form-row.ccmck-fl-row .input-text::placeholder,
+.ccmck .checkout-main .form-row.ccmck-fl-row textarea::placeholder {
+  color: transparent !important;
+}
