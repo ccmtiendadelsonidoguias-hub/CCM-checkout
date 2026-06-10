@@ -1396,7 +1396,7 @@
 .ccmck .checkout-main .form-row select {
   width: 100%;
   padding: 12px 14px;
-  border: 2px solid #000;
+  border: 1px solid #d1d1d1;
   border-radius: 6px;
   font-size: 14px;
   color: var(--ccmck-sidebar, #1a1a1a);
@@ -1425,7 +1425,7 @@
   min-height: 46px;
   display: flex;
   align-items: center;
-  border: 2px solid #000;
+  border: 1px solid #d1d1d1;
   border-radius: 6px;
   padding: 4px 8px;
 }
