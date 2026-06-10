@@ -101,4 +101,63 @@
         ccmckUpdateQty( $row.data( 'cart-item-key' ), 0 );
     } );
 
+    /* ------------------------------------------------------------------ */
+    /*  Floating labels (estilo Shopify)                                   */
+    /*  El <label> de cada campo hace de placeholder y, al enfocar o       */
+    /*  rellenar, sube y se encoge (lo anima el CSS con :placeholder-shown */
+    /*  y :has). Aquí mostramos el label (P6 lo ocultaba), vaciamos el     */
+    /*  placeholder nativo, acortamos algunos textos y marcamos las filas. */
+    /*  selects y textarea van SIEMPRE flotados. Idempotente: se reejecuta */
+    /*  en updated_checkout sin re-vaciar textos ni duplicar.              */
+    /* ------------------------------------------------------------------ */
+    var CCMCK_FL_SHORT = {
+        billing_address_1: 'Dirección',
+        billing_address_2: 'Apartamento, etc. (opcional)',
+        billing_postcode:  'Código postal (opcional)'
+    };
+
+    function ccmckFloatLabels() {
+        $( '.checkout-main .form-row' ).each( function () {
+            var $row   = $( this );
+            var $label = $row.children( 'label' ).first();
+            if ( ! $label.length || $label.hasClass( 'checkbox' ) ) {
+                return;
+            }
+            var $input  = $row.find( 'input.input-text, textarea' ).first();
+            var $select = $row.find( 'select' ).first();
+            $row.addClass( 'ccmck-fl-row' );
+
+            if ( $input.length ) {
+                var id = $input.attr( 'id' ) || '';
+                var ph = $input.attr( 'placeholder' );
+                if ( ! $label.hasClass( 'ccmck-fl' ) ) {
+                    $label.text( ( CCMCK_FL_SHORT[ id ] || ( ph && ph.trim() ) || $label.text() ).toString().replace( '*', '' ).trim() );
+                }
+                $label.addClass( 'ccmck-fl' );
+                if ( $input.is( 'input' ) && ph !== ' ' ) {
+                    $input.attr( 'placeholder', ' ' );
+                }
+                if ( $input.is( 'textarea' ) ) {
+                    $label.addClass( 'ccmck-fl-always' );
+                }
+            } else if ( $select.length ) {
+                var sid = $select.attr( 'id' ) || '';
+                if ( ! $label.hasClass( 'ccmck-fl' ) ) {
+                    $label.text( ( CCMCK_FL_SHORT[ sid ] || $label.text() ).replace( '*', '' ).trim() );
+                }
+                $label.addClass( 'ccmck-fl ccmck-fl-always' );
+                // Vacía la opción placeholder para que no duplique al label flotado.
+                var $opt = $select.find( 'option[value=""]' ).first();
+                if ( $opt.length ) {
+                    $opt.text( '' );
+                }
+            }
+        } );
+    }
+
+    // Tras un refresco AJAX del checkout, reasegura las clases (idempotente).
+    $( document.body ).on( 'updated_checkout', ccmckFloatLabels );
+    // Estado inicial al cargar.
+    $( ccmckFloatLabels );
+
 } )( jQuery );

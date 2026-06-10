@@ -1690,3 +1690,53 @@ body > .addi_description_container { display: none !important; }
 .ccmck .checkout-main .ccmck-ship-label { font-size: 15px; color: #1a1a1a; }
 .ccmck .checkout-main .ccmck-ship-cost { font-size: 15px; font-weight: 600; color: #1a1a1a; }
 .ccmck .checkout-main .ccmck-no-shipping { font-size: 14px; color: #777; padding: 14px 0; }
+
+/* ===== Floating labels estilo Shopify =====
+   El <label> hace de placeholder y, al enfocar o rellenar, sube y se encoge.
+   Las clases las añade ccmckFloatLabels() en el JS (progressive enhancement:
+   sin JS, los campos quedan con su estilo normal). */
+.ccmck .checkout-main .form-row.ccmck-fl-row { position: relative; }
+.ccmck .checkout-main .form-row.ccmck-fl-row > label.ccmck-fl:not(.checkbox) {
+  display: block !important;
+  position: absolute;
+  left: 15px;
+  top: 50%;
+  /* Anula el recorte de .screen-reader-text que WC pone en labels opcionales. */
+  width: auto !important;
+  height: auto !important;
+  clip: auto !important;
+  clip-path: none !important;
+  transform: translateY(-50%) scale(1);
+  transform-origin: left center;
+  margin: 0 !important;
+  padding: 0;
+  font-size: 14px;
+  font-weight: 400;
+  color: #9a9a9a;
+  pointer-events: none;
+  z-index: 2;
+  transition: top 0.14s ease, transform 0.14s ease, color 0.14s ease;
+  max-width: calc(100% - 52px);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Controles más altos: dejan sitio arriba para el label flotado. */
+.ccmck .checkout-main .form-row.ccmck-fl-row .input-text { padding: 22px 14px 8px; height: auto; }
+.ccmck .checkout-main .form-row.ccmck-fl-row textarea { padding: 24px 14px 8px; }
+.ccmck .checkout-main .form-row.ccmck-fl-row select { padding: 22px 38px 8px 14px; height: auto; }
+.ccmck .checkout-main .form-row.ccmck-fl-row .input-text:hover,
+.ccmck .checkout-main .form-row.ccmck-fl-row .input-text:focus { padding: 21px 13px 7px; }
+.ccmck .checkout-main .form-row.ccmck-fl-row select:hover,
+.ccmck .checkout-main .form-row.ccmck-fl-row select:focus { padding: 21px 37px 7px 13px; }
+/* select2 (Departamento/Población): caja más alta y valor empujado bajo el label. */
+.ccmck .checkout-main .form-row.ccmck-fl-row .select2-container .select2-selection--single { height: 56px; }
+.ccmck .checkout-main .form-row.ccmck-fl-row .select2-container .select2-selection--single .select2-selection__rendered { margin-top: 13px; }
+/* Estado flotado: input enfocado/lleno, o siempre para select/textarea. */
+.ccmck .checkout-main .form-row.ccmck-fl-row:has(.input-text:focus) > label.ccmck-fl:not(.checkbox),
+.ccmck .checkout-main .form-row.ccmck-fl-row:has(.input-text:not(:placeholder-shown)) > label.ccmck-fl:not(.checkbox),
+.ccmck .checkout-main .form-row.ccmck-fl-row > label.ccmck-fl.ccmck-fl-always:not(.checkbox) {
+  top: 15px;
+  transform: translateY(-50%) scale(0.72);
+  color: #555;
+}
