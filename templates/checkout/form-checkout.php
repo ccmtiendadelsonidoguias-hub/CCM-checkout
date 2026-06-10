@@ -49,30 +49,38 @@ remove_action( 'woocommerce_checkout_order_review', 'woocommerce_checkout_paymen
 
 				<?php do_action( 'woocommerce_checkout_before_customer_details' ); ?>
 
-				<div class="col2-set" id="customer_details">
-					<div class="col-1">
-						<?php do_action( 'woocommerce_checkout_billing' ); ?>
-					</div>
-
-					<div class="col-2">
-						<?php do_action( 'woocommerce_checkout_shipping' ); ?>
-					</div>
+				<div id="customer_details">
+					<?php
+					// woocommerce_checkout_billing emite ahora DOS secciones
+					// (Contacto + Entrega) vía el override de form-billing.php.
+					do_action( 'woocommerce_checkout_billing' );
+					do_action( 'woocommerce_checkout_shipping' );
+					?>
 				</div>
 
 				<?php do_action( 'woocommerce_checkout_after_customer_details' ); ?>
 
 			<?php endif; ?>
 
-			<h3 id="order_review_heading"><?php esc_html_e( 'Pago', 'ccm-checkout' ); ?></h3>
+			<section class="ccmck-section ccmck-shipping-section">
+				<h2><?php esc_html_e( 'Métodos de envío', 'ccm-checkout' ); ?></h2>
+				<div id="ccmck_shipping_methods" class="ccmck-shipping-methods">
+					<?php
+					// HTML ya escapado dentro de CCMCK_Shipping::render_cards().
+					echo CCMCK_Shipping::render(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+					?>
+				</div>
+			</section>
 
-			<?php
-			/*
-			 * Pago en la columna principal. woocommerce_checkout_payment() emite el
-			 * <div id="payment" class="woocommerce-checkout-payment"> con los gateways,
-			 * el botón #place_order y el nonce — todo dentro del <form>.
-			 */
-			woocommerce_checkout_payment();
-			?>
+			<section class="ccmck-section ccmck-payment-section">
+				<h2 id="order_review_heading"><?php esc_html_e( 'Pago', 'ccm-checkout' ); ?></h2>
+				<p class="ccmck-secure-note"><?php esc_html_e( 'Todas las transacciones son seguras y están encriptadas.', 'ccm-checkout' ); ?></p>
+				<?php
+				// woocommerce_checkout_payment() emite #payment, los gateways,
+				// el botón #place_order y el nonce — todo dentro del <form>.
+				woocommerce_checkout_payment();
+				?>
+			</section>
 
 			<?php require CCMCK_DIR . 'templates/parts/footer.php'; ?>
 
