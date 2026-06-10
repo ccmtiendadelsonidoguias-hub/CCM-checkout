@@ -134,7 +134,8 @@
                     $label.text( ( CCMCK_FL_SHORT[ id ] || ( ph && ph.trim() ) || $label.text() ).toString().replace( '*', '' ).trim() );
                 }
                 $label.addClass( 'ccmck-fl' );
-                if ( $input.is( 'input' ) && ph !== ' ' ) {
+                // Vacía el placeholder nativo (incluido el de Información adicional/notas).
+                if ( ph !== ' ' ) {
                     $input.attr( 'placeholder', ' ' );
                 }
                 if ( $input.is( 'textarea' ) ) {
