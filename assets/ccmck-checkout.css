@@ -1396,7 +1396,7 @@
 .ccmck .checkout-main .form-row select {
   width: 100%;
   padding: 12px 14px;
-  border: 1px solid #d1d1d1;
+  border: 2px solid #000;
   border-radius: 6px;
   font-size: 14px;
   color: var(--ccmck-sidebar, #1a1a1a);
@@ -1405,12 +1405,18 @@
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 .ccmck .checkout-main .form-row textarea { min-height: 90px; resize: vertical; }
+/* El kit de Elementor inyecta `border-radius: 100px` en input/textarea :focus.
+   Anulamos ese radius (!important) y mantenemos el borde negro de 2px. */
+.ccmck .checkout-main .form-row .input-text:hover,
+.ccmck .checkout-main .form-row textarea:hover,
+.ccmck .checkout-main .form-row select:hover,
 .ccmck .checkout-main .form-row .input-text:focus,
 .ccmck .checkout-main .form-row textarea:focus,
 .ccmck .checkout-main .form-row select:focus {
   outline: none;
-  border-color: var(--ccmck-sidebar, #1a1a1a);
-  box-shadow: 0 0 0 2px rgba(26, 26, 26, 0.08);
+  border: 2px solid #000;
+  border-radius: 6px !important;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.12);
 }
 .ccmck .checkout-main .form-row .input-text::placeholder { color: #aaa; }
 /* Country/state usan select2: igualamos altura y borde al resto. */
@@ -1419,9 +1425,14 @@
   min-height: 46px;
   display: flex;
   align-items: center;
-  border: 1px solid #d1d1d1;
+  border: 2px solid #000;
   border-radius: 6px;
   padding: 4px 8px;
+}
+.ccmck .checkout-main .select2-container--open .select2-selection--single,
+.ccmck .checkout-main .select2-container--focus .select2-selection--single {
+  border: 2px solid #000;
+  border-radius: 6px !important;
 }
 @media (max-width: 600px) {
   .ccmck .checkout-main .woocommerce-billing-fields__field-wrapper,
