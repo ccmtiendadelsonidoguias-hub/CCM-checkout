@@ -68,13 +68,14 @@ final class CCMCK_Shipping {
         $html = '';
         foreach ( $methods as $package ) {
             $index = (int) $package['index'];
+            if ( empty( $package['rates'] ) ) { continue; }
             $html .= '<ul class="ccmck-shipping-list" data-package="' . esc_attr( (string) $index ) . '">';
             foreach ( $package['rates'] as $rate ) {
                 $safe   = preg_replace( '/[^a-z0-9_-]/i', '_', (string) $rate['id'] );
                 $dom_id = 'ccmck_ship_' . $index . '_' . $safe;
                 $sel    = $rate['checked'] ? ' is-selected' : '';
                 $chk    = $rate['checked'] ? ' checked' : '';
-                $html  .= '<li class="ccmck-shipping-method' . $sel . '">';
+                $html  .= '<li class="' . esc_attr( 'ccmck-shipping-method' . $sel ) . '">';
                 $html  .= '<input type="radio" class="shipping_method" name="shipping_method[' . esc_attr( (string) $index ) . ']" data-index="' . esc_attr( (string) $index ) . '" id="' . esc_attr( $dom_id ) . '" value="' . esc_attr( (string) $rate['id'] ) . '"' . $chk . ' />';
                 $html  .= '<label for="' . esc_attr( $dom_id ) . '">';
                 $html  .= '<span class="ccmck-ship-label">' . esc_html( (string) $rate['label'] ) . '</span>';

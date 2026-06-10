@@ -38,11 +38,32 @@ final class ShippingTest extends TestCase {
         $this->assertStringContainsString( 'name="shipping_method[0]"', $html );
         $this->assertStringContainsString( 'value="coordinadora:1"', $html );
         $this->assertStringContainsString( 'Coordinadora', $html );
-        $this->assertStringContainsString( 'checked', $html );
+        $this->assertStringContainsString( ' checked', $html );
         $this->assertStringContainsString( '12.900', $html );
     }
 
     public function test_render_cards_empty_shows_notice(): void {
         $this->assertStringContainsString( 'ccmck-no-shipping', CCMCK_Shipping::render_cards( array() ) );
+    }
+
+    public function test_build_aligns_chosen_per_package_index(): void {
+        $packages = array(
+            array( 'rates' => array( $this->rate( 'a1', 'A1', 100 ), $this->rate( 'a2', 'A2', 200 ) ) ),
+            array( 'rates' => array( $this->rate( 'b1', 'B1', 300 ) ) ),
+        );
+        $out = CCMCK_Shipping::build_methods( $packages, array( 0 => 'a2', 1 => 'b1' ) );
+        $this->assertSame( 1, $out[1]['index'] );
+        $this->assertFalse( $out[0]['rates'][0]['checked'] );
+        $this->assertTrue( $out[0]['rates'][1]['checked'] );
+        $this->assertTrue( $out[1]['rates'][0]['checked'] );
+    }
+
+    public function test_render_cards_skips_package_with_no_rates(): void {
+        $methods = array(
+            array( 'index' => 0, 'rates' => array() ),
+            array( 'index' => 1, 'rates' => array( array( 'id' => 'x', 'label' => 'X', 'cost' => 0.0, 'checked' => true ) ) ),
+        );
+        $html = CCMCK_Shipping::render_cards( $methods );
+        $this->assertSame( 1, substr_count( $html, '<ul' ) );
     }
 }
