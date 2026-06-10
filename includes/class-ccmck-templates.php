@@ -4,6 +4,7 @@ defined( 'ABSPATH' ) || exit;
 final class CCMCK_Templates {
     private const OVERRIDES = array(
         'checkout/form-checkout.php',
+        'checkout/form-billing.php',
         'checkout/review-order.php',
         'checkout/payment.php',
         'checkout/thankyou.php',
