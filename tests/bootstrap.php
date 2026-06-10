@@ -30,8 +30,21 @@ if ( ! function_exists( 'absint' ) ) {
 if ( ! function_exists( '__' ) ) {
     function __( $text, $domain = 'default' ) { return $text; }
 }
+if ( ! function_exists( 'esc_attr' ) ) {
+    function esc_attr( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
+}
+if ( ! function_exists( 'esc_html' ) ) {
+    function esc_html( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
+}
+if ( ! function_exists( 'esc_html__' ) ) {
+    function esc_html__( $s, $d = 'default' ) { return $s; }
+}
+if ( ! function_exists( 'esc_attr__' ) ) {
+    function esc_attr__( $s, $d = 'default' ) { return $s; }
+}
 
 require_once dirname( __DIR__ ) . '/includes/class-ccmck-settings.php';
 require_once dirname( __DIR__ ) . '/includes/class-ccmck-document.php';
 require_once dirname( __DIR__ ) . '/includes/class-ccmck-payments.php';
 require_once dirname( __DIR__ ) . '/includes/class-ccmck-thankyou.php';
+require_once dirname( __DIR__ ) . '/includes/class-ccmck-shipping.php';
