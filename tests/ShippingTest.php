@@ -93,4 +93,26 @@ final class ShippingTest extends TestCase {
     public function test_placeholder_empty_labels_returns_empty_string(): void {
         $this->assertSame( '', CCMCK_Shipping::render_placeholder_cards( array() ) );
     }
+
+    public function test_missing_placeholder_labels_drops_present_case_insensitive(): void {
+        $real        = array( 'Recogida local' );
+        $placeholder = array( 'Coordinadora', 'Recogida local' );
+        $this->assertSame(
+            array( 'Coordinadora' ),
+            CCMCK_Shipping::missing_placeholder_labels( $real, $placeholder )
+        );
+    }
+
+    public function test_missing_placeholder_labels_none_missing(): void {
+        $real        = array( 'Coordinadora', 'Recogida local' );
+        $placeholder = array( 'Coordinadora', 'Recogida local' );
+        $this->assertSame( array(), CCMCK_Shipping::missing_placeholder_labels( $real, $placeholder ) );
+    }
+
+    public function test_missing_placeholder_labels_all_missing_when_no_real(): void {
+        $this->assertSame(
+            array( 'Coordinadora', 'Recogida local' ),
+            CCMCK_Shipping::missing_placeholder_labels( array(), array( 'Coordinadora', 'Recogida local' ) )
+        );
+    }
 }

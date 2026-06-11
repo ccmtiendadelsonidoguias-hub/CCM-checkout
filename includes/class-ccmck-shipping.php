@@ -102,6 +102,28 @@ final class CCMCK_Shipping {
     }
 
     /**
+     * Devuelve los labels de placeholder que NO están entre las tarifas reales
+     * (comparación case-insensitive + trim). PURO.
+     *
+     * @param array<int,string> $real_labels        Labels de tarifas reales presentes.
+     * @param array<int,string> $placeholder_labels  Lista fija de placeholders.
+     * @return array<int,string>
+     */
+    public static function missing_placeholder_labels( array $real_labels, array $placeholder_labels ): array {
+        $norm = array();
+        foreach ( $real_labels as $l ) {
+            $norm[] = strtolower( trim( (string) $l ) );
+        }
+        $missing = array();
+        foreach ( $placeholder_labels as $label ) {
+            if ( ! in_array( strtolower( trim( (string) $label ) ), $norm, true ) ) {
+                $missing[] = $label;
+            }
+        }
+        return $missing;
+    }
+
+    /**
      * Pinta las cards de envío en estado deshabilitado (sin precio) a partir de
      * una lista de títulos. Se usa cuando todavía no hay una dirección que WC
      * pueda cotizar. Método PURO. Devuelve '' si no hay labels (el caller decide
