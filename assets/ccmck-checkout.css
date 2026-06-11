@@ -1702,6 +1702,10 @@ body > .addi_description_container { display: none !important; }
 .ccmck .checkout-main .ccmck-shipping-method--disabled .ccmck-ship-label { color: #777; }
 .ccmck .checkout-main .ccmck-shipping-method--disabled input { accent-color: #b0b0b0; }
 
+/* Ocultar el bloque "Información adicional" (notas del pedido) — no se usa.
+   Cubre el encabezado h3 + el textarea (todo va dentro de este contenedor de WC). */
+.ccmck .checkout-main .woocommerce-additional-fields { display: none; }
+
 /* ===== Floating labels estilo Shopify =====
    El <label> hace de placeholder y, al enfocar o rellenar, sube y se encoge.
    Las clases las añade ccmckFloatLabels() en el JS (progressive enhancement:
