@@ -1502,13 +1502,10 @@
 
 /* --- P4: bloque "Carrito" de WC colado encima del checkout ---
    La página /pago/ incrusta un wp-block-woocommerce-cart (hermano del
-   checkout, fuera de .ccmck) que sangra sobre el layout. En DESKTOP el
-   resumen vive en el sidebar oscuro, así que ocultamos ese bloque
-   duplicado. En MÓVIL (≤960px) el .sidebar-inner se colapsa, por lo que
-   ahí lo dejamos visible como único resumen del pedido. */
-@media (min-width: 961px) {
-  body.woocommerce-checkout .wp-block-woocommerce-cart { display: none !important; }
-}
+   checkout, fuera de .ccmck) que sangra sobre el layout. El resumen real
+   vive en el sidebar oscuro (visible también en móvil), así que ocultamos
+   ese bloque duplicado en TODOS los anchos. */
+body.woocommerce-checkout .wp-block-woocommerce-cart { display: none !important; }
 
 /* --- P5: Puente de la sección de Pago ---
    WooCommerce pinta por defecto #payment y .payment_box con su morado

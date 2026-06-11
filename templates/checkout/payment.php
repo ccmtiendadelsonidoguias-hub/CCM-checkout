@@ -59,7 +59,7 @@ if ( ! wp_doing_ajax() ) {
 
 						<?php if ( $has_box ) : ?>
 							<div class="payment_box payment-body payment_method_<?php echo esc_attr( $gateway->id ); ?>" <?php echo $gateway->chosen ? '' : 'style="display:none;"'; ?>>
-								<?php $gateway->payment_fields(); ?>
+								<?php CCMCK_Payments::render_payment_fields( $gateway ); ?>
 							</div>
 						<?php endif; ?>
 					</li>

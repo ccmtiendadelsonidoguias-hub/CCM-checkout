@@ -4,30 +4,43 @@ defined( 'ABSPATH' ) || exit;
 final class CCMCK_Payments {
     public static function init(): void {
         add_filter( 'woocommerce_available_payment_gateways', array( __CLASS__, 'apply_settings' ) );
-        // Addi imprime su descripción con <div> dentro de <b> (HTML inválido). Eso hace que
-        // el parser del navegador esparza <b> sueltos por la página, llegando a envolver el
-        // <aside> del resumen y a romper el layout de la grilla. Cambiamos <b> por <span>
-        // (mismo estilo visual, pero NO es "elemento de formato", así que no dispara ese bug).
-        add_filter( 'woocommerce_gateway_description', array( __CLASS__, 'sanitize_addi_description' ), 100, 2 );
     }
 
     /**
-     * Reemplaza <b>…</b> por <span>…</span> en la descripción del gateway de Addi para
-     * evitar la corrupción de DOM que provoca su HTML inválido.
+     * Renderiza los campos de pago de un gateway. Para Addi —que imprime su
+     * descripción con <div> dentro de <b> (HTML inválido), lo que hace que el
+     * parser del navegador esparza <b> sueltos por la página y termine
+     * envolviendo el <aside> del resumen, rompiendo la grilla— bufferiza la
+     * salida y convierte los <b> en <span> (mismo render, pero <span> NO es
+     * "elemento de formato": no dispara la corrupción). El resto de gateways
+     * se imprimen sin cambios. Se llama desde templates/checkout/payment.php.
      *
-     * @param string $description Descripción HTML del gateway.
-     * @param string $gateway_id  ID del gateway.
-     * @return string
+     * NOTA: Addi pinta su HTML directo en payment_fields(), NO vía
+     * get_description()/woocommerce_gateway_description, por eso hay que
+     * bufferizar aquí en lugar de filtrar la descripción.
      */
-    public static function sanitize_addi_description( $description, $gateway_id ) {
-        $description = (string) $description;
-        if ( false === stripos( (string) $gateway_id, 'addi' )
-            && false === strpos( $description, 'addi_description_container' ) ) {
-            return $description;
+    public static function render_payment_fields( $gateway ): void {
+        $id = is_object( $gateway ) && isset( $gateway->id ) ? (string) $gateway->id : '';
+        if ( false === stripos( $id, 'addi' ) ) {
+            $gateway->payment_fields();
+            return;
         }
-        $description = preg_replace( '/<b(\s[^>]*)?>/i', '<span$1>', $description );
-        $description = str_ireplace( '</b>', '</span>', $description );
-        return $description;
+        ob_start();
+        $gateway->payment_fields();
+        echo self::fix_b_tags( (string) ob_get_clean() ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+    }
+
+    /**
+     * Convierte <b …>…</b> en <span …>…</span> conservando atributos. PURO.
+     * Neutraliza el <div> dentro de <b> que corrompe el DOM (un <span> sí puede
+     * contener bloques sin disparar el "adoption agency" del parser).
+     */
+    public static function fix_b_tags( string $html ): string {
+        if ( false === stripos( $html, '<b' ) ) {
+            return $html;
+        }
+        $html = preg_replace( '/<b(\s[^>]*)?>/i', '<span$1>', $html );
+        return str_ireplace( '</b>', '</span>', $html );
     }
 
     public static function apply_settings( array $gateways ): array {
