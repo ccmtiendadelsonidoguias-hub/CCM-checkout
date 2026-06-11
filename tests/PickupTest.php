@@ -41,4 +41,27 @@ final class PickupTest extends TestCase {
         $this->assertArrayHasKey( 'coordinadora:3', $rates );
         $this->assertArrayHasKey( CCMCK_Pickup::RATE_ID, $rates );
     }
+
+    public function test_relax_fields_makes_address_optional_when_pickup(): void {
+        $fields = array( 'billing' => array(
+            'billing_address_1' => array( 'required' => true,  'label' => 'Dirección' ),
+            'billing_city'      => array( 'required' => true,  'label' => 'Ciudad' ),
+            'billing_state'     => array( 'required' => true,  'label' => 'Departamento' ),
+            'billing_email'     => array( 'required' => true,  'label' => 'Email' ),
+        ) );
+        $out = CCMCK_Pickup::relax_fields( $fields, true );
+        $this->assertFalse( $out['billing']['billing_address_1']['required'] );
+        $this->assertFalse( $out['billing']['billing_city']['required'] );
+        $this->assertFalse( $out['billing']['billing_state']['required'] );
+        // El email NO es un campo de dirección: sigue obligatorio.
+        $this->assertTrue( $out['billing']['billing_email']['required'] );
+    }
+
+    public function test_relax_fields_noop_when_not_pickup(): void {
+        $fields = array( 'billing' => array(
+            'billing_address_1' => array( 'required' => true ),
+        ) );
+        $out = CCMCK_Pickup::relax_fields( $fields, false );
+        $this->assertTrue( $out['billing']['billing_address_1']['required'] );
+    }
 }

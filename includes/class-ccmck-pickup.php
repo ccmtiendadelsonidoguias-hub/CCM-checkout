@@ -44,4 +44,23 @@ final class CCMCK_Pickup {
         $rates[ self::RATE_ID ] = new WC_Shipping_Rate( self::RATE_ID, self::LABEL, 0.0, array(), 'local_pickup' );
         return $rates;
     }
+
+    /**
+     * Marca como NO obligatorios los campos de dirección cuando $is_pickup. PURO.
+     *
+     * @param array $fields Estructura de woocommerce_checkout_fields.
+     * @param bool  $is_pickup
+     * @return array
+     */
+    public static function relax_fields( array $fields, bool $is_pickup ): array {
+        if ( ! $is_pickup || empty( $fields['billing'] ) || ! is_array( $fields['billing'] ) ) {
+            return $fields;
+        }
+        foreach ( self::ADDRESS_FIELDS as $key ) {
+            if ( isset( $fields['billing'][ $key ] ) && is_array( $fields['billing'][ $key ] ) ) {
+                $fields['billing'][ $key ]['required'] = false;
+            }
+        }
+        return $fields;
+    }
 }
