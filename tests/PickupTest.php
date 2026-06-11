@@ -64,4 +64,22 @@ final class PickupTest extends TestCase {
         $out = CCMCK_Pickup::relax_fields( $fields, false );
         $this->assertTrue( $out['billing']['billing_address_1']['required'] );
     }
+
+    public function test_current_is_pickup_reads_post_array(): void {
+        $_POST['shipping_method'] = array( 0 => CCMCK_Pickup::RATE_ID );
+        try {
+            $this->assertTrue( CCMCK_Pickup::current_is_pickup() );
+        } finally {
+            unset( $_POST['shipping_method'] );
+        }
+    }
+
+    public function test_current_is_pickup_reads_post_scalar(): void {
+        $_POST['shipping_method'] = 'coordinadora:3';
+        try {
+            $this->assertFalse( CCMCK_Pickup::current_is_pickup() );
+        } finally {
+            unset( $_POST['shipping_method'] );
+        }
+    }
 }

@@ -45,6 +45,11 @@ if ( ! function_exists( 'esc_attr__' ) ) {
 if ( ! function_exists( 'apply_filters' ) ) {
     function apply_filters( $hook, $value ) { return $value; }
 }
+if ( ! function_exists( 'wp_unslash' ) ) {
+    function wp_unslash( $value ) {
+        return is_array( $value ) ? array_map( 'wp_unslash', $value ) : stripslashes( (string) $value );
+    }
+}
 
 if ( ! class_exists( 'WC_Shipping_Rate' ) ) {
     class WC_Shipping_Rate {

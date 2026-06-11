@@ -72,7 +72,7 @@ final class CCMCK_Pickup {
     /** ¿El método elegido ahora mismo es pickup? Lee POST (submit/AJAX) o sesión. */
     public static function current_is_pickup(): bool {
         if ( isset( $_POST['shipping_method'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification
-            $posted = wp_unslash( $_POST['shipping_method'] ); // phpcs:ignore
+            $posted = wp_unslash( $_POST['shipping_method'] ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
             $posted = is_array( $posted ) ? array_map( 'sanitize_text_field', $posted ) : array( sanitize_text_field( (string) $posted ) );
             return self::chosen_is_pickup( $posted );
         }
