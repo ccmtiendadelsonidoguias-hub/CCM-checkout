@@ -1219,6 +1219,20 @@
     font-weight: 700;
     color: #fff;
   }
+  /* Neutraliza el hover/focus del tema (pone color e outline magenta #cc3366):
+     mantenemos el look propio, con un realce sutil del fondo y sin outline feo. */
+  .ccmck .mobile-summary-toggle:hover,
+  .ccmck .mobile-summary-toggle:focus,
+  .ccmck .mobile-summary-toggle:active {
+    background: #2a2a2a;
+    outline: none;
+    box-shadow: none;
+  }
+  .ccmck .mobile-summary-toggle:hover .toggle-left,
+  .ccmck .mobile-summary-toggle:focus .toggle-left { color: var(--ccmck-accent, #e63946); }
+  .ccmck .mobile-summary-toggle:hover .toggle-price,
+  .ccmck .mobile-summary-toggle:focus .toggle-price { color: #fff; }
+  .ccmck .mobile-summary-toggle:focus-visible { outline: 2px solid var(--ccmck-accent, #e63946); outline-offset: -2px; }
   /* En móvil el resumen arranca CERRADO: solo se ve .mobile-summary-toggle con
      el total. Al pulsarlo, ccmck-checkout.js hace slideToggle de .sidebar-inner. */
   .ccmck .sidebar-inner {
