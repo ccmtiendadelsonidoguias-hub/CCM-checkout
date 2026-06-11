@@ -173,17 +173,23 @@ final class CCMCK_Shipping {
         $chosen   = WC()->session ? (array) WC()->session->get( 'chosen_shipping_methods' ) : array();
         $methods  = self::build_methods( $packages, $chosen );
 
-        // ¿Hay alguna tarifa real cotizada? Entonces, cards normales.
+        // Labels de las tarifas reales presentes (para no duplicar como placeholder).
+        $real_labels = array();
+        $has_real    = false;
         foreach ( $methods as $package ) {
-            if ( ! empty( $package['rates'] ) ) {
-                return self::render_cards( $methods );
+            foreach ( $package['rates'] as $rate ) {
+                $has_real      = true;
+                $real_labels[] = (string) $rate['label'];
             }
         }
 
-        // Sin dirección que WC pueda cotizar: cards deshabilitadas con la lista
-        // fija de métodos. Si está vacía, fallback al aviso.
-        $placeholder = self::render_placeholder_cards( self::placeholder_labels() );
-        return '' !== $placeholder ? $placeholder : self::render_cards( array() );
+        $missing = self::missing_placeholder_labels( $real_labels, self::placeholder_labels() );
+
+        $html  = $has_real ? self::render_cards( $methods ) : '';
+        $html .= self::render_placeholder_cards( $missing );
+
+        // Sin nada que mostrar (ni reales ni placeholders): aviso fallback.
+        return '' !== $html ? $html : self::render_cards( array() );
     }
 
     /**
