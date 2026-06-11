@@ -1535,6 +1535,38 @@
    garantiza la separación con el bloque siguiente. */
 .ccmck .ccmck-payment-section { display: flow-root; }
 
+/* --- Notices de WooCommerce (errores/avisos del checkout) ---
+   checkout.js los inserta como PRIMER hijo de form.checkout, que es nuestro
+   GRID de 2 columnas → sin esto ocupan una celda y descuadran todo el layout.
+   grid-column:1/-1 los pone a ancho completo arriba; y se re-estilan porque el
+   reset .ccmck * { margin:0; padding:0 } los deja sin formato. */
+.ccmck .checkout-wrapper > .woocommerce-NoticeGroup { grid-column: 1 / -1; }
+.ccmck .woocommerce-NoticeGroup { margin: 0 0 24px; }
+.ccmck .woocommerce-error,
+.ccmck .woocommerce-message,
+.ccmck .woocommerce-info {
+  list-style: none;
+  margin: 0;
+  padding: 16px 18px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.ccmck .woocommerce-error { background: #fdecec; border: 1px solid #f3bcbc; color: #a12626; }
+.ccmck .woocommerce-message { background: #eef8ef; border: 1px solid #bfe3c4; color: #2e6b34; }
+.ccmck .woocommerce-info { background: #eef3fb; border: 1px solid #c2d4ee; color: #2a4d80; }
+.ccmck .woocommerce-error li,
+.ccmck .woocommerce-message li,
+.ccmck .woocommerce-info li { margin: 0; padding: 0; list-style: none; }
+.ccmck .woocommerce-error li + li { margin-top: 6px; }
+/* Oculta el icono de fuente por defecto de WC (se solapaba con el texto). */
+.ccmck .woocommerce-error::before,
+.ccmck .woocommerce-message::before,
+.ccmck .woocommerce-info::before { content: none; display: none; }
+.ccmck .woocommerce-error a,
+.ccmck .woocommerce-message a,
+.ccmck .woocommerce-info a { color: inherit; text-decoration: underline; }
+
 /* --- P4: bloque "Carrito" de WC colado encima del checkout ---
    La página /pago/ incrusta un wp-block-woocommerce-cart (hermano del
    checkout, fuera de .ccmck) que sangra sobre el layout. El resumen real
