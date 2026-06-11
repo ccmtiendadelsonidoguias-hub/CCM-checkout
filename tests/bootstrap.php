@@ -46,6 +46,19 @@ if ( ! function_exists( 'apply_filters' ) ) {
     function apply_filters( $hook, $value ) { return $value; }
 }
 
+if ( ! class_exists( 'WC_Shipping_Rate' ) ) {
+    class WC_Shipping_Rate {
+        public $id; public $label; public $cost; public $taxes; public $method_id;
+        public function __construct( $id = '', $label = '', $cost = 0, $taxes = array(), $method_id = '' ) {
+            $this->id = $id; $this->label = $label; $this->cost = $cost;
+            $this->taxes = $taxes; $this->method_id = $method_id;
+        }
+        public function get_id() { return $this->id; }
+        public function get_label() { return $this->label; }
+        public function get_cost() { return $this->cost; }
+    }
+}
+
 require_once dirname( __DIR__ ) . '/includes/class-ccmck-settings.php';
 require_once dirname( __DIR__ ) . '/includes/class-ccmck-document.php';
 require_once dirname( __DIR__ ) . '/includes/class-ccmck-payments.php';

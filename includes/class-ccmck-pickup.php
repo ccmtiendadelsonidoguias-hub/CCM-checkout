@@ -27,4 +27,21 @@ final class CCMCK_Pickup {
         }
         return false;
     }
+
+    /**
+     * Inyecta la tarifa gratis de pickup en las tarifas del paquete. Idempotente.
+     * Filtro woocommerce_package_rates.
+     *
+     * @param array $rates   rate_id => WC_Shipping_Rate
+     * @param array $package Paquete de envío (no usado; firma del filtro).
+     * @return array
+     */
+    public static function inject( $rates, $package = array() ): array {
+        $rates = is_array( $rates ) ? $rates : array();
+        if ( isset( $rates[ self::RATE_ID ] ) || ! class_exists( 'WC_Shipping_Rate' ) ) {
+            return $rates;
+        }
+        $rates[ self::RATE_ID ] = new WC_Shipping_Rate( self::RATE_ID, self::LABEL, 0.0, array(), 'local_pickup' );
+        return $rates;
+    }
 }

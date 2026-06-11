@@ -20,4 +20,25 @@ final class PickupTest extends TestCase {
         $this->assertFalse( CCMCK_Pickup::chosen_is_pickup( array( 0 => 'coordinadora:3' ) ) );
         $this->assertFalse( CCMCK_Pickup::chosen_is_pickup( array() ) );
     }
+
+    public function test_inject_adds_free_pickup_rate(): void {
+        $rates = CCMCK_Pickup::inject( array(), array() );
+        $this->assertArrayHasKey( CCMCK_Pickup::RATE_ID, $rates );
+        $rate = $rates[ CCMCK_Pickup::RATE_ID ];
+        $this->assertSame( 'Recogida local', $rate->get_label() );
+        $this->assertSame( 0.0, (float) $rate->get_cost() );
+    }
+
+    public function test_inject_is_idempotent(): void {
+        $rates = CCMCK_Pickup::inject( array(), array() );
+        $again = CCMCK_Pickup::inject( $rates, array() );
+        $this->assertCount( 1, $again );
+    }
+
+    public function test_inject_preserves_existing_rates(): void {
+        $existing = array( 'coordinadora:3' => new WC_Shipping_Rate( 'coordinadora:3', 'Coordinadora', 19350 ) );
+        $rates = CCMCK_Pickup::inject( $existing, array() );
+        $this->assertArrayHasKey( 'coordinadora:3', $rates );
+        $this->assertArrayHasKey( CCMCK_Pickup::RATE_ID, $rates );
+    }
 }
