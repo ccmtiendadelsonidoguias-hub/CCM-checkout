@@ -42,6 +42,9 @@ if ( ! function_exists( 'esc_html__' ) ) {
 if ( ! function_exists( 'esc_attr__' ) ) {
     function esc_attr__( $s, $d = 'default' ) { return $s; }
 }
+if ( ! function_exists( 'apply_filters' ) ) {
+    function apply_filters( $hook, $value ) { return $value; }
+}
 
 require_once dirname( __DIR__ ) . '/includes/class-ccmck-settings.php';
 require_once dirname( __DIR__ ) . '/includes/class-ccmck-document.php';

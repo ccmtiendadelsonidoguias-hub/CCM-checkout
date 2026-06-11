@@ -88,80 +88,17 @@ final class CCMCK_Shipping {
     }
 
     /**
-     * Extrae los títulos de los métodos de envío habilitados a partir de una
-     * lista normalizada de zonas. Método PURO (sin globals) para poder testearlo.
-     * Devuelve títulos únicos, en orden de aparición, descartando los
-     * deshabilitados y los vacíos.
-     *
-     * @param array<int,array{methods:array<int,array{title:string,enabled:bool}>}> $zones
-     * @return array<int,string>
-     */
-    public static function collect_zone_method_labels( array $zones ): array {
-        $labels = array();
-        foreach ( $zones as $zone ) {
-            $methods = ( isset( $zone['methods'] ) && is_array( $zone['methods'] ) ) ? $zone['methods'] : array();
-            foreach ( $methods as $method ) {
-                if ( empty( $method['enabled'] ) ) { continue; }
-                $title = trim( (string) ( $method['title'] ?? '' ) );
-                if ( '' === $title || in_array( $title, $labels, true ) ) { continue; }
-                $labels[] = $title;
-            }
-        }
-        return $labels;
-    }
-
-    /**
-     * Normaliza los métodos de UNA zona a [['title'=>, 'enabled'=>bool], …].
-     * Maneja las dos formas que entrega WC: las zonas de
-     * WC_Shipping_Zones::get_zones() son ARRAYS con los métodos bajo la clave
-     * 'shipping_methods'; la zona 0 (get_zone(0)) es un OBJETO con
-     * get_shipping_methods(). Método PURO (acepta stubs) para poder testearlo.
-     *
-     * @param array|object|mixed $zone
-     * @return array<int,array{title:string,enabled:bool}>
-     */
-    public static function extract_zone_methods( $zone ): array {
-        $objs = array();
-        if ( is_array( $zone ) && isset( $zone['shipping_methods'] ) && is_array( $zone['shipping_methods'] ) ) {
-            $objs = $zone['shipping_methods'];
-        } elseif ( is_object( $zone ) && method_exists( $zone, 'get_shipping_methods' ) ) {
-            $objs = (array) $zone->get_shipping_methods( false );
-        }
-
-        $out = array();
-        foreach ( $objs as $method ) {
-            if ( ! is_object( $method ) ) { continue; }
-            if ( method_exists( $method, 'get_title' ) ) {
-                $title = (string) $method->get_title();
-            } else {
-                $title = isset( $method->title ) ? (string) $method->title : '';
-            }
-            $enabled = isset( $method->enabled ) ? ( 'yes' === $method->enabled ) : true;
-            $out[] = array( 'title' => $title, 'enabled' => $enabled );
-        }
-        return $out;
-    }
-
-    /**
-     * Lee los métodos habilitados en todas las Zonas de Envío de WooCommerce
-     * (incluida la zona 0 "Resto del mundo") y los normaliza para
-     * collect_zone_method_labels(). Devuelve [] si WC no está disponible.
+     * Lista fija de métodos a mostrar como placeholder cuando todavía no hay
+     * una dirección que WooCommerce pueda cotizar. No se leen de las Zonas de
+     * Envío porque Coordinadora se inyecta dinámicamente (no es un método de
+     * zona) y la zona trae métodos internos que el cliente no usa. Filtrable
+     * con `ccmck_shipping_placeholder_labels` por si cambian las opciones.
      *
      * @return array<int,string>
      */
-    public static function get_zone_method_labels(): array {
-        if ( ! class_exists( 'WC_Shipping_Zones' ) ) {
-            return array();
-        }
-        $zones = WC_Shipping_Zones::get_zones();
-        $zones = is_array( $zones ) ? array_values( $zones ) : array();
-        $zones[] = WC_Shipping_Zones::get_zone( 0 ); // Resto del mundo.
-
-        $normalized = array();
-        foreach ( $zones as $zone ) {
-            $normalized[] = array( 'methods' => self::extract_zone_methods( $zone ) );
-        }
-        return self::collect_zone_method_labels( $normalized );
+    public static function placeholder_labels(): array {
+        $labels = array( 'Coordinadora', 'Recogida local' );
+        return (array) apply_filters( 'ccmck_shipping_placeholder_labels', $labels );
     }
 
     /**
@@ -221,9 +158,9 @@ final class CCMCK_Shipping {
             }
         }
 
-        // Sin dirección que WC pueda cotizar: cards deshabilitadas con los
-        // métodos que ofrecen las Zonas de Envío. Si no hay ninguno, fallback.
-        $placeholder = self::render_placeholder_cards( self::get_zone_method_labels() );
+        // Sin dirección que WC pueda cotizar: cards deshabilitadas con la lista
+        // fija de métodos. Si está vacía, fallback al aviso.
+        $placeholder = self::render_placeholder_cards( self::placeholder_labels() );
         return '' !== $placeholder ? $placeholder : self::render_cards( array() );
     }
 

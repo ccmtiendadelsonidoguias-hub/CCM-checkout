@@ -67,38 +67,13 @@ final class ShippingTest extends TestCase {
         $this->assertSame( 1, substr_count( $html, '<ul' ) );
     }
 
-    // --- collect_zone_method_labels (PURO) ---
+    // --- placeholder_labels (lista fija filtrable) ---
 
-    public function test_collect_labels_keeps_only_enabled_and_unique_in_order(): void {
-        $zones = array(
-            array( 'methods' => array(
-                array( 'title' => 'Coordinadora', 'enabled' => true ),
-                array( 'title' => 'Servientrega', 'enabled' => false ),
-            ) ),
-            array( 'methods' => array(
-                array( 'title' => 'Recoger en tienda', 'enabled' => true ),
-                array( 'title' => 'Coordinadora', 'enabled' => true ), // duplicado
-            ) ),
-        );
+    public function test_placeholder_labels_defaults_to_coordinadora_and_pickup(): void {
         $this->assertSame(
-            array( 'Coordinadora', 'Recoger en tienda' ),
-            CCMCK_Shipping::collect_zone_method_labels( $zones )
+            array( 'Coordinadora', 'Recogida local' ),
+            CCMCK_Shipping::placeholder_labels()
         );
-    }
-
-    public function test_collect_labels_drops_empty_titles(): void {
-        $zones = array(
-            array( 'methods' => array(
-                array( 'title' => '', 'enabled' => true ),
-                array( 'title' => '   ', 'enabled' => true ),
-                array( 'title' => 'Coordinadora', 'enabled' => true ),
-            ) ),
-        );
-        $this->assertSame( array( 'Coordinadora' ), CCMCK_Shipping::collect_zone_method_labels( $zones ) );
-    }
-
-    public function test_collect_labels_empty_input(): void {
-        $this->assertSame( array(), CCMCK_Shipping::collect_zone_method_labels( array() ) );
     }
 
     // --- render_placeholder_cards (PURO) ---
@@ -117,55 +92,5 @@ final class ShippingTest extends TestCase {
 
     public function test_placeholder_empty_labels_returns_empty_string(): void {
         $this->assertSame( '', CCMCK_Shipping::render_placeholder_cards( array() ) );
-    }
-
-    // --- extract_zone_methods (PURO) ---
-
-    /** Stub de WC_Shipping_Method: get_title() + propiedad enabled ('yes'/'no'). */
-    private function shipMethod( string $title, string $enabled ): object {
-        return new class( $title, $enabled ) {
-            public $enabled; private $t;
-            public function __construct( $t, $e ) { $this->t = $t; $this->enabled = $e; }
-            public function get_title() { return $this->t; }
-        };
-    }
-
-    public function test_extract_from_array_zone_reads_shipping_methods_key(): void {
-        // get_zones() entrega cada zona como ARRAY con los métodos bajo 'shipping_methods'.
-        $zone = array( 'shipping_methods' => array(
-            $this->shipMethod( 'Coordinadora', 'yes' ),
-            $this->shipMethod( 'Servientrega', 'no' ),
-        ) );
-        $this->assertSame(
-            array(
-                array( 'title' => 'Coordinadora', 'enabled' => true ),
-                array( 'title' => 'Servientrega', 'enabled' => false ),
-            ),
-            CCMCK_Shipping::extract_zone_methods( $zone )
-        );
-    }
-
-    public function test_extract_from_object_zone_calls_get_shipping_methods(): void {
-        // get_zone(0) entrega un OBJETO con get_shipping_methods().
-        $zone = new class {
-            public $list;
-            public function __construct() {
-                $m = new class {
-                    public $enabled = 'yes';
-                    public function get_title() { return 'Recoger en tienda'; }
-                };
-                $this->list = array( $m );
-            }
-            public function get_shipping_methods( $enabled_only = false ) { return $this->list; }
-        };
-        $this->assertSame(
-            array( array( 'title' => 'Recoger en tienda', 'enabled' => true ) ),
-            CCMCK_Shipping::extract_zone_methods( $zone )
-        );
-    }
-
-    public function test_extract_unknown_zone_shape_returns_empty(): void {
-        $this->assertSame( array(), CCMCK_Shipping::extract_zone_methods( array() ) );
-        $this->assertSame( array(), CCMCK_Shipping::extract_zone_methods( 'nope' ) );
     }
 }
