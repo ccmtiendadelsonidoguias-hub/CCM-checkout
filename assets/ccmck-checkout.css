@@ -3,7 +3,7 @@
 /* ===== RESET & BASE ===== */
 .ccmck *, .ccmck *::before, .ccmck *::after { box-sizing: border-box; margin: 0; padding: 0; }
 .ccmck {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-family: 'Founder Grotesk CCM', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   color: var(--ccmck-sidebar, #1a1a1a);
   background: #fff;
   line-height: 1.5;
@@ -11,6 +11,18 @@
 }
 .ccmck a { color: var(--ccmck-sidebar, #1a1a1a); text-decoration: underline; }
 .ccmck a:hover { color: #555; }
+
+/* ===== TIPOGRAFÍA — Founder Grotesk CCM =====
+   Aplica la fuente de marca a los textos y controles del checkout. Se listan
+   explícitamente los elementos porque el tema/Elementor fija font-family propia
+   en encabezados/labels y los controles de formulario no heredan font-family.
+   NO se usa el selector universal para no romper los iconos de fuente. */
+.ccmck .checkout-main,
+.ccmck .checkout-sidebar { font-family: 'Founder Grotesk CCM', sans-serif; }
+.ccmck .checkout-main :is(h1, h2, h3, h4, p, a, span, li, label, input, select, textarea, button),
+.ccmck .checkout-sidebar :is(h1, h2, h3, h4, p, a, span, li, label, button) {
+  font-family: 'Founder Grotesk CCM', sans-serif;
+}
 
 /* ===== CHECKOUT LAYOUT ===== */
 .ccmck .checkout-wrapper {
@@ -1692,7 +1704,7 @@ body > .addi_description_container { display: none !important; }
 .ccmck .checkout-main .ccmck-no-shipping { font-size: 14px; color: #777; padding: 14px 0; }
 
 /* Estado deshabilitado: métodos visibles sin dirección cotizable (gris, no seleccionable). */
-.ccmck .checkout-main .ccmck-shipping-hint { font-size: 13px; color: #888; margin: 0 0 10px; }
+.ccmck .checkout-main .ccmck-shipping-hint { font-size: 13px; color: #888; margin: 10px 0 10px; }
 .ccmck .checkout-main .ccmck-shipping-list--disabled { opacity: 0.55; pointer-events: none; }
 .ccmck .checkout-main .ccmck-shipping-method--disabled label {
   border-style: dashed;
