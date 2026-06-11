@@ -1090,14 +1090,14 @@
   gap: 14px;
   margin-top: 20px;
   padding: 16px 20px;
-  background: #e8f5e9;
-  border: 1px solid #c8e6c9;
-  border-radius: 10px;
+  background: #fff;
+  border: 1px solid #d1d1d1;
+  border-radius: 8px;
   cursor: pointer;
   text-decoration: none;
-  transition: background 0.15s;
+  transition: border-color 0.15s, background 0.15s;
 }
-.ccmck .whatsapp-cta:hover { background: #c8e6c9; }
+.ccmck .whatsapp-cta:hover { border-color: var(--ccmck-sidebar, #1a1a1a); background: #fafafa; }
 .ccmck .whatsapp-cta .wa-icon {
   width: 40px;
   height: 40px;
