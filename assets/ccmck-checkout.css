@@ -1515,6 +1515,12 @@
 /* Aire entre la sección de pago y el bloque de privacidad/términos/botón. */
 .ccmck .form-row.place-order { margin-top: 26px; }
 
+/* La sección de Pago contiene sus propios márgenes (BFC): si no, el margin-top
+   del botón #place_order "se escapa" de la sección y el botón se desborda por
+   debajo, dejando el CTA de WhatsApp pegado/encima. flow-root lo contiene y
+   garantiza la separación con el bloque siguiente. */
+.ccmck .ccmck-payment-section { display: flow-root; }
+
 /* --- P4: bloque "Carrito" de WC colado encima del checkout ---
    La página /pago/ incrusta un wp-block-woocommerce-cart (hermano del
    checkout, fuera de .ccmck) que sangra sobre el layout. El resumen real
