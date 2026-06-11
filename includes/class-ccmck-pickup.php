@@ -63,4 +63,27 @@ final class CCMCK_Pickup {
         }
         return $fields;
     }
+
+    public static function init(): void {
+        add_filter( 'woocommerce_package_rates', array( __CLASS__, 'inject' ), 10, 2 );
+        add_filter( 'woocommerce_checkout_fields', array( __CLASS__, 'relax_checkout_fields' ), 9999 );
+    }
+
+    /** ¿El método elegido ahora mismo es pickup? Lee POST (submit/AJAX) o sesión. */
+    public static function current_is_pickup(): bool {
+        if ( isset( $_POST['shipping_method'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification
+            $posted = wp_unslash( $_POST['shipping_method'] ); // phpcs:ignore
+            $posted = is_array( $posted ) ? array_map( 'sanitize_text_field', $posted ) : array( sanitize_text_field( (string) $posted ) );
+            return self::chosen_is_pickup( $posted );
+        }
+        if ( function_exists( 'WC' ) && WC()->session ) {
+            return self::chosen_is_pickup( (array) WC()->session->get( 'chosen_shipping_methods' ) );
+        }
+        return false;
+    }
+
+    /** Filtro woocommerce_checkout_fields: relaja la dirección si pickup. */
+    public static function relax_checkout_fields( $fields ) {
+        return self::relax_fields( is_array( $fields ) ? $fields : array(), self::current_is_pickup() );
+    }
 }
