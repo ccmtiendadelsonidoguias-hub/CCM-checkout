@@ -169,4 +169,26 @@
     // Estado inicial al cargar.
     $( ccmckFloatLabels );
 
+    /* ------------------------------------------------------------------ */
+    /*  Recogida local: al elegir pickup, los campos de dirección dejan    */
+    /*  de ser obligatorios (UX; el servidor es la fuente de verdad).      */
+    /* ------------------------------------------------------------------ */
+    var CCMCK_PICKUP_ID = 'ccmck_local_pickup';
+    var CCMCK_ADDR_IDS  = [ 'billing_address_1', 'billing_city', 'billing_state', 'billing_postcode' ];
+
+    function ccmckSyncPickupRequired() {
+        var chosen = $( 'input[name^="shipping_method"]:checked' ).val() || '';
+        var pickup = chosen === CCMCK_PICKUP_ID;
+        $.each( CCMCK_ADDR_IDS, function ( i, id ) {
+            var $row = $( '#' + id ).closest( '.form-row' );
+            if ( ! $row.length ) { return; }
+            $row.toggleClass( 'validate-required', ! pickup );
+            $row.toggleClass( 'ccmck-optional-pickup', pickup );
+        } );
+    }
+
+    $( document ).on( 'change', 'input[name^="shipping_method"]', ccmckSyncPickupRequired );
+    $( document.body ).on( 'updated_checkout', ccmckSyncPickupRequired );
+    $( ccmckSyncPickupRequired );
+
 } )( jQuery );
