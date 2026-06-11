@@ -1348,7 +1348,7 @@
    a la altura del formulario, que era lo que lo hacía ver como un cuadro alto y vacío).
    Funciona ahora que el saneo de Addi eliminó el <b> que envolvía el <aside>. */
 .ccmck .checkout-wrapper { display: grid; grid-template-columns: 1fr 420px; max-width: 1200px; margin: 0 auto; align-items: start; }
-.ccmck .checkout-sidebar { background: var(--ccmck-sidebar, #1a1a1a); color: #fff; border-radius: 14px; }
+.ccmck .checkout-sidebar { background: var(--ccmck-sidebar, #1a1a1a); color: #fff; border-radius: 0; }
 @media (max-width: 960px) {
   .ccmck .checkout-wrapper { grid-template-columns: 1fr; }
 }
