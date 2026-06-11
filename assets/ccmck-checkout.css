@@ -46,7 +46,9 @@
   top: 0;
   height: 100vh;
   overflow-y: auto;
-  box-shadow: 9999px 0 0 9999px var(--ccmck-sidebar, #1a1a1a);
+  /* offset-y = spread (9999) → el borde superior del shadow queda a la altura
+     del sidebar y NO sube sobre el header; sigue sangrando a derecha y abajo. */
+  box-shadow: 9999px 9999px 0 9999px var(--ccmck-sidebar, #1a1a1a);
   scrollbar-width: thin;
   scrollbar-color: #333 transparent;
 }
@@ -77,7 +79,9 @@
   top: 0;
   height: 100vh;
   overflow-y: auto;
-  box-shadow: 9999px 0 0 9999px var(--ccmck-sidebar, #1a1a1a);
+  /* offset-y = spread (9999) → el borde superior del shadow queda a la altura
+     del sidebar y NO sube sobre el header; sigue sangrando a derecha y abajo. */
+  box-shadow: 9999px 9999px 0 9999px var(--ccmck-sidebar, #1a1a1a);
   scrollbar-width: thin;
   scrollbar-color: #333 transparent;
 }
