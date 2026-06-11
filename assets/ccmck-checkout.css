@@ -1493,14 +1493,20 @@
 }
 
 /* --- P3: Botón de pago en rojo CCM ---
-   Elementor pisa #place_order con su morado de marca por
-   especificidad; reafirmamos con el id (gana a las clases de
-   Elementor) + !important por lo agresivo de su override. */
+   Elementor/tema pisa #place_order: además del morado de marca, le mete
+   border-radius:3px y un padding chato, sacándolo del lenguaje del diseño
+   (cards a 8px, botones con aire). Reafirmamos con el id (gana a las clases
+   de Elementor) + !important por lo agresivo de su override. */
 .ccmck #place_order,
 .ccmck #payment #place_order {
   background: var(--ccmck-accent, #e63946) !important;
   color: #fff !important;
   border: none !important;
+  border-radius: 8px !important;
+  padding: 18px !important;
+  font-size: 16px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.3px !important;
 }
 .ccmck #place_order:hover { background: #d62839 !important; }
 
