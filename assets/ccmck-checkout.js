@@ -174,7 +174,8 @@
     /*  de ser obligatorios (UX; el servidor es la fuente de verdad).      */
     /* ------------------------------------------------------------------ */
     var CCMCK_PICKUP_ID = 'ccmck_local_pickup';
-    var CCMCK_ADDR_IDS  = [ 'billing_address_1', 'billing_city', 'billing_state', 'billing_postcode' ];
+    // billing_postcode NO se incluye: está rotulado "Cédula / NIT" y sigue obligatorio.
+    var CCMCK_ADDR_IDS  = [ 'billing_address_1', 'billing_city', 'billing_state' ];
 
     function ccmckSyncPickupRequired() {
         var chosen = $( 'input[name^="shipping_method"]:checked' ).val() || '';

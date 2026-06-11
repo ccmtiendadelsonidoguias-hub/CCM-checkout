@@ -10,8 +10,12 @@ final class CCMCK_Pickup {
     const RATE_ID = 'ccmck_local_pickup';
     const LABEL   = 'Recogida local';
 
-    /** Campos de dirección de entrega que se vuelven opcionales al elegir pickup. */
-    const ADDRESS_FIELDS = array( 'billing_address_1', 'billing_city', 'billing_state', 'billing_postcode' );
+    /**
+     * Campos de dirección de entrega que se vuelven opcionales al elegir pickup.
+     * NO incluye billing_postcode: en esta tienda está rotulado "Cédula / NIT" y
+     * el cliente debe llenarlo aun recogiendo en tienda.
+     */
+    const ADDRESS_FIELDS = array( 'billing_address_1', 'billing_city', 'billing_state' );
 
     /** ¿El id de tarifa es el de pickup? PURO. */
     public static function is_pickup_rate( string $rate_id ): bool {

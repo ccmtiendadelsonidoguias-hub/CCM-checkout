@@ -47,6 +47,7 @@ final class PickupTest extends TestCase {
             'billing_address_1' => array( 'required' => true,  'label' => 'Dirección' ),
             'billing_city'      => array( 'required' => true,  'label' => 'Ciudad' ),
             'billing_state'     => array( 'required' => true,  'label' => 'Departamento' ),
+            'billing_postcode'  => array( 'required' => true,  'label' => 'Cédula / NIT' ),
             'billing_email'     => array( 'required' => true,  'label' => 'Email' ),
         ) );
         $out = CCMCK_Pickup::relax_fields( $fields, true );
@@ -55,6 +56,9 @@ final class PickupTest extends TestCase {
         $this->assertFalse( $out['billing']['billing_state']['required'] );
         // El email NO es un campo de dirección: sigue obligatorio.
         $this->assertTrue( $out['billing']['billing_email']['required'] );
+        // billing_postcode está rotulado "Cédula / NIT" y el cliente debe llenarlo
+        // aun en pickup: NO se relaja.
+        $this->assertTrue( $out['billing']['billing_postcode']['required'] );
     }
 
     public function test_relax_fields_noop_when_not_pickup(): void {
