@@ -41,8 +41,23 @@
     /*  Toggle de resumen en móvil                                         */
     /* ------------------------------------------------------------------ */
     $( document ).on( 'click', '.mobile-summary-toggle', function () {
-        $( this ).toggleClass( 'open' ).siblings( '.sidebar-inner' ).slideToggle( 150 );
+        var open = $( this ).toggleClass( 'open' ).hasClass( 'open' );
+        $( this ).attr( 'aria-expanded', open ? 'true' : 'false' )
+            .siblings( '.sidebar-inner' ).slideToggle( 150 );
     } );
+
+    // Refleja el total del pedido en la cabecera plegable (estado cerrado, móvil).
+    // El total cambia con el envío/cantidades, así que se re-sincroniza tras cada
+    // refresco AJAX del checkout.
+    function ccmckSyncMobileTotal() {
+        var $total = $( '.checkout-sidebar .order-total td' ).last();
+        var $price = $( '.mobile-summary-toggle .toggle-price' );
+        if ( $total.length && $price.length ) {
+            $price.text( $.trim( $total.text() ) );
+        }
+    }
+    $( document.body ).on( 'updated_checkout', ccmckSyncMobileTotal );
+    $( ccmckSyncMobileTotal );
 
     /* ------------------------------------------------------------------ */
     /*  Controles de cantidad del carrito                                  */

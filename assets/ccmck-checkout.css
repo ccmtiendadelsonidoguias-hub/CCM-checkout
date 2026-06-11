@@ -1189,10 +1189,14 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
+    width: 100%;
     padding: 16px 20px;
     background: #222;
     cursor: pointer;
+    border: 0;
     border-bottom: 1px solid #333;
+    font-family: inherit;
+    text-align: left;
   }
   .ccmck .mobile-summary-toggle .toggle-left {
     display: flex;
@@ -1215,13 +1219,10 @@
     font-weight: 700;
     color: #fff;
   }
-  /* D1: el botón .mobile-summary-toggle aún no se renderiza en ninguna
-     plantilla, así que mantenemos el resumen del pedido VISIBLE en móvil
-     (antes quedaba oculto sin forma de reabrirlo → totales invisibles).
-     Si más adelante se cablea el toggle, restaurar:
-       .sidebar-inner { display:none } + .checkout-sidebar.open .sidebar-inner { display:block } */
+  /* En móvil el resumen arranca CERRADO: solo se ve .mobile-summary-toggle con
+     el total. Al pulsarlo, ccmck-checkout.js hace slideToggle de .sidebar-inner. */
   .ccmck .sidebar-inner {
-    display: block;
+    display: none;
   }
 
   /* Form rows: stack vertically */

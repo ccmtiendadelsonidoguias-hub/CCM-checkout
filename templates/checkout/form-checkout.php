@@ -87,6 +87,17 @@ remove_action( 'woocommerce_checkout_order_review', 'woocommerce_checkout_paymen
 		</main>
 
 		<aside class="checkout-sidebar">
+
+			<?php // Cabecera plegable SOLO en móvil (CSS la oculta en desktop). Muestra el total
+			// en estado cerrado; al pulsarla, ccmck-checkout.js despliega .sidebar-inner. ?>
+			<button type="button" class="mobile-summary-toggle" aria-expanded="false">
+				<span class="toggle-left">
+					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+					<?php esc_html_e( 'Resumen del pedido', 'ccm-checkout' ); ?>
+				</span>
+				<span class="toggle-price"><?php echo wp_kses_post( WC()->cart ? WC()->cart->get_total() : '' ); ?></span>
+			</button>
+
 			<div class="sidebar-inner">
 
 				<div class="sidebar-title"><?php esc_html_e( 'Resumen del pedido', 'ccm-checkout' ); ?></div>
