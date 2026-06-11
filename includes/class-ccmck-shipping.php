@@ -111,6 +111,38 @@ final class CCMCK_Shipping {
     }
 
     /**
+     * Normaliza los métodos de UNA zona a [['title'=>, 'enabled'=>bool], …].
+     * Maneja las dos formas que entrega WC: las zonas de
+     * WC_Shipping_Zones::get_zones() son ARRAYS con los métodos bajo la clave
+     * 'shipping_methods'; la zona 0 (get_zone(0)) es un OBJETO con
+     * get_shipping_methods(). Método PURO (acepta stubs) para poder testearlo.
+     *
+     * @param array|object|mixed $zone
+     * @return array<int,array{title:string,enabled:bool}>
+     */
+    public static function extract_zone_methods( $zone ): array {
+        $objs = array();
+        if ( is_array( $zone ) && isset( $zone['shipping_methods'] ) && is_array( $zone['shipping_methods'] ) ) {
+            $objs = $zone['shipping_methods'];
+        } elseif ( is_object( $zone ) && method_exists( $zone, 'get_shipping_methods' ) ) {
+            $objs = (array) $zone->get_shipping_methods( false );
+        }
+
+        $out = array();
+        foreach ( $objs as $method ) {
+            if ( ! is_object( $method ) ) { continue; }
+            if ( method_exists( $method, 'get_title' ) ) {
+                $title = (string) $method->get_title();
+            } else {
+                $title = isset( $method->title ) ? (string) $method->title : '';
+            }
+            $enabled = isset( $method->enabled ) ? ( 'yes' === $method->enabled ) : true;
+            $out[] = array( 'title' => $title, 'enabled' => $enabled );
+        }
+        return $out;
+    }
+
+    /**
      * Lee los métodos habilitados en todas las Zonas de Envío de WooCommerce
      * (incluida la zona 0 "Resto del mundo") y los normaliza para
      * collect_zone_method_labels(). Devuelve [] si WC no está disponible.
@@ -127,20 +159,7 @@ final class CCMCK_Shipping {
 
         $normalized = array();
         foreach ( $zones as $zone ) {
-            $methods = array();
-            $zone_methods = is_object( $zone ) && method_exists( $zone, 'get_shipping_methods' )
-                ? $zone->get_shipping_methods( true )
-                : array();
-            foreach ( (array) $zone_methods as $method ) {
-                $title = '';
-                if ( is_object( $method ) && method_exists( $method, 'get_title' ) ) {
-                    $title = (string) $method->get_title();
-                } elseif ( is_object( $method ) && isset( $method->title ) ) {
-                    $title = (string) $method->title;
-                }
-                $methods[] = array( 'title' => $title, 'enabled' => true );
-            }
-            $normalized[] = array( 'methods' => $methods );
+            $normalized[] = array( 'methods' => self::extract_zone_methods( $zone ) );
         }
         return self::collect_zone_method_labels( $normalized );
     }
