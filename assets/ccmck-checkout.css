@@ -1088,7 +1088,7 @@
   display: flex;
   align-items: center;
   gap: 14px;
-  margin-top: 20px;
+  margin-top: 28px;
   padding: 16px 20px;
   background: #fff;
   border: 1px solid #d1d1d1;
@@ -1507,8 +1507,12 @@
   font-size: 16px !important;
   font-weight: 700 !important;
   letter-spacing: 0.3px !important;
+  margin-top: 22px !important; /* el tema anula el margin de .pay-button: separar de los términos */
 }
 .ccmck #place_order:hover { background: #d62839 !important; }
+
+/* Aire entre la sección de pago y el bloque de privacidad/términos/botón. */
+.ccmck .form-row.place-order { margin-top: 26px; }
 
 /* --- P4: bloque "Carrito" de WC colado encima del checkout ---
    La página /pago/ incrusta un wp-block-woocommerce-cart (hermano del
