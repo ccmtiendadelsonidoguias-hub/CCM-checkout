@@ -87,6 +87,94 @@ final class CCMCK_Shipping {
         return $html;
     }
 
+    /**
+     * Extrae los títulos de los métodos de envío habilitados a partir de una
+     * lista normalizada de zonas. Método PURO (sin globals) para poder testearlo.
+     * Devuelve títulos únicos, en orden de aparición, descartando los
+     * deshabilitados y los vacíos.
+     *
+     * @param array<int,array{methods:array<int,array{title:string,enabled:bool}>}> $zones
+     * @return array<int,string>
+     */
+    public static function collect_zone_method_labels( array $zones ): array {
+        $labels = array();
+        foreach ( $zones as $zone ) {
+            $methods = ( isset( $zone['methods'] ) && is_array( $zone['methods'] ) ) ? $zone['methods'] : array();
+            foreach ( $methods as $method ) {
+                if ( empty( $method['enabled'] ) ) { continue; }
+                $title = trim( (string) ( $method['title'] ?? '' ) );
+                if ( '' === $title || in_array( $title, $labels, true ) ) { continue; }
+                $labels[] = $title;
+            }
+        }
+        return $labels;
+    }
+
+    /**
+     * Lee los métodos habilitados en todas las Zonas de Envío de WooCommerce
+     * (incluida la zona 0 "Resto del mundo") y los normaliza para
+     * collect_zone_method_labels(). Devuelve [] si WC no está disponible.
+     *
+     * @return array<int,string>
+     */
+    public static function get_zone_method_labels(): array {
+        if ( ! class_exists( 'WC_Shipping_Zones' ) ) {
+            return array();
+        }
+        $zones = WC_Shipping_Zones::get_zones();
+        $zones = is_array( $zones ) ? array_values( $zones ) : array();
+        $zones[] = WC_Shipping_Zones::get_zone( 0 ); // Resto del mundo.
+
+        $normalized = array();
+        foreach ( $zones as $zone ) {
+            $methods = array();
+            $zone_methods = is_object( $zone ) && method_exists( $zone, 'get_shipping_methods' )
+                ? $zone->get_shipping_methods( true )
+                : array();
+            foreach ( (array) $zone_methods as $method ) {
+                $title = '';
+                if ( is_object( $method ) && method_exists( $method, 'get_title' ) ) {
+                    $title = (string) $method->get_title();
+                } elseif ( is_object( $method ) && isset( $method->title ) ) {
+                    $title = (string) $method->title;
+                }
+                $methods[] = array( 'title' => $title, 'enabled' => true );
+            }
+            $normalized[] = array( 'methods' => $methods );
+        }
+        return self::collect_zone_method_labels( $normalized );
+    }
+
+    /**
+     * Pinta las cards de envío en estado deshabilitado (sin precio) a partir de
+     * una lista de títulos. Se usa cuando todavía no hay una dirección que WC
+     * pueda cotizar. Método PURO. Devuelve '' si no hay labels (el caller decide
+     * el fallback). Los radios van sin name para que no posteen shipping_method.
+     *
+     * @param array<int,string> $labels
+     */
+    public static function render_placeholder_cards( array $labels ): string {
+        $labels = array_values( array_filter( $labels, static function ( $l ) {
+            return '' !== trim( (string) $l );
+        } ) );
+        if ( ! $labels ) {
+            return '';
+        }
+
+        $html  = '<p class="ccmck-shipping-hint">' . esc_html__( 'Ingresa tu dirección para ver el costo', 'ccm-checkout' ) . '</p>';
+        $html .= '<ul class="ccmck-shipping-list ccmck-shipping-list--disabled">';
+        foreach ( $labels as $i => $label ) {
+            $dom_id = 'ccmck_ship_ph_' . (int) $i;
+            $html  .= '<li class="ccmck-shipping-method ccmck-shipping-method--disabled">';
+            $html  .= '<input type="radio" class="shipping_method" id="' . esc_attr( $dom_id ) . '" disabled />';
+            $html  .= '<label for="' . esc_attr( $dom_id ) . '">';
+            $html  .= '<span class="ccmck-ship-label">' . esc_html( (string) $label ) . '</span>';
+            $html  .= '</label></li>';
+        }
+        $html .= '</ul>';
+        return $html;
+    }
+
     /** Formatea el costo: wc_price() en producción, fallback predecible en tests. */
     private static function format_cost( float $cost ): string {
         if ( $cost <= 0 ) {
@@ -105,7 +193,19 @@ final class CCMCK_Shipping {
         }
         $packages = WC()->shipping()->get_packages();
         $chosen   = WC()->session ? (array) WC()->session->get( 'chosen_shipping_methods' ) : array();
-        return self::render_cards( self::build_methods( $packages, $chosen ) );
+        $methods  = self::build_methods( $packages, $chosen );
+
+        // ¿Hay alguna tarifa real cotizada? Entonces, cards normales.
+        foreach ( $methods as $package ) {
+            if ( ! empty( $package['rates'] ) ) {
+                return self::render_cards( $methods );
+            }
+        }
+
+        // Sin dirección que WC pueda cotizar: cards deshabilitadas con los
+        // métodos que ofrecen las Zonas de Envío. Si no hay ninguno, fallback.
+        $placeholder = self::render_placeholder_cards( self::get_zone_method_labels() );
+        return '' !== $placeholder ? $placeholder : self::render_cards( array() );
     }
 
     /**

@@ -66,4 +66,56 @@ final class ShippingTest extends TestCase {
         $html = CCMCK_Shipping::render_cards( $methods );
         $this->assertSame( 1, substr_count( $html, '<ul' ) );
     }
+
+    // --- collect_zone_method_labels (PURO) ---
+
+    public function test_collect_labels_keeps_only_enabled_and_unique_in_order(): void {
+        $zones = array(
+            array( 'methods' => array(
+                array( 'title' => 'Coordinadora', 'enabled' => true ),
+                array( 'title' => 'Servientrega', 'enabled' => false ),
+            ) ),
+            array( 'methods' => array(
+                array( 'title' => 'Recoger en tienda', 'enabled' => true ),
+                array( 'title' => 'Coordinadora', 'enabled' => true ), // duplicado
+            ) ),
+        );
+        $this->assertSame(
+            array( 'Coordinadora', 'Recoger en tienda' ),
+            CCMCK_Shipping::collect_zone_method_labels( $zones )
+        );
+    }
+
+    public function test_collect_labels_drops_empty_titles(): void {
+        $zones = array(
+            array( 'methods' => array(
+                array( 'title' => '', 'enabled' => true ),
+                array( 'title' => '   ', 'enabled' => true ),
+                array( 'title' => 'Coordinadora', 'enabled' => true ),
+            ) ),
+        );
+        $this->assertSame( array( 'Coordinadora' ), CCMCK_Shipping::collect_zone_method_labels( $zones ) );
+    }
+
+    public function test_collect_labels_empty_input(): void {
+        $this->assertSame( array(), CCMCK_Shipping::collect_zone_method_labels( array() ) );
+    }
+
+    // --- render_placeholder_cards (PURO) ---
+
+    public function test_placeholder_renders_each_label_disabled_without_cost(): void {
+        $html = CCMCK_Shipping::render_placeholder_cards( array( 'Coordinadora', 'Recoger en tienda' ) );
+        $this->assertStringContainsString( 'ccmck-shipping-hint', $html );
+        $this->assertStringContainsString( 'Coordinadora', $html );
+        $this->assertStringContainsString( 'Recoger en tienda', $html );
+        $this->assertStringContainsString( 'disabled', $html );
+        $this->assertStringContainsString( 'ccmck-shipping-method--disabled', $html );
+        $this->assertStringNotContainsString( 'ccmck-ship-cost', $html );
+        // No debe postear: sin atributo name en el radio.
+        $this->assertStringNotContainsString( 'name="shipping_method', $html );
+    }
+
+    public function test_placeholder_empty_labels_returns_empty_string(): void {
+        $this->assertSame( '', CCMCK_Shipping::render_placeholder_cards( array() ) );
+    }
 }

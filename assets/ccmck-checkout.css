@@ -1691,6 +1691,17 @@ body > .addi_description_container { display: none !important; }
 .ccmck .checkout-main .ccmck-ship-cost { font-size: 15px; font-weight: 600; color: #1a1a1a; }
 .ccmck .checkout-main .ccmck-no-shipping { font-size: 14px; color: #777; padding: 14px 0; }
 
+/* Estado deshabilitado: métodos visibles sin dirección cotizable (gris, no seleccionable). */
+.ccmck .checkout-main .ccmck-shipping-hint { font-size: 13px; color: #888; margin: 0 0 10px; }
+.ccmck .checkout-main .ccmck-shipping-list--disabled { opacity: 0.55; pointer-events: none; }
+.ccmck .checkout-main .ccmck-shipping-method--disabled label {
+  border-style: dashed;
+  border-color: #cfcfcf;
+  cursor: not-allowed;
+}
+.ccmck .checkout-main .ccmck-shipping-method--disabled .ccmck-ship-label { color: #777; }
+.ccmck .checkout-main .ccmck-shipping-method--disabled input { accent-color: #b0b0b0; }
+
 /* ===== Floating labels estilo Shopify =====
    El <label> hace de placeholder y, al enfocar o rellenar, sube y se encoge.
    Las clases las añade ccmckFloatLabels() en el JS (progressive enhancement:
