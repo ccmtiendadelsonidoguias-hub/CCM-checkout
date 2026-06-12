@@ -1567,6 +1567,39 @@
 .ccmck .woocommerce-message a,
 .ccmck .woocommerce-info a { color: inherit; text-decoration: underline; }
 
+/* --- Validación inline estilo Shopify (campos obligatorios) ---
+   En vez del banner rojo arriba, cada campo obligatorio vacío se marca con
+   borde rojo + un mensaje pequeño DEBAJO. La clase .ccmck-invalid la pone
+   ccmck-checkout.js al pulsar "Finalizar pedido" (y la quita al corregir).
+   El padding baja 1px por lado para compensar el borde de 2px y que el campo
+   NO se desplace (igual criterio que el estado :focus). */
+.ccmck .checkout-main .form-row.ccmck-invalid .input-text,
+.ccmck .checkout-main .form-row.ccmck-invalid textarea,
+.ccmck .checkout-main .form-row.ccmck-invalid select {
+  border: 2px solid var(--ccmck-accent, #e63946) !important;
+  border-radius: 6px !important;
+  padding: 11px 13px;
+}
+.ccmck .checkout-main .form-row.ccmck-invalid select { padding: 11px 38px 11px 13px; }
+/* Departamento / Ciudad (select2): mismo borde rojo sobre el contenedor. */
+.ccmck .checkout-main .form-row.ccmck-invalid .select2-selection--single {
+  border: 2px solid var(--ccmck-accent, #e63946) !important;
+  padding: 0 37px 0 13px;
+}
+/* Label del campo en rojo, como Shopify. */
+.ccmck .checkout-main .form-row.ccmck-invalid label { color: #a12626; }
+/* Mensaje de error bajo el campo. */
+.ccmck .checkout-main .form-row .ccmck-field-error {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #a12626;
+}
+
+/* Aviso general (pago/envío) reubicado junto al botón Pagar. */
+.ccmck .ccmck-notice-relocated { margin: 0 0 18px; }
+
 /* --- P4: bloque "Carrito" de WC colado encima del checkout ---
    La página /pago/ incrusta un wp-block-woocommerce-cart (hermano del
    checkout, fuera de .ccmck) que sangra sobre el layout. El resumen real
@@ -1850,3 +1883,92 @@ body > .addi_description_container { display: none !important; }
 .ccmck .checkout-main .form-row.ccmck-fl-row textarea::placeholder {
   color: transparent !important;
 }
+
+/* ===================== Skeleton loading (shimmer) =====================
+   Mecanismo: clase en contenedor estable + pseudo-bloque shimmer encima y
+   contenido real atenuado (opacity:0). `.ccmck-preload` (wrapper, vía PHP) =
+   carga inicial; `.ccmck-skel` (por JS) = refrescos AJAX. Selectores, no
+   markup → siguen aplicando aunque WC reemplace el contenido interno. */
+.ccmck {
+  --ccmck-skel-base: #e9e9ee;   /* paleta clara (columna blanca) */
+  --ccmck-skel-hi:   #f4f4f7;
+  --ccmck-skel-radius: 8px;
+}
+.ccmck .checkout-sidebar {       /* paleta oscura (panel negro) */
+  --ccmck-skel-base: #26262b;
+  --ccmck-skel-hi:   #34343b;
+}
+@keyframes ccmckShimmer {
+  0%   { background-position: -600px 0; }
+  100% { background-position:  600px 0; }
+}
+/* Pinte compartido de todos los pseudo-bloques skeleton. */
+.ccmck.ccmck-preload .checkout-main .form-row::after,
+.ccmck.ccmck-preload .ccmck-shipping-section::after,
+.ccmck.ccmck-preload .ccmck-payment-section::after,
+.ccmck.ccmck-preload .checkout-sidebar .sidebar-inner::before,
+.ccmck.ccmck-preload .checkout-sidebar .sidebar-inner::after,
+.ccmck .ccmck-shipping-section.ccmck-skel::after,
+.ccmck .ccmck-payment-section.ccmck-skel::after,
+.ccmck .checkout-sidebar.ccmck-skel .sidebar-inner::before,
+.ccmck .checkout-sidebar.ccmck-skel .sidebar-inner::after {
+  content: '';
+  position: absolute;
+  background-color: var(--ccmck-skel-base);
+  background-image: linear-gradient(90deg, var(--ccmck-skel-base) 0, var(--ccmck-skel-hi) 90px, var(--ccmck-skel-base) 180px);
+  background-size: 600px 100%;
+  background-repeat: no-repeat;
+  border-radius: var(--ccmck-skel-radius);
+  animation: ccmckShimmer 1.3s linear infinite;
+  pointer-events: none;
+  z-index: 3;
+}
+/* Transición de reaparición del contenido real. */
+.ccmck .checkout-main .form-row > *,
+.ccmck .ccmck-shipping-section #ccmck_shipping_methods,
+.ccmck .ccmck-payment-section #payment,
+.ccmck .checkout-sidebar .sidebar-inner > * { transition: opacity .3s ease; }
+
+/* --- Campos (solo carga inicial) ---
+   P7 desactiva ::before/::after de .form-row con !important; este selector es
+   más específico (.ccmck.ccmck-preload…) y reafirma content/display con
+   !important para que la barra de skeleton sí se pinte. */
+.ccmck.ccmck-preload .checkout-main .form-row { position: relative; }
+.ccmck.ccmck-preload .checkout-main .form-row > * { opacity: 0; }
+.ccmck.ccmck-preload .checkout-main .form-row::after {
+  content: '' !important;
+  display: block !important;
+  left: 0; right: 0; top: 0; height: 52px;
+}
+
+/* --- Envío (inicial + AJAX) --- */
+.ccmck .ccmck-shipping-section { position: relative; }
+.ccmck.ccmck-preload .ccmck-shipping-section #ccmck_shipping_methods,
+.ccmck .ccmck-shipping-section.ccmck-skel #ccmck_shipping_methods { opacity: 0; min-height: 120px; }
+.ccmck.ccmck-preload .ccmck-shipping-section::after,
+.ccmck .ccmck-shipping-section.ccmck-skel::after { left: 0; right: 0; top: 44px; height: 120px; }
+
+/* --- Pago (inicial + AJAX) --- */
+.ccmck .ccmck-payment-section { position: relative; }
+.ccmck.ccmck-preload .ccmck-payment-section #payment,
+.ccmck .ccmck-payment-section.ccmck-skel #payment { opacity: 0; min-height: 160px; }
+.ccmck.ccmck-preload .ccmck-payment-section::after,
+.ccmck .ccmck-payment-section.ccmck-skel::after { left: 0; right: 0; top: 84px; height: 200px; }
+
+/* --- Resumen (inicial + AJAX), sidebar oscuro --- */
+.ccmck .checkout-sidebar .sidebar-inner { position: relative; }
+.ccmck.ccmck-preload .checkout-sidebar .sidebar-inner,
+.ccmck .checkout-sidebar.ccmck-skel .sidebar-inner { min-height: 240px; }
+.ccmck.ccmck-preload .checkout-sidebar .sidebar-inner > *,
+.ccmck .checkout-sidebar.ccmck-skel .sidebar-inner > * { opacity: 0; }
+.ccmck.ccmck-preload .checkout-sidebar .sidebar-inner::before,
+.ccmck .checkout-sidebar.ccmck-skel .sidebar-inner::before { left: 24px; right: 24px; top: 24px; height: 72px; }
+.ccmck.ccmck-preload .checkout-sidebar .sidebar-inner::after,
+.ccmck .checkout-sidebar.ccmck-skel .sidebar-inner::after { left: 24px; right: 24px; top: 116px; height: 96px; }
+
+/* Oculta el overlay blanco+spinner por defecto de WC donde ponemos skeleton. */
+.ccmck .checkout-sidebar .blockUI.blockOverlay,
+.ccmck #order_review .blockUI.blockOverlay,
+.ccmck .ccmck-payment-section .blockUI.blockOverlay,
+.ccmck #ccmck_shipping_methods .blockUI.blockOverlay { display: none !important; }
+/* ===================== /Skeleton loading ===================== */
