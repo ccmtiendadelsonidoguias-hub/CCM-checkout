@@ -460,4 +460,16 @@
     $( document.body ).on( 'updated_checkout', ccmckRevealInitial );
     setTimeout( ccmckRevealInitial, 4000 ); // red de seguridad
 
+    /* ------------------------------------------------------------------ */
+    /*  Resumen compacto móvil: pliega/despliega el detalle.               */
+    /*  Delegado en document → sobrevive al re-render de #payment en cada  */
+    /*  updated_checkout (el bloque lo rinde payment.php desde WC()->cart). */
+    /* ------------------------------------------------------------------ */
+    $( document ).on( 'click', '.ccmck-mos-bar', function () {
+        var $mos = $( this ).closest( '.ccmck-mos' );
+        var open = $mos.toggleClass( 'open' ).hasClass( 'open' );
+        $( this ).attr( 'aria-expanded', open ? 'true' : 'false' );
+        $mos.find( '.ccmck-mos-details' ).slideToggle( 180 );
+    } );
+
 } )( jQuery );
