@@ -1977,3 +1977,52 @@ body > .addi_description_container { display: none !important; }
 .ccmck .ccmck-payment-section .blockUI.blockOverlay,
 .ccmck #ccmck_shipping_methods .blockUI.blockOverlay { display: none !important; }
 /* ===================== /Skeleton loading ===================== */
+
+/* ===== Resumen compacto móvil antes del botón (estilo Shopify) =====
+   Render server-side en payment.php (#payment → se refresca solo por AJAX).
+   Oculto en desktop; visible y plegable en ≤960px. JS solo togglea .open. */
+.ccmck .ccmck-mos { display: none; }
+@media (max-width: 960px) {
+  .ccmck .ccmck-mos {
+    display: block;
+    border: 1px solid #e6e6e6;
+    border-radius: 12px;
+    margin: 0 0 18px;
+    overflow: hidden;
+    background: #fff;
+  }
+  .ccmck .ccmck-mos-bar {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    background: #fafafa;
+    border: 0;
+    cursor: pointer;
+    text-align: left;
+    font-family: inherit;
+  }
+  .ccmck .ccmck-mos-bar:hover,
+  .ccmck .ccmck-mos-bar:focus,
+  .ccmck .ccmck-mos-bar:active { background: #f3f3f3; outline: none; box-shadow: none; }
+  .ccmck .ccmck-mos-bar:focus-visible { outline: 2px solid var(--ccmck-accent, #e63946); outline-offset: -2px; }
+  .ccmck .ccmck-mos-thumb img {
+    width: 44px; height: 44px; border-radius: 8px;
+    object-fit: cover; border: 1px solid #eee; display: block;
+  }
+  .ccmck .ccmck-mos-label { display: flex; flex-direction: column; line-height: 1.2; }
+  .ccmck .ccmck-mos-label b { font-size: 15px; color: #111; font-weight: 700; }
+  .ccmck .ccmck-mos-label small { font-size: 12px; color: #888; }
+  .ccmck .ccmck-mos-total { margin-left: auto; font-size: 16px; font-weight: 800; color: #111; }
+  .ccmck .ccmck-mos-caret { width: 18px; height: 18px; color: #888; transition: transform .25s; flex: 0 0 auto; }
+  .ccmck .ccmck-mos.open .ccmck-mos-caret { transform: rotate(180deg); }
+  .ccmck .ccmck-mos-details { display: none; padding: 6px 16px 14px; border-top: 1px solid #eee; }
+  .ccmck .ccmck-mos-item { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid #f2f2f2; }
+  .ccmck .ccmck-mos-item-thumb img { width: 40px; height: 40px; border-radius: 6px; object-fit: cover; border: 1px solid #eee; display: block; }
+  .ccmck .ccmck-mos-item-name { font-size: 13px; color: #333; flex: 1; }
+  .ccmck .ccmck-mos-item-qty { color: #888; }
+  .ccmck .ccmck-mos-item-price { font-size: 13px; font-weight: 700; color: #111; white-space: nowrap; }
+  .ccmck .ccmck-mos-sum { display: flex; justify-content: space-between; padding: 8px 0; font-size: 14px; color: #555; }
+  .ccmck .ccmck-mos-grand { padding-top: 12px; margin-top: 4px; font-size: 17px; font-weight: 800; color: #111; border-top: 1px solid #eee; }
+}
