@@ -1741,16 +1741,19 @@ body > .addi_description_container { display: none !important; }
 
 /* ===== Secciones del checkout (Contacto / Entrega / Envío / Pago) ===== */
 .ccmck .checkout-main .ccmck-section { margin-bottom: 34px; }
-.ccmck .checkout-main .ccmck-section > h2 {
+.ccmck .checkout-main .ccmck-section h2 {
   font-size: 24px;
   font-weight: 500;
   color: var(--ccmck-sidebar, #1a1a1a);
   margin: 0 0 16px;
   line-height: 1.2;
 }
-/* Móvil: títulos de sección hasta 20px (no más). */
+/* Móvil: títulos de sección (incl. los del .ccmck-section-head) hasta 20px. */
 @media (max-width: 960px) {
-  .ccmck .checkout-main .ccmck-section > h2 { font-size: 20px; }
+  .ccmck .checkout-main .ccmck-section h2 { font-size: 20px; }
+  /* El texto de "términos y condiciones" traía un interlineado muy alto en
+     móvil; lo dejamos en un valor moderado. */
+  .ccmck .woocommerce-terms-and-conditions-checkbox-text { line-height: 1.45; }
 }
 .ccmck .checkout-main .ccmck-section-head {
   display: flex;
@@ -2033,4 +2036,14 @@ body > .addi_description_container { display: none !important; }
   .ccmck .ccmck-mos-item-price { font-size: 13px; font-weight: 700; color: #111; white-space: nowrap; }
   .ccmck .ccmck-mos-sum { display: flex; justify-content: space-between; padding: 8px 0; font-size: 14px; color: #555; }
   .ccmck .ccmck-mos-grand { padding-top: 12px; margin-top: 4px; font-size: 17px; font-weight: 800; color: #111; border-top: 1px solid #eee; }
+}
+
+/* ===== Tipografía: peso 400 en texto y etiquetas =====
+   Todo el texto del checkout va en font-weight:400, EXCEPTO los títulos
+   (h1–h4, que conservan su 500) y los elementos resaltados: montos (total y
+   precios), el botón de pago y los nombres de producto del resumen. Es una
+   regla de barrido con lista de excepciones (no toca los resaltados). */
+.ccmck .checkout-main *:not(h1):not(h2):not(h3):not(h4):not(.pay-button):not(#place_order):not(.ccmck-mos-total):not(.ccmck-mos-item-price):not(.ccmck-mos-grand):not(.ccmck-mos-grand span),
+.ccmck .checkout-sidebar *:not(h1):not(h2):not(h3):not(h4):not(.product-title):not(.product-line-total):not(.order-total):not(.order-total th):not(.order-total td):not(.order-total .amount):not(.toggle-price) {
+  font-weight: 400 !important;
 }
