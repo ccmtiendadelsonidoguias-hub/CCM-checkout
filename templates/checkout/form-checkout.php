@@ -70,6 +70,12 @@ remove_action( 'woocommerce_checkout_order_review', 'woocommerce_checkout_paymen
 					echo CCMCK_Shipping::render(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 					?>
 				</div>
+				<?php // Skeleton (carga inicial / AJAX): cards de envío. CSS lo muestra y oculta
+				// #ccmck_shipping_methods cuando hay .ccmck-preload / .ccmck-skel. ?>
+				<div class="ccmck-skel-tpl ccmck-skel-shipping" aria-hidden="true">
+					<div class="ccmck-sks-card"><span class="ccmck-skb" style="width:20px;height:20px;border-radius:50%"></span><span class="ccmck-skb" style="width:42%;height:13px"></span><span class="ccmck-sks-grow"></span><span class="ccmck-skb" style="width:60px;height:13px"></span></div>
+					<div class="ccmck-sks-card"><span class="ccmck-skb" style="width:20px;height:20px;border-radius:50%"></span><span class="ccmck-skb" style="width:38%;height:13px"></span><span class="ccmck-sks-grow"></span><span class="ccmck-skb" style="width:54px;height:13px"></span></div>
+				</div>
 			</section>
 
 			<section class="ccmck-section ccmck-payment-section">
@@ -80,6 +86,14 @@ remove_action( 'woocommerce_checkout_order_review', 'woocommerce_checkout_paymen
 				// el botón #place_order y el nonce — todo dentro del <form>.
 				woocommerce_checkout_payment();
 				?>
+				<?php // Skeleton (carga inicial / AJAX): filas de método de pago. ?>
+				<div class="ccmck-skel-tpl ccmck-skel-payment" aria-hidden="true">
+					<div class="ccmck-sks-paybox">
+						<div class="ccmck-sks-prow"><span class="ccmck-skb" style="width:20px;height:20px;border-radius:50%"></span><span class="ccmck-skb" style="width:38%;height:13px"></span><span class="ccmck-sks-grow"></span><span class="ccmck-skb" style="width:28px;height:18px"></span><span class="ccmck-skb" style="width:28px;height:18px"></span></div>
+						<div class="ccmck-sks-prow"><span class="ccmck-skb" style="width:20px;height:20px;border-radius:50%"></span><span class="ccmck-skb" style="width:32%;height:13px"></span><span class="ccmck-sks-grow"></span><span class="ccmck-skb" style="width:28px;height:18px"></span></div>
+						<div class="ccmck-sks-prow"><span class="ccmck-skb" style="width:20px;height:20px;border-radius:50%"></span><span class="ccmck-skb" style="width:30%;height:13px"></span></div>
+					</div>
+				</div>
 			</section>
 
 			<?php require CCMCK_DIR . 'templates/parts/footer.php'; ?>
@@ -104,6 +118,20 @@ remove_action( 'woocommerce_checkout_order_review', 'woocommerce_checkout_paymen
 
 				<?php do_action( 'woocommerce_checkout_before_order_review_heading' ); ?>
 				<?php do_action( 'woocommerce_checkout_before_order_review' ); ?>
+
+				<?php // Skeleton (carga inicial / AJAX): tarjeta de producto + totales. ?>
+				<div class="ccmck-skel-tpl ccmck-skel-summary" aria-hidden="true">
+					<div class="ccmck-sks-prod">
+						<span class="ccmck-skb" style="width:64px;height:64px;border-radius:8px;flex:0 0 auto"></span>
+						<span class="ccmck-sks-mid"><span class="ccmck-skb" style="width:80%;height:13px"></span><span class="ccmck-skb" style="width:45%;height:11px"></span></span>
+						<span class="ccmck-skb" style="width:60px;height:13px;flex:0 0 auto"></span>
+					</div>
+					<span class="ccmck-skb ccmck-sks-rule" style="width:100%;height:1px"></span>
+					<div class="ccmck-sks-line"><span class="ccmck-skb" style="width:28%;height:11px"></span><span class="ccmck-skb" style="width:24%;height:11px"></span></div>
+					<div class="ccmck-sks-line"><span class="ccmck-skb" style="width:22%;height:11px"></span><span class="ccmck-skb" style="width:18%;height:11px"></span></div>
+					<span class="ccmck-skb ccmck-sks-rule" style="width:100%;height:1px"></span>
+					<div class="ccmck-sks-line"><span class="ccmck-skb" style="width:30%;height:18px"></span><span class="ccmck-skb" style="width:34%;height:20px"></span></div>
+				</div>
 
 				<div id="order_review" class="woocommerce-checkout-review-order">
 					<?php do_action( 'woocommerce_checkout_order_review' ); ?>

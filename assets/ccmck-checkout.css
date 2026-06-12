@@ -1885,86 +1885,91 @@ body > .addi_description_container { display: none !important; }
 }
 
 /* ===================== Skeleton loading (shimmer) =====================
-   Mecanismo: clase en contenedor estable + pseudo-bloque shimmer encima y
-   contenido real atenuado (opacity:0). `.ccmck-preload` (wrapper, vía PHP) =
-   carga inicial; `.ccmck-skel` (por JS) = refrescos AJAX. Selectores, no
-   markup → siguen aplicando aunque WC reemplace el contenido interno. */
+   Imita la ESTRUCTURA real de cada contenedor (tarjeta de producto, cards de
+   envío, filas de pago, campos con label+barra) en vez de bloques planos.
+   - Campos: pseudo-elementos (::before label + ::after input) — pura CSS.
+   - Resumen/Envío/Pago: partials de markup (.ccmck-skel-tpl) que rinde el PHP
+     dentro del contenedor ESTABLE; se muestran por display-swap y se oculta el
+     contenido real. Sobreviven al AJAX (el partial es hermano del fragmento
+     que WC reemplaza). `.ccmck-preload` (wrapper, vía PHP) = carga inicial;
+     `.ccmck-skel` (por JS) = refrescos AJAX. */
 .ccmck {
   --ccmck-skel-base: #e9e9ee;   /* paleta clara (columna blanca) */
   --ccmck-skel-hi:   #f4f4f7;
-  --ccmck-skel-radius: 8px;
 }
 .ccmck .checkout-sidebar {       /* paleta oscura (panel negro) */
-  --ccmck-skel-base: #26262b;
-  --ccmck-skel-hi:   #34343b;
+  --ccmck-skel-base: #2c2c32;
+  --ccmck-skel-hi:   #3b3b44;
 }
 @keyframes ccmckShimmer {
   0%   { background-position: -600px 0; }
   100% { background-position:  600px 0; }
 }
-/* Pinte compartido de todos los pseudo-bloques skeleton. */
-.ccmck.ccmck-preload .checkout-main .form-row::after,
-.ccmck.ccmck-preload .ccmck-shipping-section::after,
-.ccmck.ccmck-preload .ccmck-payment-section::after,
-.ccmck.ccmck-preload .checkout-sidebar .sidebar-inner::before,
-.ccmck.ccmck-preload .checkout-sidebar .sidebar-inner::after,
-.ccmck .ccmck-shipping-section.ccmck-skel::after,
-.ccmck .ccmck-payment-section.ccmck-skel::after,
-.ccmck .checkout-sidebar.ccmck-skel .sidebar-inner::before,
-.ccmck .checkout-sidebar.ccmck-skel .sidebar-inner::after {
-  content: '';
-  position: absolute;
+/* Bloque shimmer reutilizable (los partials lo usan; geometría inline). */
+.ccmck .ccmck-skb,
+.ccmck.ccmck-preload .checkout-main .form-row::before,
+.ccmck.ccmck-preload .checkout-main .form-row::after {
+  display: block;
+  border-radius: 6px;
   background-color: var(--ccmck-skel-base);
   background-image: linear-gradient(90deg, var(--ccmck-skel-base) 0, var(--ccmck-skel-hi) 90px, var(--ccmck-skel-base) 180px);
   background-size: 600px 100%;
   background-repeat: no-repeat;
-  border-radius: var(--ccmck-skel-radius);
   animation: ccmckShimmer 1.3s linear infinite;
-  pointer-events: none;
-  z-index: 3;
 }
-/* Transición de reaparición del contenido real. */
-.ccmck .checkout-main .form-row > *,
-.ccmck .ccmck-shipping-section #ccmck_shipping_methods,
-.ccmck .ccmck-payment-section #payment,
-.ccmck .checkout-sidebar .sidebar-inner > * { transition: opacity .3s ease; }
 
-/* --- Campos (solo carga inicial) ---
+/* --- Campos (solo carga inicial): línea de label + barra de input ---
    P7 desactiva ::before/::after de .form-row con !important; este selector es
    más específico (.ccmck.ccmck-preload…) y reafirma content/display con
-   !important para que la barra de skeleton sí se pinte. */
+   !important. Geometría que cabe en los 52px de la fila (sin layout shift). */
 .ccmck.ccmck-preload .checkout-main .form-row { position: relative; }
 .ccmck.ccmck-preload .checkout-main .form-row > * { opacity: 0; }
+.ccmck .checkout-main .form-row > * { transition: opacity .3s ease; }
+.ccmck.ccmck-preload .checkout-main .form-row::before {
+  content: '' !important; display: block !important;
+  position: absolute; left: 0; top: 0; width: 38%; height: 8px; border-radius: 5px;
+  z-index: 3; pointer-events: none;
+}
 .ccmck.ccmck-preload .checkout-main .form-row::after {
-  content: '' !important;
-  display: block !important;
-  left: 0; right: 0; top: 0; height: 52px;
+  content: '' !important; display: block !important;
+  position: absolute; left: 0; right: 0; top: 12px; height: 40px; border-radius: 8px;
+  z-index: 3; pointer-events: none;
 }
 
-/* --- Envío (inicial + AJAX) --- */
-.ccmck .ccmck-shipping-section { position: relative; }
+/* --- Partials de skeleton (Resumen / Envío / Pago) --- */
+.ccmck .ccmck-skel-tpl { display: none; }              /* ocultos por defecto */
+/* Mostrar el partial + ocultar el contenido real (display-swap). */
+.ccmck.ccmck-preload .ccmck-shipping-section .ccmck-skel-shipping,
+.ccmck .ccmck-shipping-section.ccmck-skel .ccmck-skel-shipping { display: flex; }
 .ccmck.ccmck-preload .ccmck-shipping-section #ccmck_shipping_methods,
-.ccmck .ccmck-shipping-section.ccmck-skel #ccmck_shipping_methods { opacity: 0; min-height: 120px; }
-.ccmck.ccmck-preload .ccmck-shipping-section::after,
-.ccmck .ccmck-shipping-section.ccmck-skel::after { left: 0; right: 0; top: 44px; height: 120px; }
+.ccmck .ccmck-shipping-section.ccmck-skel #ccmck_shipping_methods { display: none; }
 
-/* --- Pago (inicial + AJAX) --- */
-.ccmck .ccmck-payment-section { position: relative; }
+.ccmck.ccmck-preload .ccmck-payment-section .ccmck-skel-payment,
+.ccmck .ccmck-payment-section.ccmck-skel .ccmck-skel-payment { display: block; }
 .ccmck.ccmck-preload .ccmck-payment-section #payment,
-.ccmck .ccmck-payment-section.ccmck-skel #payment { opacity: 0; min-height: 160px; }
-.ccmck.ccmck-preload .ccmck-payment-section::after,
-.ccmck .ccmck-payment-section.ccmck-skel::after { left: 0; right: 0; top: 84px; height: 200px; }
+.ccmck .ccmck-payment-section.ccmck-skel #payment { display: none; }
 
-/* --- Resumen (inicial + AJAX), sidebar oscuro --- */
-.ccmck .checkout-sidebar .sidebar-inner { position: relative; }
-.ccmck.ccmck-preload .checkout-sidebar .sidebar-inner,
-.ccmck .checkout-sidebar.ccmck-skel .sidebar-inner { min-height: 240px; }
-.ccmck.ccmck-preload .checkout-sidebar .sidebar-inner > *,
-.ccmck .checkout-sidebar.ccmck-skel .sidebar-inner > * { opacity: 0; }
-.ccmck.ccmck-preload .checkout-sidebar .sidebar-inner::before,
-.ccmck .checkout-sidebar.ccmck-skel .sidebar-inner::before { left: 24px; right: 24px; top: 24px; height: 72px; }
-.ccmck.ccmck-preload .checkout-sidebar .sidebar-inner::after,
-.ccmck .checkout-sidebar.ccmck-skel .sidebar-inner::after { left: 24px; right: 24px; top: 116px; height: 96px; }
+.ccmck.ccmck-preload .checkout-sidebar .ccmck-skel-summary,
+.ccmck .checkout-sidebar.ccmck-skel .ccmck-skel-summary { display: block; }
+/* En el resumen ocultamos todo el inner salvo el título y el propio partial. */
+.ccmck.ccmck-preload .checkout-sidebar .sidebar-inner > *:not(.sidebar-title):not(.ccmck-skel-summary),
+.ccmck .checkout-sidebar.ccmck-skel .sidebar-inner > *:not(.sidebar-title):not(.ccmck-skel-summary) { display: none; }
+
+/* Layout de los partials (geometría fina de cada .ccmck-skb va inline). */
+.ccmck .ccmck-skel-summary { margin-top: 4px; }
+.ccmck .ccmck-sks-prod { display: flex; gap: 14px; align-items: center; }
+.ccmck .ccmck-sks-mid  { flex: 1; display: flex; flex-direction: column; gap: 9px; }
+.ccmck .ccmck-sks-line { display: flex; justify-content: space-between; align-items: center; }
+.ccmck .ccmck-sks-line + .ccmck-sks-line { margin-top: 12px; }
+.ccmck .ccmck-sks-rule { margin: 16px 0; opacity: .5; }
+
+.ccmck .ccmck-skel-shipping { flex-direction: column; gap: 12px; }
+.ccmck .ccmck-sks-card { display: flex; align-items: center; gap: 14px; border: 1.5px solid #ececec; border-radius: 10px; padding: 16px 18px; }
+.ccmck .ccmck-sks-grow { flex: 1; }
+
+.ccmck .ccmck-sks-paybox { border: 1.5px solid #ececec; border-radius: 10px; overflow: hidden; }
+.ccmck .ccmck-sks-prow { display: flex; align-items: center; gap: 14px; padding: 16px 18px; }
+.ccmck .ccmck-sks-prow + .ccmck-sks-prow { border-top: 1px solid #f0f0f0; }
 
 /* Oculta el overlay blanco+spinner por defecto de WC donde ponemos skeleton. */
 .ccmck .checkout-sidebar .blockUI.blockOverlay,
