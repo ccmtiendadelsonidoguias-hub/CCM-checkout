@@ -207,4 +207,224 @@
     $( document.body ).on( 'updated_checkout', ccmckSyncPickupRequired );
     $( ccmckSyncPickupRequired );
 
+    /* ------------------------------------------------------------------ */
+    /*  Validación inline estilo Shopify (solo campos obligatorios)         */
+    /*  Al pulsar "Finalizar pedido": si hay campos obligatorios vacíos,    */
+    /*  bloqueamos el envío de WooCommerce y mostramos el error DEBAJO de    */
+    /*  cada campo (en vez del banner rojo arriba). Nos guiamos por la clase */
+    /*  .validate-required, que ccmckSyncPickupRequired ya alterna según la  */
+    /*  recogida local — así pickup queda respetado sin lógica extra. Los    */
+    /*  errores generales que SÍ llegan al servidor (pago/envío) se reubican */
+    /*  junto al botón vía el evento checkout_error.                         */
+    /* ------------------------------------------------------------------ */
+
+    // Devuelve el control relevante de una fila (checkbox > select > input/textarea).
+    function ccmckFieldControl( $row ) {
+        var $cb = $row.find( 'input[type="checkbox"]' ).first();
+        if ( $cb.length ) { return $cb; }
+        var $sel = $row.find( 'select' ).first();
+        if ( $sel.length ) { return $sel; }
+        return $row.find( 'input.input-text, input[type="tel"], input[type="email"], input[type="text"], input[type="number"], textarea' ).first();
+    }
+
+    function ccmckRowEmpty( $ctrl ) {
+        if ( ! $ctrl || ! $ctrl.length ) { return false; }
+        if ( $ctrl.is( 'input[type="checkbox"]' ) ) {
+            return ! $ctrl.is( ':checked' );
+        }
+        return $.trim( $ctrl.val() || '' ) === '';
+    }
+
+    // Texto del label flotado (ya limpio de '*'); minúscula inicial para la frase.
+    function ccmckRowLabel( $row ) {
+        var txt = $.trim( ( $row.children( 'label' ).first().text() || '' ).replace( '*', '' ) );
+        return txt;
+    }
+    function ccmckLcFirst( s ) {
+        return s ? s.charAt( 0 ).toLowerCase() + s.slice( 1 ) : s;
+    }
+
+    function ccmckSetRowError( $row, msg ) {
+        $row.addClass( 'ccmck-invalid' );
+        var $err = $row.children( '.ccmck-field-error' ).first();
+        if ( ! $err.length ) {
+            $err = $( '<span class="ccmck-field-error" role="alert"></span>' );
+            $row.append( $err );
+        }
+        $err.text( msg );
+    }
+
+    function ccmckClearRowError( $row ) {
+        $row.removeClass( 'ccmck-invalid' );
+        $row.children( '.ccmck-field-error' ).remove();
+    }
+
+    /* ------------------------------------------------------------------ */
+    /*  Errores server-side de WooCommerce → inline por campo (Shopify)    */
+    /*  WC envuelve el nombre del campo en <strong> dentro de cada <li>.    */
+    /*  Casamos ese texto (o un alias) contra el label de cada .form-row y  */
+    /*  pintamos el error DEBAJO del campo; los que no casan van a un aviso */
+    /*  compacto junto al botón (ccmckMapServerErrors, más abajo).          */
+    /* ------------------------------------------------------------------ */
+
+    // Normaliza para comparar: minúsculas, sin acentos, sin '*', espacios colapsados.
+    function ccmckNorm( s ) {
+        return ( s || '' ).toString().toLowerCase()
+            .normalize( 'NFD' ).replace( /[̀-ͯ]/g, '' )
+            .replace( /\*/g, '' ).replace( /\s+/g, ' ' ).trim();
+    }
+
+    // Sinónimos que pueden aparecer en el mensaje → id del control destino.
+    var CCMCK_ERR_ALIASES = {
+        billing_email:           [ 'correo', 'correo electronico', 'email', 'e-mail' ],
+        billing_phone:           [ 'telefono', 'movil', 'celular', 'numero de telefono' ],
+        billing_document_number: [ 'numero de documento', 'documento' ],
+        billing_document_type:   [ 'tipo de documento' ],
+        billing_city:            [ 'poblacion', 'ciudad' ],
+        billing_state:           [ 'departamento', 'provincia', 'estado' ],
+        billing_address_1:       [ 'direccion', 'calle', 'direccion de la calle' ],
+        billing_first_name:      [ 'nombre' ],
+        billing_last_name:       [ 'apellido', 'apellidos' ],
+        billing_postcode:        [ 'cedula', 'nit', 'codigo postal' ]
+    };
+
+    // Construye [{ key, row }] (key normalizada): por label de cada fila + aliases.
+    function ccmckBuildFieldIndex() {
+        var index = [];
+        $( '.checkout-main .form-row' ).each( function () {
+            var $row = $( this );
+            var txt  = ccmckNorm( $row.children( 'label' ).first().text() );
+            if ( txt ) { index.push( { key: txt, row: $row } ); }
+        } );
+        $.each( CCMCK_ERR_ALIASES, function ( id, words ) {
+            var $row = $( '#' + id ).closest( '.checkout-main .form-row' );
+            if ( ! $row.length ) { return; }
+            $.each( words, function ( i, w ) { index.push( { key: w, row: $row } ); } );
+        } );
+        return index;
+    }
+
+    // Devuelve la fila para un error: match exacto del <strong> gana; si no, la
+    // key MÁS LARGA contenida como subcadena en el texto completo (más específica).
+    function ccmckMatchRow( strongTxt, fullTxt, index ) {
+        var nStrong = ccmckNorm( strongTxt );
+        var nFull   = ccmckNorm( fullTxt );
+        var best = null, bestLen = 0;
+        for ( var i = 0; i < index.length; i++ ) {
+            var k = index[ i ].key;
+            if ( ! k ) { continue; }
+            if ( nStrong && nStrong === k ) { return index[ i ].row; }
+            if ( nFull.indexOf( k ) !== -1 && k.length > bestLen ) {
+                best = index[ i ].row; bestLen = k.length;
+            }
+        }
+        return best;
+    }
+
+    // Valida los obligatorios visibles; pinta/limpia errores y devuelve la 1ª fila inválida.
+    function ccmckValidateRequired() {
+        var $first = null;
+        $( '.checkout-main .form-row.validate-required' ).each( function () {
+            var $row = $( this );
+            if ( ! $row.is( ':visible' ) ) {
+                ccmckClearRowError( $row );
+                return;
+            }
+            var $ctrl = ccmckFieldControl( $row );
+            if ( ccmckRowEmpty( $ctrl ) ) {
+                var label = ccmckRowLabel( $row );
+                var msg;
+                if ( $ctrl.is( 'input[type="checkbox"]' ) ) {
+                    msg = 'Debes marcar esta casilla para continuar.';
+                } else if ( $ctrl.is( 'select' ) ) {
+                    msg = label ? ( 'Selecciona ' + ccmckLcFirst( label ) ) : 'Selecciona una opción.';
+                } else {
+                    msg = label ? ( 'Ingresa ' + ccmckLcFirst( label ) ) : 'Este campo es obligatorio.';
+                }
+                ccmckSetRowError( $row, msg );
+                if ( ! $first ) { $first = $row; }
+            } else {
+                ccmckClearRowError( $row );
+            }
+        } );
+        return $first;
+    }
+
+    // Intercepta el submit ANTES que WooCommerce (captura en document → se ejecuta
+    // antes que el handler de WC, bound en la fase de burbuja sobre form.checkout).
+    document.addEventListener( 'submit', function ( e ) {
+        var form = e.target;
+        if ( ! form || ! form.classList || ! form.classList.contains( 'checkout' ) ) {
+            return;
+        }
+        var $first = ccmckValidateRequired();
+        if ( $first ) {
+            e.preventDefault();
+            e.stopImmediatePropagation(); // corta el submit de WooCommerce (sin banner arriba)
+            $( 'html, body' ).animate( { scrollTop: $first.offset().top - 120 }, 300 );
+            var $ctrl = ccmckFieldControl( $first );
+            if ( $ctrl && $ctrl.length && $ctrl.is( ':visible' ) ) {
+                $ctrl.trigger( 'focus' );
+            }
+        }
+    }, true );
+
+    // Limpia el error de un campo en cuanto el usuario lo corrige (no añade nuevos).
+    $( document ).on( 'input change', '.checkout-main .form-row.ccmck-invalid', function ( e ) {
+        var $row  = $( e.currentTarget );
+        var $ctrl = ccmckFieldControl( $row );
+        if ( ! ccmckRowEmpty( $ctrl ) ) {
+            ccmckClearRowError( $row );
+        }
+    } );
+
+    // Reparte los errores server-side de WC: cada <li> que casa con un campo se
+    // pinta inline bajo ese campo (Shopify); los sobrantes (pago/genéricos) quedan
+    // en un aviso compacto reubicado junto al botón. Si todos se mapean, no queda banner.
+    function ccmckMapServerErrors() {
+        var $group = $( 'form.checkout .woocommerce-NoticeGroup-checkout' ).first();
+        if ( ! $group.length ) { return; }
+        var $list = $group.find( 'ul.woocommerce-error' ).first();
+        if ( ! $list.length ) { return; }
+
+        var index     = ccmckBuildFieldIndex();
+        var leftover  = [];          // HTML de los <li> sin campo
+        var usedRows  = [];          // un error por fila (el primero)
+        var $firstRow = null;
+
+        $list.children( 'li' ).each( function () {
+            var $li  = $( this );
+            var $row = ccmckMatchRow( $li.find( 'strong' ).first().text(), $li.text(), index );
+            if ( $row && $row.length && $.inArray( $row.get( 0 ), usedRows ) === -1 ) {
+                ccmckSetRowError( $row, $.trim( $li.text() ) );
+                usedRows.push( $row.get( 0 ) );
+                if ( ! $firstRow ) { $firstRow = $row; }
+            } else if ( ! $row || ! $row.length ) {
+                leftover.push( $.trim( $li.html() ) );
+            }
+        } );
+
+        if ( leftover.length ) {
+            $list.html( $.map( leftover, function ( h ) { return '<li>' + h + '</li>'; } ).join( '' ) );
+            var $anchor = $( '.ccmck-payment-section .place-order' ).first();
+            if ( ! $anchor.length ) { $anchor = $( '#place_order' ).closest( '.form-row' ); }
+            if ( $anchor.length ) {
+                $group.addClass( 'ccmck-notice-relocated' ).insertBefore( $anchor );
+            }
+        } else {
+            $group.remove();
+        }
+
+        var $scroll = $firstRow || ( leftover.length ? $( '.ccmck-notice-relocated' ) : null );
+        if ( $scroll && $scroll.length ) {
+            $( 'html, body' ).animate( { scrollTop: $scroll.offset().top - 120 }, 300 );
+            if ( $firstRow ) {
+                var $ctrl = ccmckFieldControl( $firstRow );
+                if ( $ctrl && $ctrl.length && $ctrl.is( ':visible' ) ) { $ctrl.trigger( 'focus' ); }
+            }
+        }
+    }
+
+    $( document.body ).on( 'checkout_error', ccmckMapServerErrors );
+
 } )( jQuery );
