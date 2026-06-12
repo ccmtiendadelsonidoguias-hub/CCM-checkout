@@ -37,7 +37,7 @@ if ( ! $checkout->is_registration_enabled() && $checkout->is_registration_requir
  */
 remove_action( 'woocommerce_checkout_order_review', 'woocommerce_checkout_payment', 20 );
 ?>
-<div class="ccmck ccmck-checkout-page">
+<div class="ccmck ccmck-checkout-page ccmck-preload">
 
 	<?php require CCMCK_DIR . 'templates/parts/header.php'; ?>
 
