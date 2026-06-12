@@ -87,6 +87,48 @@ if ( ! wp_doing_ajax() ) {
 		<?php do_action( 'woocommerce_review_order_before_submit' ); ?>
 
 		<?php
+		// Resumen compacto SOLO móvil, antes del botón (estilo Shopify). Vive dentro de
+		// #payment → WooCommerce lo re-renderiza en cada refresco AJAX con totales frescos.
+		// El JS solo pliega/despliega (ccmck-checkout.js). El CSS lo oculta en desktop.
+		if ( WC()->cart && ! WC()->cart->is_empty() ) :
+			$ccmck_cart  = WC()->cart->get_cart();
+			$ccmck_count = WC()->cart->get_cart_contents_count();
+			$ccmck_first = reset( $ccmck_cart );
+			?>
+			<div class="ccmck-mos">
+				<button type="button" class="ccmck-mos-bar" aria-expanded="false" aria-controls="ccmck-mos-details">
+					<span class="ccmck-mos-thumb"><?php echo $ccmck_first ? $ccmck_first['data']->get_image( 'woocommerce_thumbnail' ) : ''; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></span>
+					<span class="ccmck-mos-label">
+						<b><?php esc_html_e( 'Total', 'ccm-checkout' ); ?></b>
+						<small><?php echo esc_html( sprintf( _n( '%d artículo', '%d artículos', $ccmck_count, 'ccm-checkout' ), $ccmck_count ) ); ?></small>
+					</span>
+					<span class="ccmck-mos-total"><?php echo wp_kses_post( WC()->cart->get_total() ); ?></span>
+					<svg class="ccmck-mos-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+				</button>
+				<div class="ccmck-mos-details" id="ccmck-mos-details">
+					<?php
+					foreach ( $ccmck_cart as $ccmck_ci ) :
+						$ccmck_p = $ccmck_ci['data'];
+						if ( ! $ccmck_p || ! $ccmck_p->exists() || $ccmck_ci['quantity'] <= 0 ) {
+							continue;
+						}
+						?>
+						<div class="ccmck-mos-item">
+							<span class="ccmck-mos-item-thumb"><?php echo $ccmck_p->get_image( array( 48, 48 ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></span>
+							<span class="ccmck-mos-item-name"><?php echo esc_html( $ccmck_p->get_name() ); ?> <span class="ccmck-mos-item-qty">&times; <?php echo esc_html( $ccmck_ci['quantity'] ); ?></span></span>
+							<span class="ccmck-mos-item-price"><?php echo wp_kses_post( WC()->cart->get_product_subtotal( $ccmck_p, $ccmck_ci['quantity'] ) ); ?></span>
+						</div>
+					<?php endforeach; ?>
+					<div class="ccmck-mos-sum"><span><?php esc_html_e( 'Subtotal', 'ccm-checkout' ); ?></span><span><?php echo wp_kses_post( WC()->cart->get_cart_subtotal() ); ?></span></div>
+					<?php if ( WC()->cart->needs_shipping() && WC()->cart->show_shipping() ) : ?>
+						<div class="ccmck-mos-sum"><span><?php esc_html_e( 'Envío', 'ccm-checkout' ); ?></span><span><?php echo wp_kses_post( WC()->cart->get_cart_shipping_total() ); ?></span></div>
+					<?php endif; ?>
+					<div class="ccmck-mos-sum ccmck-mos-grand"><span><?php esc_html_e( 'Total', 'ccm-checkout' ); ?></span><span><?php echo wp_kses_post( WC()->cart->get_total() ); ?></span></div>
+				</div>
+			</div>
+			<?php
+		endif;
+
 		$ccmck_button_text = esc_html__( 'Pagar ahora', 'ccm-checkout' );
 		echo apply_filters( // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 			'woocommerce_order_button_html',
