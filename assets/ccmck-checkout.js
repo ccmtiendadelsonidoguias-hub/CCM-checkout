@@ -74,6 +74,8 @@
             return; // Ignora si ya hay una petición en curso
         }
         busy = true;
+        // Skeleton inmediato del resumen (antes de que llegue update_checkout).
+        $( '.checkout-sidebar' ).addClass( 'ccmck-skel' );
 
         $.post( CCMCK.ajaxUrl, {
             action: 'ccmck_update_cart_item',
@@ -84,8 +86,14 @@
         .done( function ( res ) {
             if ( res && res.success ) {
                 // Indica a WC que recalcule totales y vuelva a pintar #order_review
+                // (update_checkout re-añade el skeleton; updated_checkout lo retira).
                 $( document.body ).trigger( 'update_checkout' );
+            } else {
+                $( '.checkout-sidebar' ).removeClass( 'ccmck-skel' );
             }
+        } )
+        .fail( function () {
+            $( '.checkout-sidebar' ).removeClass( 'ccmck-skel' );
         } )
         .always( function () {
             // Libera la bandera al finalizar (éxito o error)
@@ -426,5 +434,30 @@
     }
 
     $( document.body ).on( 'checkout_error', ccmckMapServerErrors );
+
+    /* ------------------------------------------------------------------ */
+    /*  Skeleton loading (shimmer): carga inicial + refrescos AJAX         */
+    /*  Mecanismo por clases CSS (ver ccmck-checkout.css). En AJAX togglea  */
+    /*  .ccmck-skel en las 3 regiones dinámicas; en la carga inicial retira */
+    /*  .ccmck-preload del wrapper cuando el checkout está listo.           */
+    /* ------------------------------------------------------------------ */
+    var CCMCK_SKEL_REGIONS = '.checkout-sidebar, .ccmck-payment-section, .ccmck-shipping-section';
+
+    // AJAX de WooCommerce: skeleton al iniciar el refresco, fuera al terminar.
+    $( document.body ).on( 'update_checkout', function () {
+        $( CCMCK_SKEL_REGIONS ).addClass( 'ccmck-skel' );
+    } );
+    $( document.body ).on( 'updated_checkout', function () {
+        $( CCMCK_SKEL_REGIONS ).removeClass( 'ccmck-skel' );
+    } );
+
+    // Carga inicial: retira .ccmck-preload cuando el checkout está listo.
+    // Señales: window.load O el primer updated_checkout; + timeout de seguridad.
+    function ccmckRevealInitial() {
+        $( '.ccmck-checkout-page.ccmck-preload' ).removeClass( 'ccmck-preload' );
+    }
+    $( window ).on( 'load', ccmckRevealInitial );
+    $( document.body ).on( 'updated_checkout', ccmckRevealInitial );
+    setTimeout( ccmckRevealInitial, 4000 ); // red de seguridad
 
 } )( jQuery );
