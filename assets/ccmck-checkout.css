@@ -1743,10 +1743,14 @@ body > .addi_description_container { display: none !important; }
 .ccmck .checkout-main .ccmck-section { margin-bottom: 34px; }
 .ccmck .checkout-main .ccmck-section > h2 {
   font-size: 24px;
-  font-weight: 700;
+  font-weight: 500;
   color: var(--ccmck-sidebar, #1a1a1a);
   margin: 0 0 16px;
   line-height: 1.2;
+}
+/* Móvil: títulos de sección hasta 20px (no más). */
+@media (max-width: 960px) {
+  .ccmck .checkout-main .ccmck-section > h2 { font-size: 20px; }
 }
 .ccmck .checkout-main .ccmck-section-head {
   display: flex;
@@ -1987,10 +1991,14 @@ body > .addi_description_container { display: none !important; }
     display: block;
     border: 1px solid #e6e6e6;
     border-radius: 12px;
-    margin: 0 0 18px;
+    margin: 0;
     overflow: hidden;
     background: #fff;
   }
+  /* En móvil el resumen va justo encima del botón: acortamos la separación
+     (el #payment #place_order trae margin-top:22px !important pensado para
+     desktop sin resumen entre medias; igualamos especificidad para vencerlo). */
+  .ccmck #payment #place_order { margin-top: 16px !important; }
   .ccmck .ccmck-mos-bar {
     width: 100%;
     display: flex;
