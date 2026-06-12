@@ -16,6 +16,10 @@ y el proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 - Resumen del pedido como **tarjetas**: miniatura del producto + badge de cantidad + precio unitario ("c/u"); totales como *summary-lines*.
 - **Cache-busting** automático de los assets del checkout vía `filemtime()` (`CCMCK_Assets::asset_version()`): cada cambio en `ccmck-checkout.css`/`.js` actualiza el `?ver=` y rompe caché del navegador. `CCMCK_VERSION` se mantiene como *fallback* si el archivo no existe.
 
+### Cambiado
+- **Errores de campo inline (estilo Shopify)**: al pulsar "Finalizar pedido" con campos obligatorios vacíos, ya **no** aparece el banner rojo arriba del formulario. En su lugar, cada campo se marca con **borde rojo + mensaje debajo** ("Ingresa …" / "Selecciona …"). La validación es propia (`ccmck-checkout.js`, captura del `submit` en `document` antes que WooCommerce) y se apoya en la clase `.validate-required`, por lo que **respeta la recogida local** automáticamente. El error de un campo se limpia en cuanto el usuario lo corrige.
+- **Errores server-side de WooCommerce inline por campo (estilo Shopify)**: los errores que devuelve el servidor en el evento `checkout_error` (formato de email/teléfono/documento, "X es un campo requerido", etc.) ya **no** se muestran como un banner agrupado. `ccmckMapServerErrors` reparte cada error a su campo —reconociendo el nombre del campo en el `<strong>`/texto del mensaje, con una tabla de aliases (`correo`→email, `población/ciudad`→city, `documento`→nº documento, …)— y lo pinta **inline con borde rojo** reusando el mismo estilo que la validación cliente. Solo los errores **no asociables a un campo** (fallo de pasarela, genéricos) quedan en un **aviso compacto junto al botón Pagar**; si todos se mapean, no aparece ningún banner.
+
 ### Corregido
 - **P1** — Campos del formulario con el look del mockup sobre el markup real de WooCommerce (`.form-row`/`.input-text`).
 - **P2** — "Facturación" a ancho completo de la columna principal (antes flotaba a media columna).
