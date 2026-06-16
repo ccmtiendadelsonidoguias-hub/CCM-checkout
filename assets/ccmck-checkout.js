@@ -23,12 +23,64 @@
             .addClass( 'selected' );
     }
 
+    /* Persistencia de la selección de método de pago.
+       Problema: al re-renderizar #payment en updated_checkout (lo dispara un
+       cambio de dirección/envío, o el propio gateway de Addi/MercadoPago), WC
+       repinta los radios con el método de SESIÓN marcado (normalmente el
+       primero, Wompi) y se pierde la elección del cliente. Síntoma real:
+       seleccionar Addi y terminar pagando con Wompi. Recordamos la elección
+       explícita del usuario y la re-aplicamos tras cada refresco. */
+    var ccmckUserPayment = null;
+    var ccmckReapplyingPayment = false;
+
+    function ccmckRestoreUserPayment() {
+        if ( ! ccmckUserPayment || ccmckReapplyingPayment ) {
+            return;
+        }
+        var $radio = $( 'input[name="payment_method"][value="' + ccmckUserPayment + '"]' );
+        if ( $radio.length && ! $radio.prop( 'checked' ) ) {
+            ccmckReapplyingPayment = true;
+            // 'change' deja que WC muestre el .payment_box correcto y sincroniza .selected.
+            $radio.prop( 'checked', true ).trigger( 'change' );
+            ccmckReapplyingPayment = false;
+        }
+    }
+
     // Cambio de método: el click en radio/label dispara 'change' de forma nativa.
-    $( document ).on( 'change', 'input[name="payment_method"]', ccmckSyncSelectedPayment );
-    // Tras un refresco AJAX del checkout, WooCommerce repinta #payment: re-sincronizamos.
-    $( document.body ).on( 'updated_checkout', ccmckSyncSelectedPayment );
+    $( document ).on( 'change', 'input[name="payment_method"]', function () {
+        if ( ! ccmckReapplyingPayment ) {
+            ccmckUserPayment = $( this ).val();
+        }
+        ccmckSyncSelectedPayment();
+    } );
+    // Tras un refresco AJAX del checkout, WooCommerce repinta #payment:
+    // restauramos la elección del usuario y re-sincronizamos el estado visual.
+    $( document.body ).on( 'updated_checkout', function () {
+        ccmckRestoreUserPayment();
+        ccmckSyncSelectedPayment();
+    } );
     // Estado inicial al cargar.
     $( ccmckSyncSelectedPayment );
+
+    /* Addi lee la cédula del campo billing_id (que el plugin elimina del
+       formulario por ser duplicado). Mantenemos un input oculto billing_id
+       sincronizado con el número de documento, como refuerzo cliente del fix
+       server-side (CCMCK_Document::mirror_document_to_billing_id). */
+    function ccmckSyncBillingId() {
+        var $form = $( 'form.checkout' );
+        var $num  = $( '#billing_document_number' );
+        if ( ! $form.length || ! $num.length ) {
+            return;
+        }
+        var $hidden = $form.find( 'input[name="billing_id"]' );
+        if ( ! $hidden.length ) {
+            $hidden = $( '<input type="hidden" name="billing_id" />' ).appendTo( $form );
+        }
+        $hidden.val( $.trim( $num.val() || '' ) );
+    }
+    $( document ).on( 'input change', '#billing_document_number', ccmckSyncBillingId );
+    $( document.body ).on( 'updated_checkout', ccmckSyncBillingId );
+    $( ccmckSyncBillingId );
 
     /* ------------------------------------------------------------------ */
     /*  Acordeón de preguntas frecuentes                                   */

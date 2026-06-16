@@ -23,6 +23,22 @@ final class CCMCK_Document {
         // cada campo —después de toda la cadena de checkout_fields—, así que gana
         // siempre. Sin él, el campo aparece como una "Cédula" duplicada.
         add_filter( 'woocommerce_form_field_args', array( __CLASS__, 'force_postcode_label' ), PHP_INT_MAX, 2 );
+        // CAUSA RAÍZ del rótulo "Cédula / NIT": un snippet heredado puso ese label en el
+        // locale DEFAULT de WooCommerce (woocommerce_default_address_fields → postcode).
+        // El locale CO solo sobrescribe required, no el label, así que el JS de WooCommerce
+        // `address-i18n.js` cae al label del default y reescribe el campo en cliente
+        // (tras el render y tras nuestro floating-label, en el evento country_to_state).
+        // Corregir el default arregla la fuente: server + los params JS que lee address-i18n.
+        add_filter( 'woocommerce_default_address_fields', array( __CLASS__, 'fix_default_postcode_field' ), PHP_INT_MAX );
+        // Addi (buy-now-pay-later-addi) lee la cédula del campo billing_id, que
+        // finalize_fields ELIMINA del formulario (era la "Cédula" duplicada). Sin él,
+        // la validación de Addi falla: "ingrese su número de cédula... en caso de no
+        // ver el campo, comuníquese con el administrador". Reflejamos el número de
+        // documento en billing_id (en los datos posteados y en $_POST) para que Addi
+        // lo encuentre, sin volver a mostrar el campo. La prioridad 1 en
+        // checkout_process garantiza correr ANTES de la validación de Addi.
+        add_filter( 'woocommerce_checkout_posted_data', array( __CLASS__, 'mirror_document_to_billing_id' ) );
+        add_action( 'woocommerce_checkout_process', array( __CLASS__, 'mirror_document_to_post' ), 1 );
         add_action( 'woocommerce_after_checkout_validation', array( __CLASS__, 'validate' ), 10, 2 );
         add_action( 'woocommerce_checkout_create_order', array( __CLASS__, 'save_meta' ), 10, 2 );
         add_action( 'woocommerce_admin_order_data_after_billing_address', array( __CLASS__, 'render_admin' ) );
@@ -194,6 +210,57 @@ final class CCMCK_Document {
             $args['required'] = false;
         }
         return $args;
+    }
+
+    /**
+     * Corrige el campo postcode en el locale DEFAULT de direcciones.
+     *
+     * Un snippet heredado dejó `postcode.label = "Cédula / NIT"` (y required=true)
+     * en el default global de WooCommerce. Ese default alimenta los params JS
+     * (`wc_address_i18n_params.locale.default`) que usa `address-i18n.js`, el cual
+     * reescribe el rótulo en cliente cuando el locale del país (CO) no define un
+     * label propio para postcode. Devolvemos el campo a "Código postal" opcional,
+     * cortando el problema en la fuente (server + JS). Las claves aquí van SIN el
+     * prefijo `billing_`/`shipping_`.
+     *
+     * @param array $fields Campos de dirección por defecto de WooCommerce.
+     * @return array
+     */
+    public static function fix_default_postcode_field( array $fields ): array {
+        if ( isset( $fields['postcode'] ) && is_array( $fields['postcode'] ) ) {
+            $fields['postcode']['label']       = __( 'Código postal', 'ccm-checkout' );
+            $fields['postcode']['placeholder'] = __( 'Código postal', 'ccm-checkout' );
+            $fields['postcode']['required']    = false;
+        }
+        return $fields;
+    }
+
+    /**
+     * Refleja el número de documento en billing_id dentro de los datos posteados.
+     * Addi valida la cédula leyendo billing_id (campo que finalize_fields quita
+     * del formulario). NO sobrescribe un billing_id ya presente. PURO.
+     *
+     * @param array $data Datos posteados del checkout (woocommerce_checkout_posted_data).
+     * @return array
+     */
+    public static function mirror_document_to_billing_id( array $data ): array {
+        if ( empty( $data['billing_id'] ) && ! empty( $data[ self::NUMBER_KEY ] ) ) {
+            $data['billing_id'] = $data[ self::NUMBER_KEY ];
+        }
+        return $data;
+    }
+
+    /**
+     * Misma reflexión sobre $_POST, por si la validación de Addi lee $_POST
+     * directo en vez de los datos parseados. Corre temprano (prio 1) en
+     * woocommerce_checkout_process.
+     */
+    public static function mirror_document_to_post(): void {
+        // phpcs:disable WordPress.Security.NonceVerification.Missing
+        if ( empty( $_POST['billing_id'] ) && ! empty( $_POST[ self::NUMBER_KEY ] ) ) {
+            $_POST['billing_id'] = sanitize_text_field( wp_unslash( $_POST[ self::NUMBER_KEY ] ) );
+        }
+        // phpcs:enable WordPress.Security.NonceVerification.Missing
     }
 
     public static function validate( array $data, $errors ): void {
