@@ -1648,6 +1648,23 @@ body.woocommerce-checkout .wp-block-woocommerce-cart { display: none !important;
    el checkout.) */
 body > .addi_description_container { display: none !important; }
 
+/* --- P9: limpiar elementos "derramados" por el HTML inválido de Addi ---
+   El banner de Addi (body > .addi_description_container, ver P6b) trae markup
+   inválido: un <b> que contiene un <div> (elemento de bloque dentro de uno
+   inline). El parser del navegador aplica el "adoption agency algorithm":
+   cierra el <b> y lo RE-ABRE envolviendo todo lo que viene después (el checkout
+   entero) y, de paso, saca los popups de Elementor (mega-menú de cabecera +
+   popup del filtro de productos) y el overlay e-page-transition de sus
+   contenedores .elementor-popup-modal —que normalmente los ocultan con
+   display:none—. Resultado: esos cascarones quedan VISIBLES volcados al final
+   de /pago/ (menús, listados de marcas, botón rojo "BORRAR TODO", una "X"
+   gigante). Los ocultamos con selector de descendiente para que matchee aunque
+   queden envueltos en el <b> roto. El bloque wp-block-woocommerce-cart ya lo
+   cubre P4. NO se toca #payment .addi_description_container (la descripción
+   real de la pasarela Addi, que sí debe verse al seleccionarla). */
+body.woocommerce-checkout .elementor-location-popup,
+body.woocommerce-checkout e-page-transition { display: none !important; }
+
 /* --- P7: compactar filas (eliminar 36px fantasma) ---
    El puente P1 hizo .form-row display:flex para apilar label sobre input,
    pero eso convierte los pseudo-elementos de clearfix de WooCommerce

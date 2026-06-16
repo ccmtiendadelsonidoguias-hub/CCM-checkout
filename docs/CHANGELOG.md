@@ -32,6 +32,7 @@ y el proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 - **P6** — Labels `screen-reader-text` ocultos que desalineaban las filas de la grilla.
 - **P7** — Filas del formulario compactas (los `::before/::after` de clearfix de WC inflaban ~36 px por fila al estar en `display:flex`).
 - **P8** — Tarjeta del resumen a ancho completo (tabla `shop_table` → block/flex, conservando el fragmento AJAX).
+- **P9** — Elementos "derramados" al final de `/pago/` por HTML inválido de Addi. El banner de Addi (`body > .addi_description_container`) trae un `<b>` con un `<div>` dentro (bloque dentro de inline); el parser del navegador aplica el *adoption agency algorithm*, cierra el `<b>` y lo **re-abre envolviendo todo el checkout**, sacando los **popups de Elementor** (mega-menú de cabecera + filtro de productos con su botón rojo "BORRAR TODO") y el overlay **`e-page-transition`** (una "X" gigante) de sus contenedores `.elementor-popup-modal` (que los ocultaban) → quedaban visibles volcados al final. Fix: `body.woocommerce-checkout .elementor-location-popup, body.woocommerce-checkout e-page-transition { display:none }` (selector de descendiente, matchea aun envuelto en el `<b>` roto). Verificado en vivo (chrome-devtools): altura de página 6787 → 1891 px, formulario/pago intactos y la descripción real de Addi en `#payment` se conserva. El `wp-block-woocommerce-cart` ya lo cubría P4.
 - Activada la clase `CCMCK_Faq` en el bootstrap (estaba `require`-ida pero sin `::init()`).
 
 ## [1.0.1] - 2026-06-05
