@@ -83,6 +83,75 @@
     $( ccmckSyncBillingId );
 
     /* ------------------------------------------------------------------ */
+    /*  Wompi como POPUP (no página nueva)                                  */
+    /*  Al colocar el pedido con Wompi, WC procesa y responde con un        */
+    /*  redirect a la página order-pay (donde el plugin Wompi pinta un      */
+    /*  botón que REDIRIGE a checkout.wompi.co). Interceptamos esa          */
+    /*  respuesta, traemos los datos FIRMADOS del widget desde order-pay y  */
+    /*  abrimos el modal WidgetCheckout aquí mismo. Cualquier fallo →       */
+    /*  se deja el flujo normal (redirección a order-pay). Reutilizamos la  */
+    /*  firma del plugin: NO la recreamos.                                  */
+    /* ------------------------------------------------------------------ */
+    function ccmckWompiSelected() {
+        return $( 'input[name="payment_method"]:checked' ).val() === 'wompi';
+    }
+
+    function ccmckOpenWompiPopup( orderPayUrl ) {
+        if ( typeof window.WidgetCheckout === 'undefined' ) {
+            return false; // sin el widget cargado → dejar el flujo normal
+        }
+        fetch( orderPayUrl, { credentials: 'include' } )
+            .then( function ( r ) { return r.text(); } )
+            .then( function ( html ) {
+                var doc = new DOMParser().parseFromString( html, 'text/html' );
+                var s = doc.querySelector( 'script[src*="checkout.wompi.co/widget.js"][data-reference]' );
+                if ( ! s ) { window.location = orderPayUrl; return; }
+                var cfg = {
+                    currency:      s.getAttribute( 'data-currency' ),
+                    amountInCents: parseInt( s.getAttribute( 'data-amount-in-cents' ), 10 ),
+                    reference:     s.getAttribute( 'data-reference' ),
+                    publicKey:     s.getAttribute( 'data-public-key' ),
+                    redirectUrl:   s.getAttribute( 'data-redirect-url' ),
+                    signature:     { integrity: s.getAttribute( 'data-signature:integrity' ) }
+                };
+                try {
+                    new window.WidgetCheckout( cfg ).open( function () {
+                        // Wompi redirige a su redirectUrl (página de gracias) que
+                        // resuelve el estado de la transacción para cualquier resultado.
+                        window.location = cfg.redirectUrl || orderPayUrl;
+                    } );
+                } catch ( e ) {
+                    window.location = orderPayUrl; // fallback
+                }
+            } )
+            .catch( function () { window.location = orderPayUrl; } ); // fallback
+        return true;
+    }
+
+    var ccmckOrigAjax = $.ajax;
+    $.ajax = function ( opts ) {
+        if ( opts && typeof opts.url === 'string' && opts.url.indexOf( 'wc-ajax=checkout' ) !== -1 ) {
+            var origSuccess = opts.success;
+            opts.success = function ( data ) {
+                var handled = false;
+                try {
+                    if ( data && 'success' === data.result && data.redirect &&
+                         /order-pay|pay_for_order/.test( data.redirect ) && ccmckWompiSelected() ) {
+                        handled = ccmckOpenWompiPopup( data.redirect );
+                    }
+                } catch ( e ) { handled = false; }
+                if ( handled ) {
+                    // Evitamos que WC redirija; el popup (o su fallback) navega.
+                    try { $( 'form.checkout' ).removeClass( 'processing' ).unblock(); } catch ( e2 ) {}
+                    return;
+                }
+                return origSuccess ? origSuccess.apply( this, arguments ) : undefined;
+            };
+        }
+        return ccmckOrigAjax.apply( this, arguments );
+    };
+
+    /* ------------------------------------------------------------------ */
     /*  Acordeón de preguntas frecuentes                                   */
     /* ------------------------------------------------------------------ */
     $( document ).on( 'click', '.faq-header', function () {
