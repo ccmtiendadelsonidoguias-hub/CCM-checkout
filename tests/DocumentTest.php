@@ -24,4 +24,23 @@ final class DocumentTest extends TestCase {
         $this->assertSame( '', CCMCK_Document::normalize_number( '...' ) );
         $this->assertSame( '', CCMCK_Document::normalize_number( '' ) );
     }
+
+    public function test_force_postcode_label_renames_and_makes_optional(): void {
+        // Simula el relabeler heredado que deja "Cédula / NIT" obligatorio.
+        $args = CCMCK_Document::force_postcode_label(
+            array( 'label' => 'Cédula / NIT', 'required' => true ),
+            'billing_postcode'
+        );
+        $this->assertSame( 'Código postal', $args['label'] );
+        $this->assertFalse( $args['required'] );
+    }
+
+    public function test_force_postcode_label_leaves_other_fields_untouched(): void {
+        $args = CCMCK_Document::force_postcode_label(
+            array( 'label' => 'Teléfono', 'required' => true ),
+            'billing_phone'
+        );
+        $this->assertSame( 'Teléfono', $args['label'] );
+        $this->assertTrue( $args['required'] );
+    }
 }

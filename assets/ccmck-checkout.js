@@ -197,7 +197,8 @@
     /*  de ser obligatorios (UX; el servidor es la fuente de verdad).      */
     /* ------------------------------------------------------------------ */
     var CCMCK_PICKUP_ID = 'ccmck_local_pickup';
-    // billing_postcode NO se incluye: está rotulado "Cédula / NIT" y sigue obligatorio.
+    // billing_postcode NO se incluye: es "Código postal" opcional (lo fuerza
+    // CCMCK_Document::force_postcode_label), no es un campo de dirección a relajar.
     var CCMCK_ADDR_IDS  = [ 'billing_address_1', 'billing_city', 'billing_state' ];
 
     function ccmckSyncPickupRequired() {

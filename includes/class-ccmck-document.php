@@ -17,6 +17,12 @@ final class CCMCK_Document {
         // y pone placeholders. Prioridad tardía (9999) para correr después de cualquier
         // filtro que registre/reetiquete campos (plugin viejo, CheckoutWC, etc.).
         add_filter( 'woocommerce_checkout_fields', array( __CLASS__, 'finalize_fields' ), 9999 );
+        // Blindaje en tiempo de render: un relabeler heredado (config de CO / snippet)
+        // reetiqueta billing_postcode como "Cédula / NIT" y le gana a finalize_fields
+        // (prio 9999 sobre woocommerce_checkout_fields). Este filtro corre al PINTAR
+        // cada campo —después de toda la cadena de checkout_fields—, así que gana
+        // siempre. Sin él, el campo aparece como una "Cédula" duplicada.
+        add_filter( 'woocommerce_form_field_args', array( __CLASS__, 'force_postcode_label' ), PHP_INT_MAX, 2 );
         add_action( 'woocommerce_after_checkout_validation', array( __CLASS__, 'validate' ), 10, 2 );
         add_action( 'woocommerce_checkout_create_order', array( __CLASS__, 'save_meta' ), 10, 2 );
         add_action( 'woocommerce_admin_order_data_after_billing_address', array( __CLASS__, 'render_admin' ) );
@@ -166,6 +172,28 @@ final class CCMCK_Document {
         }
 
         return $fields;
+    }
+
+    /**
+     * Fuerza el rótulo correcto de billing_postcode en tiempo de render.
+     *
+     * El documento ya se captura con Tipo + Número de documento; un relabeler
+     * heredado deja billing_postcode como "Cédula / NIT", creando un campo de
+     * cédula DUPLICADO. Aquí (filtro de WooCommerce aplicado dentro de
+     * woocommerce_form_field(), después de toda la cadena de campos) devolvemos
+     * el campo a su rol real: código postal opcional. Se pasa el label SIN el
+     * sufijo "(opcional)" porque WooCommerce lo añade solo cuando required=false.
+     *
+     * @param array  $args Argumentos del campo para woocommerce_form_field().
+     * @param string $key  Clave del campo que se está pintando.
+     * @return array
+     */
+    public static function force_postcode_label( array $args, string $key ): array {
+        if ( 'billing_postcode' === $key ) {
+            $args['label']    = __( 'Código postal', 'ccm-checkout' );
+            $args['required'] = false;
+        }
+        return $args;
     }
 
     public static function validate( array $data, $errors ): void {
