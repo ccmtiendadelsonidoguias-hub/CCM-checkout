@@ -325,8 +325,8 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 18px;
-  background: #fff;
+  padding: 14px 18px;
+  background: #fafafa;
   border-bottom: 1px solid #e8e8e8;
 }
 .ccmck .payment-header-left {
@@ -334,27 +334,10 @@
   align-items: center;
   gap: 10px;
 }
-/* Radio circular moderno (oculta el nativo y dibuja un anillo limpio; al
-   marcar, punto oscuro relleno). Reemplaza el radio nativo que se veía
-   "descuadrado". flex:0 0 auto + align-items:center del contenedor lo centra
-   verticalmente con el label. */
 .ccmck .payment-header-left input[type="radio"] {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 20px;
-  height: 20px;
-  margin: 0;
-  flex: 0 0 auto;
-  border: 2px solid #cfcfcf;
-  border-radius: 50%;
-  background: #fff;
-  cursor: pointer;
-  transition: border-color 0.15s, box-shadow 0.15s;
-}
-.ccmck .payment-header-left input[type="radio"]:hover { border-color: #9a9a9a; }
-.ccmck .payment-header-left input[type="radio"]:checked {
-  border-color: var(--ccmck-sidebar, #1a1a1a);
-  box-shadow: inset 0 0 0 4px var(--ccmck-sidebar, #1a1a1a);
+  width: 18px;
+  height: 18px;
+  accent-color: var(--ccmck-sidebar, #1a1a1a);
 }
 .ccmck .payment-header-left span {
   font-weight: 600;
@@ -376,37 +359,42 @@
   padding: 20px 18px;
 }
 
-/* Payment stack — TARJETAS SEPARADAS (estilo moderno tipo Shopify/newconcept).
-   Cada método es una tarjeta redondeada con su propio borde; la seleccionada
-   se resalta con borde oscuro de 2px. (Antes eran filas unidas con bordes
-   compartidos.) */
-.ccmck .payment-methods-stack .payment-box,
-.ccmck .payment-methods-stack .payment-box:first-child,
-.ccmck .payment-methods-stack .payment-box:last-child,
+/* Payment stack */
+.ccmck .payment-methods-stack .payment-box {
+  border-color: #d1d1d1;
+  border-radius: 0;
+  margin-bottom: 0;
+  border-bottom-width: 0;
+}
+.ccmck .payment-methods-stack .payment-box:first-child {
+  border-radius: 8px 8px 0 0;
+}
+.ccmck .payment-methods-stack .payment-box:last-child {
+  border-radius: 0 0 8px 8px;
+  border-bottom-width: 2px;
+}
 .ccmck .payment-methods-stack .payment-box:only-child {
-  border: 1.5px solid #e6e6e6;
-  border-radius: 12px;
-  margin-bottom: 10px;
-  overflow: hidden;
+  border-radius: 8px;
 }
 .ccmck .payment-methods-stack .payment-box.selected {
-  border: 2px solid var(--ccmck-sidebar, #1a1a1a);
+  border-color: var(--ccmck-sidebar, #1a1a1a);
   position: relative;
   z-index: 1;
+  border-bottom-width: 2px;
+}
+.ccmck .payment-methods-stack .payment-box.selected + .payment-box {
+  border-top-width: 0;
 }
 .ccmck .payment-methods-stack .payment-header {
   cursor: pointer;
   transition: background 0.15s;
   border-bottom: none;
 }
-/* La cabecera de la tarjeta seleccionada lleva un leve tinte + separador,
-   porque debajo se despliega su .payment_box (campos/descripción del gateway). */
 .ccmck .payment-methods-stack .payment-box.selected .payment-header {
-  background: #fafafa;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid #e8e8e8;
 }
 .ccmck .payment-methods-stack .payment-header:hover {
-  background: #fafafa;
+  background: #f5f5f5;
 }
 
 /* Payment info message */
