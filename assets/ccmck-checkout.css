@@ -364,6 +364,7 @@
    conserva borde oscuro + leve tinte en su cabecera (debajo se despliega su caja). */
 .ccmck .payment-methods-stack .payment-box {
   border-color: #e6e6e6;
+  border-width: 1px; /* deseleccionada: borde fino 1px */
   border-radius: 0;
   margin-bottom: 0;
   border-bottom-width: 0;
@@ -373,13 +374,14 @@
 }
 .ccmck .payment-methods-stack .payment-box:last-child {
   border-radius: 0 0 10px 10px;
-  border-bottom-width: 2px;
+  border-bottom-width: 1px;
 }
 .ccmck .payment-methods-stack .payment-box:only-child {
   border-radius: 10px;
 }
 .ccmck .payment-methods-stack .payment-box.selected {
   border-color: var(--ccmck-sidebar, #1a1a1a);
+  border-width: 2px; /* seleccionada: borde 2px oscuro */
   position: relative;
   z-index: 1;
   border-bottom-width: 2px;
