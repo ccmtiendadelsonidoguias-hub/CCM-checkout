@@ -2064,3 +2064,61 @@ body.woocommerce-checkout e-page-transition { display: none !important; }
 .ccmck .checkout-sidebar *:not(h1):not(h2):not(h3):not(h4):not(.product-title):not(.product-line-total):not(.order-total):not(.order-total th):not(.order-total td):not(.order-total .amount):not(.toggle-price) {
   font-weight: 400 !important;
 }
+
+/* =============================================================
+   THANKYOU — salida de los gateways (hooks woocommerce_thankyou)
+   thankyou.php emite, tras el layout CCM, dos do_action dentro de
+   .ccmck-gateway-output:
+     1) woocommerce_thankyou_<método>  → voucher del gateway. Para
+        Efecty/Mercado Pago es el bloque "Imprimir ticket"
+        (a#submit-payment) con el link al comprobante: DEBE quedarse,
+        el cliente lo necesita para pagar en efectivo.
+     2) woocommerce_thankyou (genérico) → secciones default de WC
+        .woocommerce-order-details + .woocommerce-customer-details,
+        que DUPLICAN lo que el layout CCM ya muestra estilizado: se
+        ocultan (los scripts de tracking colgados del hook siguen
+        ejecutándose pese a display:none).
+   ============================================================= */
+/* Ocultar los duplicados default de WooCommerce (el layout CCM ya los muestra). */
+.ccmck-thankyou-page .woocommerce-order-details,
+.ccmck-thankyou-page .woocommerce-customer-details { display: none !important; }
+
+/* Contener y centrar el bloque del gateway (evita el desbordado a ancho completo). */
+.ccmck-thankyou-page .ccmck-gateway-output {
+  max-width: 1200px;
+  margin: 8px auto 32px;
+  padding: 0 24px;
+  text-align: center;
+}
+.ccmck-thankyou-page .ccmck-gateway-output p { font-size: 14px; color: #444; margin: 0 0 14px; line-height: 1.5; }
+
+/* Botón del voucher (Efecty/Mercado Pago: a#submit-payment.button "Imprimir ticket")
+   con el look de marca, ancho natural (no full-bleed), centrado.
+   El plugin de Mercado Pago fija un style="width:75%" inline en #submit-payment;
+   por eso el ancho va con !important (los estilos inline ganan a la hoja de estilos). */
+.ccmck-thankyou-page #submit-payment.button,
+.ccmck-thankyou-page .ccmck-gateway-output a.button {
+  display: inline-block;
+  width: auto !important;
+  min-width: 220px;
+  background: var(--ccmck-accent, #e63946);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 14px 28px;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-decoration: none;
+  text-align: center;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.ccmck-thankyou-page #submit-payment.button:hover,
+.ccmck-thankyou-page .ccmck-gateway-output a.button:hover { background: #d62839; color: #fff; }
+
+@media (max-width: 960px) {
+  .ccmck-thankyou-page .ccmck-gateway-output { padding: 0 20px; }
+  .ccmck-thankyou-page #submit-payment.button,
+  .ccmck-thankyou-page .ccmck-gateway-output a.button { width: 100% !important; min-width: 0; }
+}
