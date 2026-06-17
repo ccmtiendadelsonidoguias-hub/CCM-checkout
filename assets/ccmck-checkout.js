@@ -128,6 +128,62 @@
         return true;
     }
 
+    /* ------------------------------------------------------------------ */
+    /*  Efecty (Mercado Pago ticket) como POPUP                            */
+    /*  Al colocar el pedido con Efecty, WC procesa y responde con un       */
+    /*  redirect a la página order-received, donde el plugin de Mercado     */
+    /*  Pago pinta el comprobante (iframe del ticket con convenio/Nº de     */
+    /*  pago). Interceptamos esa respuesta, TRAEMOS el comprobante de esa   */
+    /*  página y lo mostramos en un modal aquí mismo, sin salir de /pago/.  */
+    /*  Cualquier fallo → flujo normal (redirección a order-received).      */
+    /* ------------------------------------------------------------------ */
+    function ccmckEfectySelected() {
+        return $( 'input[name="payment_method"]:checked' ).val() === 'woo-mercado-pago-ticket';
+    }
+
+    function ccmckBuildEfectyModal( ticketUrl, orderUrl ) {
+        var overlay = document.createElement( 'div' );
+        overlay.className = 'ccmck-efecty-modal';
+        overlay.innerHTML =
+            '<div class="ccmck-efecty-dialog" role="dialog" aria-modal="true" aria-label="Comprobante de pago Efecty">' +
+                '<button type="button" class="ccmck-efecty-close" aria-label="Cerrar">&times;</button>' +
+                '<div class="ccmck-efecty-body">' +
+                    '<iframe src="' + ticketUrl + '" title="Comprobante de pago Efecty"></iframe>' +
+                '</div>' +
+                '<div class="ccmck-efecty-foot">' +
+                    '<a class="ccmck-efecty-print" href="' + ticketUrl + '" target="_blank" rel="noopener">Imprimir ticket</a>' +
+                    '<a class="ccmck-efecty-done" href="' + orderUrl + '">Ver mi pedido</a>' +
+                '</div>' +
+            '</div>';
+        function close() { window.location = orderUrl; }
+        overlay.addEventListener( 'click', function ( e ) {
+            if ( e.target === overlay || ( e.target.classList && e.target.classList.contains( 'ccmck-efecty-close' ) ) ) {
+                close();
+            }
+        } );
+        document.addEventListener( 'keydown', function onEsc( e ) {
+            if ( 'Escape' === e.key ) { document.removeEventListener( 'keydown', onEsc ); close(); }
+        } );
+        document.body.appendChild( overlay );
+        document.body.classList.add( 'ccmck-modal-open' );
+        return overlay;
+    }
+
+    function ccmckOpenEfectyPopup( orderUrl ) {
+        fetch( orderUrl, { credentials: 'include' } )
+            .then( function ( r ) { return r.text(); } )
+            .then( function ( html ) {
+                var doc = new DOMParser().parseFromString( html, 'text/html' );
+                var ifr = doc.querySelector( '.ccmck-gateway-output iframe[src*="mercadopago"], iframe[src*="mercadopago.com"][src*="/payments/"]' );
+                var link = doc.querySelector( '#submit-payment' );
+                var ticketUrl = ifr ? ifr.getAttribute( 'src' ) : ( link ? link.getAttribute( 'href' ) : null );
+                if ( ! ticketUrl ) { window.location = orderUrl; return; } // sin comprobante → flujo normal
+                ccmckBuildEfectyModal( ticketUrl, orderUrl );
+            } )
+            .catch( function () { window.location = orderUrl; } ); // fallback
+        return true;
+    }
+
     var ccmckOrigAjax = $.ajax;
     $.ajax = function ( opts ) {
         if ( opts && typeof opts.url === 'string' && opts.url.indexOf( 'wc-ajax=checkout' ) !== -1 ) {
@@ -138,6 +194,9 @@
                     if ( data && 'success' === data.result && data.redirect &&
                          /order-pay|pay_for_order/.test( data.redirect ) && ccmckWompiSelected() ) {
                         handled = ccmckOpenWompiPopup( data.redirect );
+                    } else if ( data && 'success' === data.result && data.redirect &&
+                         /order-received/.test( data.redirect ) && ccmckEfectySelected() ) {
+                        handled = ccmckOpenEfectyPopup( data.redirect );
                     }
                 } catch ( e ) { handled = false; }
                 if ( handled ) {
