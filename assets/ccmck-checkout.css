@@ -2083,14 +2083,35 @@ body.woocommerce-checkout e-page-transition { display: none !important; }
 .ccmck-thankyou-page .woocommerce-order-details,
 .ccmck-thankyou-page .woocommerce-customer-details { display: none !important; }
 
-/* Contener y centrar el bloque del gateway (evita el desbordado a ancho completo). */
+/* Bloque del gateway a ANCHO COMPLETO con fondo blanco propio.
+   Por qué: el panel oscuro del resumen (.page-sidebar) pinta su fondo con un
+   `box-shadow: 9999px 9999px 0 9999px #1a1a1a` gigante para sangrar hasta el borde
+   de la pantalla; ese shadow se derrama también HACIA ABAJO. Como el voucher del
+   gateway (incl. el iframe del comprobante de Efecty) va debajo de la grilla, el
+   shadow le tapaba en negro la mitad derecha → en desktop el comprobante se veía
+   "cortado". El shadow NO es hit-testeable (elementFromPoint no lo detecta), por eso
+   confundía. Fix: el bloque ocupa todo el ancho con fondo blanco y stacking propio
+   (position:relative + z-index) → cubre el shadow derramado en TODA la franja (no solo
+   en el centro). El contenido se centra (text-align) y el iframe se acota para que MP
+   pinte su tarjeta sin dejar zonas vacías. */
 .ccmck-thankyou-page .ccmck-gateway-output {
-  max-width: 1200px;
-  margin: 8px auto 32px;
-  padding: 0 24px;
+  position: relative;
+  z-index: 1;
+  background: #fff;
+  margin: 0;
+  padding: 8px 24px 32px;
   text-align: center;
 }
 .ccmck-thankyou-page .ccmck-gateway-output p { font-size: 14px; color: #444; margin: 0 0 14px; line-height: 1.5; }
+/* El plugin de Mercado Pago embebe el comprobante de Efecty en un <iframe
+   style="width:100%; height:1000px">. Lo acotamos (centrado por text-align) para que
+   la página de MP rinda su tarjeta completa sin recortes ni canvas oscuro a los lados. */
+.ccmck-thankyou-page .ccmck-gateway-output iframe {
+  display: inline-block;
+  width: 100% !important;
+  max-width: 1152px;
+  border: 0;
+}
 
 /* Botón del voucher (Efecty/Mercado Pago: a#submit-payment.button "Imprimir ticket")
    con el look de marca, ancho natural (no full-bleed), centrado.
