@@ -218,6 +218,91 @@
         return true;
     }
 
+    /* ------------------------------------------------------------------ */
+    /*  Sistecrédito como POPUP (visor inline)                             */
+    /*  Con el "widget para checkout" activo, al colocar el pedido el      */
+    /*  plugin guarda el documento en transients y responde con redirect a */
+    /*  la página order-pay, donde pinta un <app-visor> (web component que  */
+    /*  abre su PROPIO modal) + el <script id="visor">. Interceptamos esa   */
+    /*  respuesta, TRAEMOS el <app-visor> (con su JWT authentication) y el  */
+    /*  script de esa página, los inyectamos aquí y abrimos el visor sobre  */
+    /*  /pago/ sin navegar. Cualquier fallo → redirección normal a         */
+    /*  order-pay (donde el visor abre igual). No recreamos el JWT.         */
+    /* ------------------------------------------------------------------ */
+    function ccmckSistecreditoSelected() {
+        return $( 'input[name="payment_method"]:checked' ).val() === 'wcsistecredito';
+    }
+
+    function ccmckOpenSistecreditoPopup( orderPayUrl ) {
+        if ( false === window.ccmckSistecreditoPopupEnabled ) {
+            return false; // guard de activación; por defecto activo
+        }
+        fetch( orderPayUrl, { credentials: 'include' } )
+            .then( function ( r ) { return r.text(); } )
+            .then( function ( html ) {
+                var doc       = new DOMParser().parseFromString( html, 'text/html' );
+                var scriptEl  = doc.querySelector( 'script#visor[src]' );
+                var visorEl   = doc.querySelector( 'app-visor' );
+                if ( ! scriptEl || ! visorEl ) {
+                    window.location = orderPayUrl; // sin visor → flujo normal
+                    return;
+                }
+
+                var host = document.getElementById( 'ccmck-sistecredito-host' );
+                if ( ! host ) {
+                    host = document.createElement( 'div' );
+                    host.id = 'ccmck-sistecredito-host';
+                    document.body.appendChild( host );
+                }
+
+                // Si el visor falla, el plugin emite sc:visor:error → fallback.
+                document.addEventListener( 'sc:visor:error', function onErr() {
+                    document.removeEventListener( 'sc:visor:error', onErr );
+                    window.location = orderPayUrl;
+                } );
+
+                var appVisor = document.importNode( visorEl, true );
+
+                function mountAndOpen() {
+                    host.innerHTML = '';
+                    host.appendChild( appVisor );
+                    // réplica de openVisorCheckout() del plugin (mismo id "Checkout").
+                    document.dispatchEvent( new CustomEvent( 'sc:visor:open', {
+                        detail: appVisor.getAttribute( 'id' ) || 'Checkout'
+                    } ) );
+                }
+
+                if ( window.customElements && customElements.get( 'app-visor' ) ) {
+                    mountAndOpen();
+                    return;
+                }
+
+                // Cargar el script del visor (con su data-key) y esperar a que
+                // defina el custom element, con timeout de seguridad.
+                var s = document.createElement( 'script' );
+                s.id  = 'visor';
+                s.src = scriptEl.getAttribute( 'src' );
+                if ( scriptEl.getAttribute( 'data-key' ) ) {
+                    s.setAttribute( 'data-key', scriptEl.getAttribute( 'data-key' ) );
+                }
+                s.onerror = function () { window.location = orderPayUrl; };
+                document.body.appendChild( s );
+
+                var waited = 0;
+                var timer = setInterval( function () {
+                    if ( window.customElements && customElements.get( 'app-visor' ) ) {
+                        clearInterval( timer );
+                        mountAndOpen();
+                    } else if ( ( waited += 100 ) >= 8000 ) {
+                        clearInterval( timer );
+                        window.location = orderPayUrl;
+                    }
+                }, 100 );
+            } )
+            .catch( function () { window.location = orderPayUrl; } );
+        return true;
+    }
+
     var ccmckOrigAjax = $.ajax;
     $.ajax = function ( opts ) {
         if ( opts && typeof opts.url === 'string' && opts.url.indexOf( 'wc-ajax=checkout' ) !== -1 ) {
@@ -231,6 +316,9 @@
                     } else if ( data && 'success' === data.result && data.redirect &&
                          /order-received/.test( data.redirect ) && ccmckEfectySelected() ) {
                         handled = ccmckOpenEfectyPopup( data.redirect );
+                    } else if ( data && 'success' === data.result && data.redirect &&
+                         /order-pay|pay_for_order/.test( data.redirect ) && ccmckSistecreditoSelected() ) {
+                        handled = ccmckOpenSistecreditoPopup( data.redirect );
                     }
                 } catch ( e ) { handled = false; }
                 if ( handled ) {
