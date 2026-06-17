@@ -326,8 +326,8 @@
   justify-content: space-between;
   align-items: center;
   padding: 14px 18px;
-  background: #fafafa;
-  border-bottom: 1px solid #e8e8e8;
+  background: #fff;
+  border-bottom: 1px solid #eee;
 }
 .ccmck .payment-header-left {
   display: flex;
@@ -359,22 +359,24 @@
   padding: 20px 18px;
 }
 
-/* Payment stack */
+/* Payment stack — estructura unida (acordeón). Colores/bordes modernizados:
+   bordes más claros (#e6e6e6), cabecera blanca, esquinas a 10px; la seleccionada
+   conserva borde oscuro + leve tinte en su cabecera (debajo se despliega su caja). */
 .ccmck .payment-methods-stack .payment-box {
-  border-color: #d1d1d1;
+  border-color: #e6e6e6;
   border-radius: 0;
   margin-bottom: 0;
   border-bottom-width: 0;
 }
 .ccmck .payment-methods-stack .payment-box:first-child {
-  border-radius: 8px 8px 0 0;
+  border-radius: 10px 10px 0 0;
 }
 .ccmck .payment-methods-stack .payment-box:last-child {
-  border-radius: 0 0 8px 8px;
+  border-radius: 0 0 10px 10px;
   border-bottom-width: 2px;
 }
 .ccmck .payment-methods-stack .payment-box:only-child {
-  border-radius: 8px;
+  border-radius: 10px;
 }
 .ccmck .payment-methods-stack .payment-box.selected {
   border-color: var(--ccmck-sidebar, #1a1a1a);
@@ -391,10 +393,19 @@
   border-bottom: none;
 }
 .ccmck .payment-methods-stack .payment-box.selected .payment-header {
-  border-bottom: 1px solid #e8e8e8;
+  background: #fafafa;
+  border-bottom: 1px solid #eee;
 }
 .ccmck .payment-methods-stack .payment-header:hover {
-  background: #f5f5f5;
+  background: #fafafa;
+}
+
+/* Sistecrédito "corrido": el CSS del plugin pone
+   `.payment_method_wcsistecredito > div:first-of-type { padding:0 }` sobre el
+   .payment-header de CCM, dejando su radio/label pegados a la izquierda. Restauramos
+   el padding con una regla más específica (con #payment) para alinearlo con los demás. */
+.ccmck #payment li.payment_method_wcsistecredito > .payment-header {
+  padding: 14px 18px;
 }
 
 /* Payment info message */
