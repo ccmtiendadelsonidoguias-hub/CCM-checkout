@@ -2176,22 +2176,43 @@ body.ccmck-modal-open { overflow: hidden; }
   overflow: hidden;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
 }
+/* Botón cerrar: círculo moderno con icono SVG. Lleva !important en
+   background/border/color/box-shadow porque el tema (Hello/Elementor) estiliza
+   los <button> con borde y color de marca y, si no, "ensucian" el control. */
 .ccmck-efecty-close {
   position: absolute;
-  top: 8px;
+  top: 12px;
   right: 12px;
-  z-index: 2;
-  background: transparent;
-  border: 0;
-  font-size: 30px;
-  line-height: 1;
-  color: #999;
-  cursor: pointer;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 38px;
   height: 38px;
-  border-radius: 50%;
+  padding: 0 !important;
+  margin: 0 !important;
+  background: rgba(255, 255, 255, 0.92) !important;
+  border: 1px solid #e6e6e6 !important;
+  border-radius: 50% !important;
+  color: #555 !important;
+  cursor: pointer;
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1) !important;
+  transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
 }
-.ccmck-efecty-close:hover { color: #1a1a1a; background: #f2f2f2; }
+.ccmck-efecty-close svg { display: block; width: 18px; height: 18px; pointer-events: none; }
+.ccmck-efecty-close:hover {
+  background: #1a1a1a !important;
+  border-color: #1a1a1a !important;
+  color: #fff !important;
+  transform: rotate(90deg);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22) !important;
+}
+.ccmck-efecty-close:focus-visible {
+  outline: 2px solid var(--ccmck-accent, #e63946);
+  outline-offset: 2px;
+}
 .ccmck-efecty-body {
   flex: 1 1 auto;
   overflow: auto;

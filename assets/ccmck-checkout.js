@@ -146,7 +146,9 @@
         overlay.className = 'ccmck-efecty-modal';
         overlay.innerHTML =
             '<div class="ccmck-efecty-dialog" role="dialog" aria-modal="true" aria-label="Comprobante de pago Efecty">' +
-                '<button type="button" class="ccmck-efecty-close" aria-label="Cerrar">&times;</button>' +
+                '<button type="button" class="ccmck-efecty-close" aria-label="Cerrar">' +
+                    '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>' +
+                '</button>' +
                 '<div class="ccmck-efecty-body">' +
                     '<iframe src="' + ticketUrl + '" title="Comprobante de pago Efecty"></iframe>' +
                 '</div>' +
@@ -157,7 +159,7 @@
             '</div>';
         function close() { window.location = orderUrl; }
         overlay.addEventListener( 'click', function ( e ) {
-            if ( e.target === overlay || ( e.target.classList && e.target.classList.contains( 'ccmck-efecty-close' ) ) ) {
+            if ( e.target === overlay || ( e.target.closest && e.target.closest( '.ccmck-efecty-close' ) ) ) {
                 close();
             }
         } );
