@@ -2289,3 +2289,14 @@ body.ccmck-modal-open { overflow: hidden; }
 .ccmck #payment li.payment_method_wcsistecredito .payment_box > hr {
   display: none !important;
 }
+/* Con los campos ocultos, la caja de Sistecrédito quedaría vacía. Mostramos un
+   mensaje breve (es una pasarela redirect) con el mismo look que las descripciones
+   de los otros gateways. Se usa ::after porque el ::before del .payment_box ya está
+   forzado a display:none (oculta el triángulo morado de WC). */
+.ccmck #payment li.payment_method_wcsistecredito .payment_box::after {
+  content: "Al continuar te llevaremos a Sistecrédito para completar tu crédito de forma segura.";
+  display: block;
+  font-size: 13px;
+  color: #666;
+  line-height: 1.5;
+}
