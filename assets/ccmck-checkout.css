@@ -2262,3 +2262,17 @@ body.ccmck-modal-open { overflow: hidden; }
   .ccmck-efecty-dialog { max-width: 100%; max-height: 100vh; height: 100vh; border-radius: 0; }
   .ccmck-efecty-foot { flex-direction: column; }
 }
+
+/* =============================================================
+   Sistecrédito: ocultar los campos de documento propios del
+   plugin en su caja de pago. El documento se reusa del checkout
+   (billing_document_*) y ccmck-checkout.js sincroniza los campos
+   ocultos (#wcsistecredito-document-type / -id) que el plugin
+   POSTea. Se ocultan con display:none (siguen en el DOM → se
+   envían). #wcsistecredito-cc-form es el <fieldset> de payment.php;
+   el <hr> hermano que pinta el plugin también se oculta.
+   ============================================================= */
+.ccmck #payment .payment_box #wcsistecredito-cc-form,
+.ccmck #payment li.payment_method_wcsistecredito .payment_box > hr {
+  display: none !important;
+}

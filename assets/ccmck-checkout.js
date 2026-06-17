@@ -83,6 +83,38 @@
     $( ccmckSyncBillingId );
 
     /* ------------------------------------------------------------------ */
+    /*  Sistecrédito: reusar el documento del checkout                     */
+    /*  El plugin (wcsistecredito) pinta sus propios campos de documento   */
+    /*  (#wcsistecredito-document-type / -id) en su caja de pago. En vez   */
+    /*  de pedir el documento dos veces, los OCULTAMOS por CSS y los       */
+    /*  autollenamos desde billing_document_type/number (mapeando a CC/CE, */
+    /*  únicos que acepta Sistecrédito). Mismo patrón que el billing_id de */
+    /*  Addi.                                                              */
+    /* ------------------------------------------------------------------ */
+    function ccmckSistecreditoDocType() {
+        var $sel = $( '#billing_document_type' );
+        if ( ! $sel.length ) {
+            return 'CC';
+        }
+        var txt = $.trim( $sel.find( 'option:selected' ).text() ).toUpperCase();
+        return ( 'CE' === txt ) ? 'CE' : 'CC'; // Sistecrédito solo CC/CE; default CC
+    }
+
+    function ccmckSyncSistecreditoDoc() {
+        var $type = $( '#wcsistecredito-document-type' );
+        var $id   = $( '#wcsistecredito-document-id' );
+        if ( $type.length ) {
+            $type.val( ccmckSistecreditoDocType() );
+        }
+        if ( $id.length ) {
+            $id.val( $.trim( $( '#billing_document_number' ).val() || '' ) );
+        }
+    }
+    $( document ).on( 'input change', '#billing_document_number, #billing_document_type', ccmckSyncSistecreditoDoc );
+    $( document.body ).on( 'updated_checkout', ccmckSyncSistecreditoDoc );
+    $( ccmckSyncSistecreditoDoc );
+
+    /* ------------------------------------------------------------------ */
     /*  Wompi como POPUP (no página nueva)                                  */
     /*  Al colocar el pedido con Wompi, WC procesa y responde con un        */
     /*  redirect a la página order-pay (donde el plugin Wompi pinta un      */
