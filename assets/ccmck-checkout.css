@@ -2187,8 +2187,8 @@ body.ccmck-modal-open { overflow: hidden; }
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 38px;
-  height: 38px;
+  width: 38px !important;
+  height: 38px !important;
   padding: 0 !important;
   margin: 0 !important;
   background: rgba(255, 255, 255, 0.92) !important;
