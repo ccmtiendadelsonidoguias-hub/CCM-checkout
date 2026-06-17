@@ -1738,11 +1738,17 @@ body.woocommerce-checkout e-page-transition { display: none !important; }
   cursor: pointer;
 }
 /* Iconos que entrega el propio gateway ($gateway->get_icon() => <img>) o los
-   configurados en Ajustes: altura uniforme, sin deformar ni desbordar. */
+   configurados en Ajustes: altura uniforme, sin deformar ni desbordar.
+   max-width acota los logos tipo banner muy anchos (p. ej. Sistecrédito, 260×31)
+   que, con solo height:22px, se renderizaban a ~185px y se veían desproporcionados
+   frente a Wompi/Addi. object-fit:contain preserva el ratio dentro de la caja
+   acotada (sin estirar) cuando se topan width y height. */
 .ccmck .payment-icons img,
 .ccmck .payment-icons img.ccmck-pay-icon {
   height: 22px;
   width: auto;
+  max-width: 110px;
+  object-fit: contain;
   display: block;
 }
 /* Contenido que inyecta el gateway dentro de su .payment_box (descripción y
