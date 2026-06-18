@@ -95,6 +95,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  min-height: 48px;            /* reserva la franja del logo desde el 1er pintado (anti-CLS) */
   padding: 16px 24px;
   border-bottom: 1px solid #ececec;
   background: #fff;            /* header todo blanco */
@@ -1368,7 +1369,7 @@
    ============================================================= */
 .ccmck .checkout-header { display: flex; justify-content: space-between; align-items: center; }
 .ccmck .checkout-header img,
-.ccmck .checkout-header .logo img { max-height: 48px; width: auto; display: block; }
+.ccmck .checkout-header .logo img { height: 48px; width: auto; display: block; }
 
 /* Defensa de layout: forzar el grid de 2 columnas y el sidebar oscuro
    por si el tema/Elementor lo sobrescribe con mayor especificidad. */
