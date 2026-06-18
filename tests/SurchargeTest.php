@@ -35,4 +35,15 @@ final class SurchargeTest extends TestCase {
 		$this->assertSame( 1.0, CCMCK_Surcharge::multiplier( 'wompi' ) );
 		$this->assertSame( 1.0, CCMCK_Surcharge::multiplier( '' ) );
 	}
+
+	public function test_product_qualifies_all_when_no_brands_selected(): void {
+		// Sin marcas seleccionadas → aplica a todos, tenga o no marca.
+		$this->assertTrue( CCMCK_Surcharge::product_qualifies( array(), false ) );
+		$this->assertTrue( CCMCK_Surcharge::product_qualifies( array(), true ) );
+	}
+
+	public function test_product_qualifies_only_matching_when_brands_selected(): void {
+		$this->assertTrue( CCMCK_Surcharge::product_qualifies( array( 1253 ), true ) );
+		$this->assertFalse( CCMCK_Surcharge::product_qualifies( array( 1253 ), false ) );
+	}
 }

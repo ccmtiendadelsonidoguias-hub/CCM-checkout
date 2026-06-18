@@ -438,6 +438,37 @@ defined( 'ABSPATH' ) || exit;
             </p>
         </td>
     </tr>
+    <tr>
+        <th scope="row"><?php esc_html_e( 'Aplicar solo a estas marcas', 'ccm-checkout' ); ?></th>
+        <td>
+            <?php
+            $brand_tax   = class_exists( 'CCMCK_Surcharge' ) ? CCMCK_Surcharge::brand_taxonomy() : 'product_brand';
+            $sel_brands  = array_map( 'intval', (array) ( $s['surcharge_brands'] ?? array() ) );
+            $brand_terms = ( '' !== $brand_tax && function_exists( 'get_terms' ) )
+                ? get_terms( array( 'taxonomy' => $brand_tax, 'hide_empty' => false ) )
+                : array();
+            if ( is_wp_error( $brand_terms ) ) {
+                $brand_terms = array();
+            }
+            ?>
+            <?php if ( empty( $brand_terms ) ) : ?>
+                <p class="description"><?php esc_html_e( 'No se encontraron marcas (taxonomía product_brand).', 'ccm-checkout' ); ?></p>
+            <?php else : ?>
+                <div style="max-height:240px;overflow:auto;border:1px solid #dcdcde;border-radius:6px;padding:8px 12px;max-width:520px;column-count:2;column-gap:24px;">
+                    <?php foreach ( $brand_terms as $term ) : ?>
+                        <label style="display:block;break-inside:avoid;margin:2px 0;">
+                            <input type="checkbox" name="ccmck_settings[surcharge_brands][]"
+                                   value="<?php echo esc_attr( (string) $term->term_id ); ?>"
+                                <?php checked( in_array( (int) $term->term_id, $sel_brands, true ) ); ?>>
+                            <?php echo esc_html( $term->name ); ?>
+                            <span style="color:#787c82;">(<?php echo esc_html( (string) $term->count ); ?>)</span>
+                        </label>
+                    <?php endforeach; ?>
+                </div>
+                <p class="description"><?php esc_html_e( 'Marca las marcas a las que se les aplicará el recargo. Si no eliges ninguna, el recargo aplica a TODOS los productos.', 'ccm-checkout' ); ?></p>
+            <?php endif; ?>
+        </td>
+    </tr>
 </table>
 
 <?php /* ============================================================

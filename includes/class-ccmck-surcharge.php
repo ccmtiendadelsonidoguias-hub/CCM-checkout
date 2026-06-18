@@ -31,6 +31,9 @@ final class CCMCK_Surcharge {
 	/** IDs de gateway con recargo. Filtrable con `ccmck_surcharge_methods`. */
 	const METHODS = array( 'addi', 'wcsistecredito' );
 
+	/** Taxonomías candidatas de "marca" (la 1ª que exista). Filtrable. */
+	const BRAND_TAXONOMIES = array( 'product_brand', 'pwb-brand', 'yith_product_brand', 'product_brands', 'berocket_brand' );
+
 	/** Cache de precios originales por product/variation id (por request). */
 	private static $orig_prices = array();
 
@@ -42,6 +45,36 @@ final class CCMCK_Surcharge {
 	/** Multiplicador a aplicar al precio según el método. PURO. */
 	public static function multiplier( string $method ): float {
 		return self::method_has_surcharge( $method ) ? ( 1.0 + self::rate() ) : 1.0;
+	}
+
+	/** Taxonomía de marcas usada por la tienda (la 1ª candidata que exista). */
+	public static function brand_taxonomy(): string {
+		$candidates = (array) apply_filters( 'ccmck_surcharge_brand_taxonomy_candidates', self::BRAND_TAXONOMIES );
+		$found = '';
+		foreach ( $candidates as $tax ) {
+			if ( function_exists( 'taxonomy_exists' ) && taxonomy_exists( $tax ) ) {
+				$found = $tax;
+				break;
+			}
+		}
+		return (string) apply_filters( 'ccmck_surcharge_brand_taxonomy', $found );
+	}
+
+	/** Marcas (IDs de término) a las que aplica el recargo. Vacío = todas. */
+	public static function brands(): array {
+		return array_map( 'intval', (array) CCMCK_Settings::get( 'surcharge_brands', array() ) );
+	}
+
+	/**
+	 * ¿Un producto califica para el recargo, dadas las marcas seleccionadas?
+	 * Sin marcas seleccionadas → aplica a TODOS. Con marcas → solo si el producto
+	 * pertenece a alguna. PURO (recibe ya resuelto si el producto tiene la marca).
+	 *
+	 * @param array $selected_brands          IDs de marca seleccionados.
+	 * @param bool  $product_in_selected_brand ¿El producto pertenece a alguna?
+	 */
+	public static function product_qualifies( array $selected_brands, bool $product_in_selected_brand ): bool {
+		return empty( $selected_brands ) ? true : $product_in_selected_brand;
 	}
 
 	/**
@@ -63,9 +96,18 @@ final class CCMCK_Surcharge {
 		if ( 1.0 === $mult ) {
 			return; // sin recargo: no se toca el precio.
 		}
+		$brands = self::brands();
+		$tax    = self::brand_taxonomy();
 		foreach ( $cart->get_cart() as $item ) {
 			if ( empty( $item['data'] ) || ! is_object( $item['data'] ) ) {
 				continue;
+			}
+			// Filtro por marca: el término vive en el producto PADRE (product_id).
+			$parent_id = isset( $item['product_id'] ) ? (int) $item['product_id'] : 0;
+			$in_brand  = ! empty( $brands ) && '' !== $tax && function_exists( 'has_term' )
+				&& $parent_id && has_term( $brands, $tax, $parent_id );
+			if ( ! self::product_qualifies( $brands, (bool) $in_brand ) ) {
+				continue; // este producto no lleva recargo.
 			}
 			$product = $item['data'];
 			$id      = $product->get_id();

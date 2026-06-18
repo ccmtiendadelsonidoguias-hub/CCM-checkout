@@ -41,6 +41,9 @@ final class CCMCK_Settings {
             // Recargo por financiación (%) aplicado al precio del producto cuando se
             // paga con Addi / Sistecrédito. 0 = sin recargo.
             'surcharge_rate'         => 10.48,
+            // IDs de términos de marca (taxonomía product_brand) a los que aplica el
+            // recargo. Vacío = aplica a TODOS los productos.
+            'surcharge_brands'       => array(),
         );
     }
 
@@ -85,6 +88,10 @@ final class CCMCK_Settings {
         $rate_in = isset( $input['surcharge_rate'] ) ? str_replace( ',', '.', (string) $input['surcharge_rate'] ) : (string) $d['surcharge_rate'];
         $rate    = (float) $rate_in;
         $out['surcharge_rate'] = max( 0.0, min( 100.0, round( $rate, 2 ) ) );
+
+        // Marcas con recargo: IDs de término (>0), sin duplicados.
+        $brands = array_map( 'absint', (array) ( $input['surcharge_brands'] ?? array() ) );
+        $out['surcharge_brands'] = array_values( array_unique( array_filter( $brands ) ) );
 
         return $out;
     }

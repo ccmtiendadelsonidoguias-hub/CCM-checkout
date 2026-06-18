@@ -77,4 +77,13 @@ final class SettingsTest extends TestCase {
     public function test_sanitize_surcharge_rate_defaults_to_10_48(): void {
         $this->assertSame( 10.48, CCMCK_Settings::sanitize( array() )['surcharge_rate'] );
     }
+
+    public function test_sanitize_surcharge_brands_ints_unique_no_zero(): void {
+        $out = CCMCK_Settings::sanitize( array( 'surcharge_brands' => array( '1253', '0', '1253', 'abc', 1638 ) ) );
+        $this->assertSame( array( 1253, 1638 ), $out['surcharge_brands'] );
+    }
+
+    public function test_sanitize_surcharge_brands_empty_by_default(): void {
+        $this->assertSame( array(), CCMCK_Settings::sanitize( array() )['surcharge_brands'] );
+    }
 }
