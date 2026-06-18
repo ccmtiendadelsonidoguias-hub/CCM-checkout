@@ -1817,11 +1817,14 @@ body.woocommerce-checkout .woocommerce-form-login-toggle { display: none !import
    El estado .selected lo sincroniza ccmck-checkout.js con el radio
    marcado. No altera hooks, payment_fields(), #place_order ni nonce.
    ============================================================= */
-/* Reset de la lista nativa de WC (evita viñetas/márgenes del tema/Elementor). */
+/* Reset de la lista nativa de WC (evita viñetas/márgenes del tema/Elementor).
+   También quita el border-bottom que WC pinta por defecto en ul.payment_methods
+   (rgba(104,87,125,.14)). */
 .ccmck #payment ul.wc_payment_methods {
   list-style: none;
   margin: 0;
   padding: 0;
+  border-bottom: none;
 }
 /* El título del método en payment.php es un <label> (el mockup usaba <span>);
    igualamos su tipografía sin cambiar el markup. */
