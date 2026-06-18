@@ -1679,6 +1679,19 @@ body > .addi_description_container { display: none !important; }
 body.woocommerce-checkout .elementor-location-popup,
 body.woocommerce-checkout e-page-transition { display: none !important; }
 
+/* --- P10: ocultar el login nativo de WooCommerce en el checkout ---
+   WooCommerce inyecta el formulario "¿Ya eres cliente? Inicia sesión"
+   (form.woocommerce-form-login + su aviso .woocommerce-form-login-toggle)
+   vía woocommerce_checkout_login_form, FUERA de nuestro wrapper .ccmck y como
+   hijo directo de div.woocommerce (que el <b> roto de Addi arrastra). Viene con
+   style="display:none" inline, pero al togglearse/mostrarse aparece a ancho
+   completo y SIN estilo encima del checkout. Nuestro diseño usa checkout de
+   invitado + el enlace propio "Iniciar sesión" → mi-cuenta (ver form-billing.php),
+   así que ese login nativo no se usa. Selector de descendiente desde body para
+   matchear aunque quede envuelto en el <b>. */
+body.woocommerce-checkout .woocommerce-form-login,
+body.woocommerce-checkout .woocommerce-form-login-toggle { display: none !important; }
+
 /* --- P7: compactar filas (eliminar 36px fantasma) ---
    El puente P1 hizo .form-row display:flex para apilar label sobre input,
    pero eso convierte los pseudo-elementos de clearfix de WooCommerce
