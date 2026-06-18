@@ -61,7 +61,15 @@
 .ccmck.ccmck-payment-first .ccmck-payment-section > .ccmck-skel-payment    { order: -3; }
 .ccmck.ccmck-payment-first #payment > ul.wc_payment_methods                { order: -2; margin-bottom: 8px; }
 .ccmck.ccmck-payment-first #payment > .woocommerce-notices-wrapper         { order: -2; }
-.ccmck.ccmck-payment-first .checkout-main > #customer_details              { order: 1; }
+/* "Contacto" (correo) por ENCIMA de los métodos de pago; "Entrega" (dirección)
+   sigue debajo. Como ambas secciones viven dentro de #customer_details >
+   .woocommerce-billing-fields, las aplanamos con display:contents y ordenamos
+   por separado: contacto arriba (-5), entrega después (1). */
+.ccmck.ccmck-payment-first .checkout-main > #customer_details              { display: contents; }
+.ccmck.ccmck-payment-first #customer_details > .woocommerce-billing-fields { display: contents; }
+.ccmck.ccmck-payment-first .woocommerce-billing-fields > .ccmck-contacto   { order: -5; }
+.ccmck.ccmck-payment-first .woocommerce-billing-fields > .ccmck-entrega    { order: 1; }
+.ccmck.ccmck-payment-first #customer_details > .woocommerce-shipping-fields { order: 1; }
 .ccmck.ccmck-payment-first .checkout-main > .ccmck-shipping-section        { order: 2; }
 .ccmck.ccmck-payment-first #payment > .place-order                         { order: 3; }
 .ccmck.ccmck-payment-first .checkout-main > .whatsapp-cta                  { order: 4; }
