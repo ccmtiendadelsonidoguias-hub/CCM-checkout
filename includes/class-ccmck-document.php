@@ -40,6 +40,12 @@ final class CCMCK_Document {
         add_filter( 'woocommerce_checkout_posted_data', array( __CLASS__, 'mirror_document_to_billing_id' ) );
         add_action( 'woocommerce_checkout_process', array( __CLASS__, 'mirror_document_to_post' ), 1 );
         add_action( 'woocommerce_after_checkout_validation', array( __CLASS__, 'validate' ), 10, 2 );
+        // El mensaje de validación del código postal sale con el label heredado
+        // "Cédula / NIT" (WooCommerce arma el texto con el label que está en
+        // checkout_fields, donde el relabeler heredado gana incluso a prio 9999;
+        // force_postcode_label solo corrige el RENDER, no este mensaje). Lo
+        // reescribimos a un texto limpio. Prio 20 → corre tras la validación core.
+        add_action( 'woocommerce_after_checkout_validation', array( __CLASS__, 'fix_postcode_error_message' ), 20, 2 );
         add_action( 'woocommerce_checkout_create_order', array( __CLASS__, 'save_meta' ), 10, 2 );
         add_action( 'woocommerce_admin_order_data_after_billing_address', array( __CLASS__, 'render_admin' ) );
         add_filter( 'woocommerce_email_order_meta_fields', array( __CLASS__, 'email_fields' ), 10, 3 );
@@ -272,6 +278,36 @@ final class CCMCK_Document {
         }
         if ( '' === $number ) {
             $errors->add( 'billing_document_number_required', __( 'Ingresa tu número de documento.', 'ccm-checkout' ) );
+        }
+    }
+
+    /**
+     * Reescribe el mensaje de validación del código postal cuando WooCommerce lo
+     * arma con el label heredado "Cédula / NIT".
+     *
+     * El error de formato del postcode ("%s no es un código postal válido.") usa
+     * como %s el label del campo en checkout_fields, que un relabeler heredado deja
+     * como "Cédula / NIT" → el cliente ve un mensaje pidiendo la cédula. Detectamos
+     * los mensajes de postcode que aún contienen ese rótulo y los sustituimos por un
+     * texto claro. Mutamos WP_Error::$errors directamente (propiedad pública), que es
+     * lo que WooCommerce convierte luego en avisos.
+     *
+     * @param array     $data   Datos posteados (sin usar).
+     * @param WP_Error  $errors Errores de validación acumulados.
+     */
+    public static function fix_postcode_error_message( $data, $errors ): void {
+        unset( $data );
+        if ( ! is_wp_error( $errors ) || empty( $errors->errors ) ) {
+            return;
+        }
+        foreach ( $errors->errors as $code => $messages ) {
+            foreach ( (array) $messages as $i => $msg ) {
+                $is_postcode_msg = ( false !== mb_stripos( $msg, 'código postal' ) || false !== mb_stripos( $msg, 'postcode' ) );
+                $has_bad_label   = (bool) preg_match( '/c[ée]dula|\bnit\b/iu', $msg );
+                if ( $is_postcode_msg && $has_bad_label ) {
+                    $errors->errors[ $code ][ $i ] = __( 'Ingresa un código postal válido.', 'ccm-checkout' );
+                }
+            }
         }
     }
 
