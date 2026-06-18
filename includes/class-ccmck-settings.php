@@ -38,6 +38,9 @@ final class CCMCK_Settings {
             // Experimental: sube los métodos de pago al inicio de la columna del
             // checkout (el botón "Realizar el pedido" se mantiene al final).
             'checkout_payment_first' => false,
+            // Recargo por financiación (%) aplicado al precio del producto cuando se
+            // paga con Addi / Sistecrédito. 0 = sin recargo.
+            'surcharge_rate'         => 10.48,
         );
     }
 
@@ -77,6 +80,11 @@ final class CCMCK_Settings {
         $out['payment_icons']  = self::sanitize_icons( $input['payment_icons'] ?? array() );
 
         $out['checkout_payment_first'] = ! empty( $input['checkout_payment_first'] );
+
+        // Recargo (%): acepta coma o punto decimal; se acota a 0–100.
+        $rate_in = isset( $input['surcharge_rate'] ) ? str_replace( ',', '.', (string) $input['surcharge_rate'] ) : (string) $d['surcharge_rate'];
+        $rate    = (float) $rate_in;
+        $out['surcharge_rate'] = max( 0.0, min( 100.0, round( $rate, 2 ) ) );
 
         return $out;
     }

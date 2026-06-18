@@ -67,4 +67,14 @@ final class SettingsTest extends TestCase {
         $this->assertArrayHasKey( 'checkout_payment_first', CCMCK_Settings::defaults() );
         $this->assertFalse( CCMCK_Settings::defaults()['checkout_payment_first'] );
     }
+
+    public function test_sanitize_surcharge_rate_accepts_comma_and_clamps(): void {
+        $this->assertSame( 12.5, CCMCK_Settings::sanitize( array( 'surcharge_rate' => '12,5' ) )['surcharge_rate'] );
+        $this->assertSame( 0.0, CCMCK_Settings::sanitize( array( 'surcharge_rate' => '-3' ) )['surcharge_rate'] );
+        $this->assertSame( 100.0, CCMCK_Settings::sanitize( array( 'surcharge_rate' => '250' ) )['surcharge_rate'] );
+    }
+
+    public function test_sanitize_surcharge_rate_defaults_to_10_48(): void {
+        $this->assertSame( 10.48, CCMCK_Settings::sanitize( array() )['surcharge_rate'] );
+    }
 }

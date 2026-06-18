@@ -79,9 +79,11 @@ final class CCMCK_Surcharge {
 		}
 	}
 
-	/** Tasa efectiva (con filtro). */
+	/** Tasa efectiva: del ajuste (porcentaje) ÷ 100, filtrable. */
 	private static function rate(): float {
-		return (float) apply_filters( 'ccmck_surcharge_rate', self::RATE );
+		$pct  = (float) CCMCK_Settings::get( 'surcharge_rate', self::RATE * 100 );
+		$rate = $pct / 100;
+		return (float) apply_filters( 'ccmck_surcharge_rate', $rate );
 	}
 
 	/** Métodos con recargo (con filtro). */

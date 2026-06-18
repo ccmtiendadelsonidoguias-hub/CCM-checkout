@@ -422,6 +422,25 @@ defined( 'ABSPATH' ) || exit;
 </table>
 
 <?php /* ============================================================
+   SECCIÓN — RECARGO POR FINANCIACIÓN
+   ============================================================ */ ?>
+<h2><?php esc_html_e( 'Recargo por financiación', 'ccm-checkout' ); ?></h2>
+<table class="form-table" role="presentation">
+    <tr>
+        <th scope="row"><label for="ccmck-surcharge-rate"><?php esc_html_e( 'Porcentaje de recargo (%)', 'ccm-checkout' ); ?></label></th>
+        <td>
+            <input type="number" id="ccmck-surcharge-rate" name="ccmck_settings[surcharge_rate]"
+                   value="<?php echo esc_attr( (string) $s['surcharge_rate'] ); ?>"
+                   class="small-text" step="0.01" min="0" max="100">
+            <span>%</span>
+            <p class="description">
+                <?php esc_html_e( 'Se aplica al precio de los productos cuando se paga con Addi o Sistecrédito (sin línea de recargo aparte; sube el subtotal y el total). Usa 0 para desactivarlo.', 'ccm-checkout' ); ?>
+            </p>
+        </td>
+    </tr>
+</table>
+
+<?php /* ============================================================
    SECCIÓN 9 — MÉTODOS DE PAGO
    ============================================================ */ ?>
 <h2><?php esc_html_e( 'Métodos de pago', 'ccm-checkout' ); ?></h2>

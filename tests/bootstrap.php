@@ -51,6 +51,9 @@ if ( ! function_exists( 'wp_unslash' ) ) {
     }
 }
 
+if ( ! function_exists( 'get_option' ) ) {
+    function get_option( $name, $default = false ) { return $default; }
+}
 if ( ! function_exists( 'is_wp_error' ) ) {
     function is_wp_error( $thing ) { return $thing instanceof WP_Error; }
 }
