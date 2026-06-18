@@ -51,6 +51,35 @@ if ( ! function_exists( 'wp_unslash' ) ) {
     }
 }
 
+if ( ! function_exists( 'is_wp_error' ) ) {
+    function is_wp_error( $thing ) { return $thing instanceof WP_Error; }
+}
+if ( ! class_exists( 'WP_Error' ) ) {
+    class WP_Error {
+        public $errors = array();
+        public $error_data = array();
+        public function __construct( $code = '', $message = '', $data = '' ) {
+            if ( '' !== $code ) { $this->add( $code, $message, $data ); }
+        }
+        public function add( $code, $message = '', $data = '' ) {
+            $this->errors[ $code ][] = $message;
+            if ( '' !== $data ) { $this->error_data[ $code ] = $data; }
+        }
+        public function remove( $code ) {
+            unset( $this->errors[ $code ], $this->error_data[ $code ] );
+        }
+        public function get_error_codes() { return array_keys( $this->errors ); }
+        public function get_error_messages( $code = '' ) {
+            if ( '' === $code ) {
+                $all = array();
+                foreach ( $this->errors as $msgs ) { $all = array_merge( $all, $msgs ); }
+                return $all;
+            }
+            return $this->errors[ $code ] ?? array();
+        }
+    }
+}
+
 if ( ! class_exists( 'WC_Shipping_Rate' ) ) {
     class WC_Shipping_Rate {
         public $id; public $label; public $cost; public $taxes; public $method_id;

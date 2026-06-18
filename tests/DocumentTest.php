@@ -84,4 +84,47 @@ final class DocumentTest extends TestCase {
         $data = CCMCK_Document::mirror_document_to_billing_id( array( 'billing_email' => 'a@b.co' ) );
         $this->assertArrayNotHasKey( 'billing_id', $data );
     }
+
+    public function test_strip_legacy_postcode_errors_removes_required_cedula_block(): void {
+        // El validador heredado encola el postcode-cédula bajo un código genérico.
+        $errors = new WP_Error();
+        $errors->add( 'validation', 'Por favor ingresa tu Cédula / NIT.' );
+        $errors->add( 'validation', 'El correo electrónico no es válido.' );
+        CCMCK_Document::strip_legacy_postcode_errors( array(), $errors );
+        $msgs = $errors->get_error_messages();
+        // Se eliminó el del postcode-cédula y se conservó el legítimo.
+        $this->assertNotContains( 'Por favor ingresa tu Cédula / NIT.', $msgs );
+        $this->assertContains( 'El correo electrónico no es válido.', $msgs );
+    }
+
+    public function test_strip_legacy_postcode_errors_removes_too_short_message(): void {
+        $errors = new WP_Error();
+        $errors->add( 'validation', 'La Cédula / NIT parece demasiado corta.' );
+        CCMCK_Document::strip_legacy_postcode_errors( array(), $errors );
+        $this->assertEmpty( $errors->get_error_messages() );
+    }
+
+    public function test_strip_legacy_postcode_errors_removes_postcode_coded_error(): void {
+        // Error con código propio de WC para el postcode.
+        $errors = new WP_Error();
+        $errors->add( 'billing_postcode_validation', 'Cualquier mensaje de postcode.' );
+        CCMCK_Document::strip_legacy_postcode_errors( array(), $errors );
+        $this->assertEmpty( $errors->get_error_messages() );
+    }
+
+    public function test_strip_legacy_postcode_errors_keeps_addi_cedula_error(): void {
+        // El error de Addi ("número de cédula", sin barra ni NIT) NO debe eliminarse.
+        $errors = new WP_Error();
+        $errors->add( 'validation', 'Por favor ingrese su número de cédula para continuar.' );
+        CCMCK_Document::strip_legacy_postcode_errors( array(), $errors );
+        $this->assertContains( 'Por favor ingrese su número de cédula para continuar.', $errors->get_error_messages() );
+    }
+
+    public function test_strip_legacy_postcode_errors_keeps_document_errors(): void {
+        // Nuestros propios errores de documento deben sobrevivir.
+        $errors = new WP_Error();
+        $errors->add( 'billing_document_number_required', 'Ingresa tu número de documento.' );
+        CCMCK_Document::strip_legacy_postcode_errors( array(), $errors );
+        $this->assertContains( 'Ingresa tu número de documento.', $errors->get_error_messages() );
+    }
 }

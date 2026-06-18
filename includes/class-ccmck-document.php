@@ -40,12 +40,18 @@ final class CCMCK_Document {
         add_filter( 'woocommerce_checkout_posted_data', array( __CLASS__, 'mirror_document_to_billing_id' ) );
         add_action( 'woocommerce_checkout_process', array( __CLASS__, 'mirror_document_to_post' ), 1 );
         add_action( 'woocommerce_after_checkout_validation', array( __CLASS__, 'validate' ), 10, 2 );
-        // El mensaje de validación del código postal sale con el label heredado
-        // "Cédula / NIT" (WooCommerce arma el texto con el label que está en
-        // checkout_fields, donde el relabeler heredado gana incluso a prio 9999;
-        // force_postcode_label solo corrige el RENDER, no este mensaje). Lo
-        // reescribimos a un texto limpio. Prio 20 → corre tras la validación core.
-        add_action( 'woocommerce_after_checkout_validation', array( __CLASS__, 'fix_postcode_error_message' ), 20, 2 );
+        // BLOQUEO HEREDADO DEL CÓDIGO POSTAL: un validador heredado server-side trata
+        // billing_postcode como una "Cédula / NIT" OBLIGATORIA y le valida longitud,
+        // bloqueando el checkout ("Por favor ingresa tu Cédula / NIT." / "...parece
+        // demasiado corta."). En nuestro diseño el código postal es OPCIONAL y no se usa
+        // para envío (Coordinadora cotiza por peso; pickup no requiere dirección). Por eso
+        // ELIMINAMOS (no reescribimos) cualquier error de postcode de la validación.
+        // WooCommerce corta el checkout por wc_notice_count('error'); vuelca $errors a
+        // avisos justo después de woocommerce_after_checkout_validation. Prio PHP_INT_MAX
+        // para correr tras el core y el snippet. Red de seguridad en checkout_process por
+        // si el snippet usó wc_add_notice() directo (no $errors).
+        add_action( 'woocommerce_after_checkout_validation', array( __CLASS__, 'strip_legacy_postcode_errors' ), PHP_INT_MAX, 2 );
+        add_action( 'woocommerce_checkout_process', array( __CLASS__, 'strip_legacy_postcode_notices' ), PHP_INT_MAX );
         add_action( 'woocommerce_checkout_create_order', array( __CLASS__, 'save_meta' ), 10, 2 );
         add_action( 'woocommerce_admin_order_data_after_billing_address', array( __CLASS__, 'render_admin' ) );
         add_filter( 'woocommerce_email_order_meta_fields', array( __CLASS__, 'email_fields' ), 10, 3 );
@@ -282,41 +288,94 @@ final class CCMCK_Document {
     }
 
     /**
-     * Reescribe el mensaje de validación del código postal cuando WooCommerce lo
-     * arma con el label heredado "Cédula / NIT".
+     * ¿El mensaje pertenece al código postal secuestrado por el validador heredado?
      *
-     * El error de formato del postcode ("%s no es un código postal válido.") usa
-     * como %s el label del campo en checkout_fields, que un relabeler heredado deja
-     * como "Cédula / NIT" → el cliente ve un mensaje pidiendo la cédula. Detectamos
-     * los mensajes de postcode que aún contienen ese rótulo y los sustituimos por un
-     * texto claro. Mutamos WP_Error::$errors directamente (propiedad pública), que es
-     * lo que WooCommerce convierte luego en avisos.
+     * El validador trata billing_postcode como "Cédula / NIT" y emite mensajes como
+     * "Por favor ingresa tu Cédula / NIT." o "La Cédula / NIT parece demasiado corta.".
+     * El patrón "cédula + barra + NIT" es inequívoco del postcode secuestrado y NO casa
+     * con el error de Addi ("número de cédula", sin barra ni NIT). También cubrimos el
+     * mensaje de formato nativo de WC cuando trae un label de cédula suelto.
      *
-     * @param array     $data   Datos posteados (sin usar).
-     * @param WP_Error  $errors Errores de validación acumulados.
+     * @param string $msg
+     * @return bool
      */
-    public static function fix_postcode_error_message( $data, $errors ): void {
+    private static function is_hijacked_postcode_message( string $msg ): bool {
+        if ( (bool) preg_match( '/c[ée]dula\s*\/\s*nit/iu', $msg ) ) {
+            return true;
+        }
+        return ( false !== mb_stripos( $msg, 'código postal' ) || false !== mb_stripos( $msg, 'postcode' ) )
+            && (bool) preg_match( '/c[ée]dula|\bnit\b/iu', $msg );
+    }
+
+    /**
+     * Elimina del WP_Error de validación los errores de billing_postcode (incluido el
+     * bloqueo heredado que lo trata como cédula obligatoria), para que NO bloqueen el
+     * checkout. En este diseño el código postal es opcional y no decide el envío.
+     *
+     * Flujo WC (WC_Checkout::process_checkout → validate_checkout): el core dispara
+     * woocommerce_after_checkout_validation($data,$errors), luego vuelca $errors a
+     * avisos con wc_add_notice() y corta si wc_notice_count('error') > 0. Al remover el
+     * error aquí (prio PHP_INT_MAX, tras el core y el snippet) deja de bloquear. $errors
+     * llega por referencia, así que mutarlo es efectivo. Se preservan los demás errores.
+     *
+     * @param array    $data   Datos posteados (sin usar).
+     * @param WP_Error $errors Errores de validación acumulados (por referencia).
+     */
+    public static function strip_legacy_postcode_errors( $data, $errors ): void {
         unset( $data );
         if ( ! is_wp_error( $errors ) || empty( $errors->errors ) ) {
             return;
         }
         foreach ( $errors->errors as $code => $messages ) {
+            // (a) Códigos propios del postcode (WC usa '{$key}' / '{$key}_validation').
+            if ( false !== strpos( (string) $code, 'postcode' ) ) {
+                $errors->remove( $code );
+                continue;
+            }
+            // (b) Código genérico (p. ej. 'validation' o uno propio del snippet):
+            //     quitamos solo los mensajes del postcode-cédula, preservando el resto.
+            $changed = false;
             foreach ( (array) $messages as $i => $msg ) {
-                // El validador heredado trata billing_postcode como cédula y emite
-                // mensajes con el rótulo "Cédula / NIT" (p. ej. "La Cédula / NIT
-                // parece demasiado corta." o "Cédula / NIT no es un código postal
-                // válido."). Ese patrón —cédula + barra + NIT— es inequívoco del
-                // postcode secuestrado y NO casa con el error de Addi ("número de
-                // cédula"). Cualquier mensaje que lo contenga se reescribe limpio.
-                $is_hijacked_postcode = (bool) preg_match( '/c[ée]dula\s*\/\s*nit/iu', $msg );
-                // Respaldo: el mensaje de formato de WC con un label de cédula suelto.
-                $is_wc_postcode_msg   = ( false !== mb_stripos( $msg, 'código postal' ) || false !== mb_stripos( $msg, 'postcode' ) )
-                    && (bool) preg_match( '/c[ée]dula|\bnit\b/iu', $msg );
-                if ( $is_hijacked_postcode || $is_wc_postcode_msg ) {
-                    $errors->errors[ $code ][ $i ] = __( 'Ingresa un código postal válido.', 'ccm-checkout' );
+                if ( self::is_hijacked_postcode_message( (string) $msg ) ) {
+                    unset( $errors->errors[ $code ][ $i ] );
+                    $changed = true;
+                }
+            }
+            if ( $changed ) {
+                if ( empty( $errors->errors[ $code ] ) ) {
+                    $errors->remove( $code );
+                } else {
+                    $errors->errors[ $code ] = array_values( $errors->errors[ $code ] );
                 }
             }
         }
+    }
+
+    /**
+     * Red de seguridad: si el validador heredado encoló el error con wc_add_notice()
+     * directamente (en woocommerce_checkout_process, no vía $errors), strip_legacy_postcode_errors
+     * no lo ve. Aquí filtramos la cola de avisos de error quitando los del postcode-cédula
+     * ANTES de que process_checkout evalúe wc_notice_count('error'). Corre a PHP_INT_MAX
+     * (tras el snippet); como WC vuelca $errors a avisos DESPUÉS de este hook, no choca
+     * con strip_legacy_postcode_errors (cubos distintos).
+     */
+    public static function strip_legacy_postcode_notices(): void {
+        if ( ! function_exists( 'wc_get_notices' ) || ! function_exists( 'wc_set_notices' ) ) {
+            return;
+        }
+        $notices = wc_get_notices();
+        if ( empty( $notices['error'] ) ) {
+            return;
+        }
+        foreach ( $notices['error'] as $i => $notice ) {
+            // WC 3.9+: cada aviso es array ['notice'=>..., 'data'=>...]; antes era string.
+            $text = is_array( $notice ) ? (string) ( $notice['notice'] ?? '' ) : (string) $notice;
+            if ( self::is_hijacked_postcode_message( $text ) ) {
+                unset( $notices['error'][ $i ] );
+            }
+        }
+        $notices['error'] = array_values( $notices['error'] );
+        wc_set_notices( $notices );
     }
 
     public static function save_meta( $order, array $data ): void {
