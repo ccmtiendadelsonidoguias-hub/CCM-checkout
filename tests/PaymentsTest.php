@@ -44,4 +44,33 @@ final class PaymentsTest extends TestCase {
         $html = '<div class="addi_description_container"><p>texto</p></div>';
         $this->assertSame( $html, CCMCK_Payments::fix_b_tags( $html ) );
     }
+
+    public function test_addi_requires_city_and_state_when_empty(): void {
+        $errors = new WP_Error();
+        CCMCK_Payments::require_address_for_addi(
+            array( 'payment_method' => 'addi', 'billing_state' => '', 'billing_city' => '' ),
+            $errors
+        );
+        $msgs = $errors->get_error_messages();
+        $this->assertContains( 'Selecciona tu departamento para pagar con Addi.', $msgs );
+        $this->assertContains( 'Selecciona tu ciudad para pagar con Addi.', $msgs );
+    }
+
+    public function test_addi_passes_when_city_and_state_present(): void {
+        $errors = new WP_Error();
+        CCMCK_Payments::require_address_for_addi(
+            array( 'payment_method' => 'addi', 'billing_state' => 'Antioquia', 'billing_city' => 'Medellín' ),
+            $errors
+        );
+        $this->assertEmpty( $errors->get_error_messages() );
+    }
+
+    public function test_addi_check_ignores_other_payment_methods(): void {
+        $errors = new WP_Error();
+        CCMCK_Payments::require_address_for_addi(
+            array( 'payment_method' => 'woo-mercado-pago-ticket', 'billing_state' => '', 'billing_city' => '' ),
+            $errors
+        );
+        $this->assertEmpty( $errors->get_error_messages() );
+    }
 }

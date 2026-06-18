@@ -4,6 +4,38 @@ defined( 'ABSPATH' ) || exit;
 final class CCMCK_Payments {
     public static function init(): void {
         add_filter( 'woocommerce_available_payment_gateways', array( __CLASS__, 'apply_settings' ) );
+        // Addi exige una dirección con ciudad para crear el crédito: su API rechaza
+        // con 400 "021-024 The city of the address of the client is invalid." cuando
+        // billing_city va vacío (caso típico al elegir Recogida local, que relaja la
+        // dirección). Si el método es Addi, exigimos departamento + ciudad aunque haya
+        // pickup, para bloquear con un mensaje claro ANTES de llamar a Addi (en vez de
+        // que Addi falle con un error genérico). El JS replica la obligatoriedad inline.
+        add_action( 'woocommerce_after_checkout_validation', array( __CLASS__, 'require_address_for_addi' ), 10, 2 );
+    }
+
+    /**
+     * Cuando el método de pago es Addi, departamento (billing_state) y ciudad
+     * (billing_city) son obligatorios (Addi los necesita para originar el crédito).
+     *
+     * @param array    $data   Datos posteados del checkout.
+     * @param WP_Error $errors Errores de validación (por referencia).
+     */
+    public static function require_address_for_addi( $data, $errors ): void {
+        if ( ! is_wp_error( $errors ) ) {
+            return;
+        }
+        $method = isset( $data['payment_method'] ) ? (string) $data['payment_method'] : '';
+        if ( false === stripos( $method, 'addi' ) ) {
+            return;
+        }
+        $state = isset( $data['billing_state'] ) ? trim( (string) $data['billing_state'] ) : '';
+        $city  = isset( $data['billing_city'] ) ? trim( (string) $data['billing_city'] ) : '';
+        if ( '' === $state ) {
+            $errors->add( 'billing_state_required', __( 'Selecciona tu departamento para pagar con Addi.', 'ccm-checkout' ) );
+        }
+        if ( '' === $city ) {
+            $errors->add( 'billing_city_required', __( 'Selecciona tu ciudad para pagar con Addi.', 'ccm-checkout' ) );
+        }
     }
 
     /**

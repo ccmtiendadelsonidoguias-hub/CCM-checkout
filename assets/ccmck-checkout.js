@@ -503,18 +503,30 @@
     // CCMCK_Document::force_postcode_label), no es un campo de dirección a relajar.
     var CCMCK_ADDR_IDS  = [ 'billing_address_1', 'billing_city', 'billing_state' ];
 
+    // Addi necesita ciudad (su API rechaza si va vacía). Aunque haya pickup,
+    // departamento + ciudad siguen obligatorios cuando el método de pago es Addi.
+    function ccmckAddiSelected() {
+        var m = $( '#payment input[name="payment_method"]:checked' ).val() || '';
+        return /addi/i.test( m );
+    }
+
     function ccmckSyncPickupRequired() {
         var chosen = $( 'input[name^="shipping_method"]:checked' ).val() || '';
         var pickup = chosen === CCMCK_PICKUP_ID;
+        var addi   = ccmckAddiSelected();
         $.each( CCMCK_ADDR_IDS, function ( i, id ) {
             var $row = $( '#' + id ).closest( '.form-row' );
             if ( ! $row.length ) { return; }
-            $row.toggleClass( 'validate-required', ! pickup );
-            $row.toggleClass( 'ccmck-optional-pickup', pickup );
+            // billing_state / billing_city permanecen obligatorios con Addi aun en pickup.
+            var keepForAddi = addi && ( 'billing_state' === id || 'billing_city' === id );
+            var required    = ! pickup || keepForAddi;
+            $row.toggleClass( 'validate-required', required );
+            $row.toggleClass( 'ccmck-optional-pickup', ! required );
         } );
     }
 
     $( document ).on( 'change', 'input[name^="shipping_method"]', ccmckSyncPickupRequired );
+    $( document ).on( 'change', 'input[name="payment_method"]', ccmckSyncPickupRequired );
     $( document.body ).on( 'updated_checkout', ccmckSyncPickupRequired );
     $( ccmckSyncPickupRequired );
 
