@@ -530,6 +530,16 @@
     $( document.body ).on( 'updated_checkout', ccmckSyncPickupRequired );
     $( ccmckSyncPickupRequired );
 
+    /* Recargo por financiación (Addi / Sistecrédito): es un fee server-side que
+       depende del método de pago elegido. WooCommerce NO recalcula los totales al
+       cambiar el método, así que forzamos update_checkout para que el recargo y el
+       total del sidebar se actualicen. Se evita re-disparar si ya está procesando. */
+    $( document ).on( 'change', 'input[name="payment_method"]', function () {
+        var $form = $( 'form.checkout' );
+        if ( $form.is( '.processing' ) ) { return; }
+        $( document.body ).trigger( 'update_checkout' );
+    } );
+
     /* ------------------------------------------------------------------ */
     /*  Validación inline estilo Shopify (solo campos obligatorios)         */
     /*  Al pulsar "Finalizar pedido": si hay campos obligatorios vacíos,    */
