@@ -302,9 +302,17 @@ final class CCMCK_Document {
         }
         foreach ( $errors->errors as $code => $messages ) {
             foreach ( (array) $messages as $i => $msg ) {
-                $is_postcode_msg = ( false !== mb_stripos( $msg, 'código postal' ) || false !== mb_stripos( $msg, 'postcode' ) );
-                $has_bad_label   = (bool) preg_match( '/c[ée]dula|\bnit\b/iu', $msg );
-                if ( $is_postcode_msg && $has_bad_label ) {
+                // El validador heredado trata billing_postcode como cédula y emite
+                // mensajes con el rótulo "Cédula / NIT" (p. ej. "La Cédula / NIT
+                // parece demasiado corta." o "Cédula / NIT no es un código postal
+                // válido."). Ese patrón —cédula + barra + NIT— es inequívoco del
+                // postcode secuestrado y NO casa con el error de Addi ("número de
+                // cédula"). Cualquier mensaje que lo contenga se reescribe limpio.
+                $is_hijacked_postcode = (bool) preg_match( '/c[ée]dula\s*\/\s*nit/iu', $msg );
+                // Respaldo: el mensaje de formato de WC con un label de cédula suelto.
+                $is_wc_postcode_msg   = ( false !== mb_stripos( $msg, 'código postal' ) || false !== mb_stripos( $msg, 'postcode' ) )
+                    && (bool) preg_match( '/c[ée]dula|\bnit\b/iu', $msg );
+                if ( $is_hijacked_postcode || $is_wc_postcode_msg ) {
                     $errors->errors[ $code ][ $i ] = __( 'Ingresa un código postal válido.', 'ccm-checkout' );
                 }
             }
