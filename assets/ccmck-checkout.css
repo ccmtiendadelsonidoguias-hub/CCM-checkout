@@ -1857,6 +1857,33 @@ body.woocommerce-checkout .woocommerce-form-login-toggle { display: none !import
 .ccmck #payment .payment_box input,
 .ccmck #payment .payment_box select,
 .ccmck #payment .payment_box textarea { max-width: 100%; }
+
+/* Mercado Pago (tarjetas) — alinear su tipografía con el resto del diseño.
+   El SDK pinta el formulario con sus propias fuentes (Inter en labels/inputs,
+   Proxima Nova en cabecera/asteriscos/options). Forzamos la fuente del diseño
+   en todo el contenedor y normalizamos el tamaño de los inputs a 14px (como el
+   resto de campos; el SDK los dejaba en 16px) y los labels a 13px.
+   IMPORTANTE sobre especificidad: MP escopa sus estilos bajo el ID
+   #mp-checkout-custom-root, así que prefijamos con ese ID (dos IDs con #payment)
+   para ganarle. Algunos inputs (p. ej. .mp-card-holder-name) tienen reglas MP
+   aún más específicas, por eso se listan explícitamente por clase.
+   OJO: el número de tarjeta, vencimiento y CVV viven en iframes cross-origin de
+   secure-fields.mercadopago.com y NO se pueden reestilizar desde aquí (solo
+   labels, titular, documento, cabecera y demás textos del DOM propio). */
+.ccmck #payment #mp-checkout-custom-root,
+.ccmck #payment #mp-checkout-custom-root * {
+  font-family: 'Founder Grotesk CCM', sans-serif !important;
+}
+.ccmck #payment #mp-checkout-custom-root input,
+.ccmck #payment #mp-checkout-custom-root select,
+.ccmck #payment #mp-checkout-custom-root input.mp-checkout-custom-card-input,
+.ccmck #payment #mp-checkout-custom-root input.mp-card-holder-name,
+.ccmck #payment #mp-checkout-custom-root input.mp-document,
+.ccmck #payment #mp-checkout-custom-root select.mp-custom-checkout-select-input {
+  font-family: 'Founder Grotesk CCM', sans-serif !important;
+  font-size: 14px !important;
+}
+.ccmck #payment #mp-checkout-custom-root .mp-input-label { font-size: 13px !important; }
 /* WooCommerce default: .woocommerce-checkout #payment div.form-row { padding:1em }.
    Lo anulamos a 0. El prefijo body + .ccmck sube la especificidad (1,3,2) sobre la
    regla nativa (1,2,1), así gana sin !important e independiente del orden de carga. */
