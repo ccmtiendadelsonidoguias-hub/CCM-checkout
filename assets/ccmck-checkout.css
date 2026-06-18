@@ -34,8 +34,11 @@
 }
 .ccmck .checkout-main {
   padding: 40px 60px 60px;
-  max-width: 680px;
-  margin: 0 auto;
+  max-width: 600px;
+  /* Alineado a la DERECHA de su columna (no centrado) para que el formulario
+     quede pegado al sidebar y desaparezca el hueco entre ambos en desktop.
+     En ≤960px el max-width:100% lo deja a ancho completo y el auto no afecta. */
+  margin: 0 0 0 auto;
   width: 100%;
 }
 .ccmck .checkout-sidebar {
