@@ -55,4 +55,16 @@ final class SettingsTest extends TestCase {
         $this->assertSame( '', $out['accent_color'] );
         $this->assertNotNull( $out['accent_color'] );
     }
+
+    public function test_sanitize_checkout_payment_first_is_boolean(): void {
+        $out = CCMCK_Settings::sanitize( array( 'checkout_payment_first' => '1' ) );
+        $this->assertTrue( $out['checkout_payment_first'] );
+        $out = CCMCK_Settings::sanitize( array() );
+        $this->assertFalse( $out['checkout_payment_first'] );
+    }
+
+    public function test_defaults_include_checkout_payment_first_off(): void {
+        $this->assertArrayHasKey( 'checkout_payment_first', CCMCK_Settings::defaults() );
+        $this->assertFalse( CCMCK_Settings::defaults()['checkout_payment_first'] );
+    }
 }

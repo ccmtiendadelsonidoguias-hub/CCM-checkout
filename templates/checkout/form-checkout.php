@@ -36,8 +36,12 @@ if ( ! $checkout->is_registration_enabled() && $checkout->is_registration_requir
  * funcionando con la nueva disposición.
  */
 remove_action( 'woocommerce_checkout_order_review', 'woocommerce_checkout_payment', 20 );
+
+// Experimental: orden alternativo con los métodos de pago al inicio (botón "Realizar
+// el pedido" al final). Solo añade una clase; el reordenamiento es por CSS.
+$ccmck_layout_class = ! empty( $s['checkout_payment_first'] ) ? ' ccmck-payment-first' : '';
 ?>
-<div class="ccmck ccmck-checkout-page ccmck-preload">
+<div class="ccmck ccmck-checkout-page ccmck-preload<?php echo esc_attr( $ccmck_layout_class ); ?>">
 
 	<?php require CCMCK_DIR . 'templates/parts/header.php'; ?>
 

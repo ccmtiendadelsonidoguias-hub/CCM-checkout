@@ -35,6 +35,9 @@ final class CCMCK_Settings {
             'payment_order'     => array(),
             'payment_hidden'    => array(),
             'payment_icons'     => array(),
+            // Experimental: sube los métodos de pago al inicio de la columna del
+            // checkout (el botón "Realizar el pedido" se mantiene al final).
+            'checkout_payment_first' => false,
         );
     }
 
@@ -72,6 +75,8 @@ final class CCMCK_Settings {
         $out['payment_order']  = array_map( 'sanitize_text_field', (array) ( $input['payment_order'] ?? array() ) );
         $out['payment_hidden'] = array_map( 'sanitize_text_field', (array) ( $input['payment_hidden'] ?? array() ) );
         $out['payment_icons']  = self::sanitize_icons( $input['payment_icons'] ?? array() );
+
+        $out['checkout_payment_first'] = ! empty( $input['checkout_payment_first'] );
 
         return $out;
     }

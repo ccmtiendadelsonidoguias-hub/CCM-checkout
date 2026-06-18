@@ -8,7 +8,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'CCMCK_VERSION', '1.0.1' );
+define( 'CCMCK_VERSION', '1.0.2' );
 define( 'CCMCK_DIR', trailingslashit( dirname( __FILE__ ) ) );
 define( 'CCMCK_URL', plugin_dir_url( __FILE__ ) );
 

@@ -41,6 +41,31 @@
   margin: 0 0 0 auto;
   width: 100%;
 }
+
+/* ===== ORDEN EXPERIMENTAL: MÉTODOS DE PAGO PRIMERO =====================
+   Activado por la clase .ccmck-payment-first (ajuste checkout_payment_first).
+   Sube los MÉTODOS de pago al inicio de la columna y deja el botón "Realizar
+   el pedido" (.place-order) al final. Se hace con flex `order`. Como el botón
+   vive anidado dentro de #payment, usamos `display:contents` en la sección de
+   pago y en #payment para que sus hijos (título, métodos, botón) pasen a ser
+   ítems del flex de .checkout-main y se puedan ordenar por separado. Es solo
+   CSS: sobrevive a los refrescos AJAX de WC (que reemplazan #payment) porque
+   las reglas son por selector, no inline. Orden resultante:
+   Pago(título+métodos) → Contacto/Entrega → Métodos de envío → botón → footer. */
+.ccmck.ccmck-payment-first .checkout-main { display: flex; flex-direction: column; }
+.ccmck.ccmck-payment-first .checkout-main > .ccmck-payment-section { display: contents; }
+.ccmck.ccmck-payment-first .ccmck-payment-section > #payment { display: contents; }
+
+.ccmck.ccmck-payment-first .ccmck-payment-section > #order_review_heading { order: -4; margin-top: 0; }
+.ccmck.ccmck-payment-first .ccmck-payment-section > .ccmck-secure-note     { order: -3; }
+.ccmck.ccmck-payment-first .ccmck-payment-section > .ccmck-skel-payment    { order: -3; }
+.ccmck.ccmck-payment-first #payment > ul.wc_payment_methods                { order: -2; margin-bottom: 8px; }
+.ccmck.ccmck-payment-first #payment > .woocommerce-notices-wrapper         { order: -2; }
+.ccmck.ccmck-payment-first .checkout-main > #customer_details              { order: 1; }
+.ccmck.ccmck-payment-first .checkout-main > .ccmck-shipping-section        { order: 2; }
+.ccmck.ccmck-payment-first #payment > .place-order                         { order: 3; }
+.ccmck.ccmck-payment-first .checkout-main > .whatsapp-cta                  { order: 4; }
+.ccmck.ccmck-payment-first .checkout-main > .checkout-footer               { order: 5; }
 .ccmck .checkout-sidebar {
   background: var(--ccmck-sidebar, #1a1a1a);
   color: #fff;

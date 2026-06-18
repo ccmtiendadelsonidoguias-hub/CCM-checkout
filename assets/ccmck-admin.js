@@ -42,12 +42,52 @@
 	   ========================================================= */
 
 	$( document ).ready( function () {
+		initTabs();
 		initColorPickers( $( document ) );
 		initRepeaters();
 		initMediaUpload();
 		initPaymentSortable();
 		hookFormSubmit();
 	} );
+
+	/* =========================================================
+	   PESTAÑAS — muestran/ocultan los paneles por categoría.
+	   Todo vive en el mismo <form>, así que un solo "Guardar"
+	   persiste todas las pestañas.
+	   ========================================================= */
+
+	function initTabs() {
+		var $tabs = $( '.ccmck-tabs .nav-tab' );
+		if ( ! $tabs.length ) {
+			return;
+		}
+
+		function activate( tab ) {
+			var $panel = $( '.ccmck-tab-panel[data-tab="' + tab + '"]' );
+			if ( ! $panel.length ) {
+				return false;
+			}
+			$tabs.removeClass( 'nav-tab-active' );
+			$tabs.filter( '[data-tab="' + tab + '"]' ).addClass( 'nav-tab-active' );
+			$( '.ccmck-tab-panel' ).removeClass( 'is-active' );
+			$panel.addClass( 'is-active' );
+			return true;
+		}
+
+		$tabs.on( 'click', function ( e ) {
+			e.preventDefault();
+			var tab = $( this ).data( 'tab' );
+			if ( activate( tab ) && window.history && window.history.replaceState ) {
+				window.history.replaceState( null, '', '#' + tab );
+			}
+		} );
+
+		// Restaurar la pestaña desde el hash (p. ej. tras guardar y recargar).
+		var hash = ( window.location.hash || '' ).replace( '#', '' );
+		if ( hash ) {
+			activate( hash );
+		}
+	}
 
 	/* =========================================================
 	   COLOR PICKERS

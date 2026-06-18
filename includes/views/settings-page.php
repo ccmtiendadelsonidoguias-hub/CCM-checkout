@@ -14,6 +14,23 @@
 defined( 'ABSPATH' ) || exit;
 ?>
 
+<style>
+/* Pestañas de la página de ajustes (agrupan las secciones por categoría). */
+.ccmck-tab-panel { display: none; }
+.ccmck-tab-panel.is-active { display: block; }
+.ccmck-tabs.nav-tab-wrapper { margin-bottom: 1em; }
+</style>
+
+<h2 class="nav-tab-wrapper ccmck-tabs">
+	<a href="#diseno"      class="nav-tab nav-tab-active" data-tab="diseno"><?php esc_html_e( 'Marca y diseño', 'ccm-checkout' ); ?></a>
+	<a href="#contenido"   class="nav-tab" data-tab="contenido"><?php esc_html_e( 'Contenido', 'ccm-checkout' ); ?></a>
+	<a href="#postgeneral" class="nav-tab" data-tab="postgeneral"><?php esc_html_e( 'Post-compra y general', 'ccm-checkout' ); ?></a>
+	<a href="#pagos"       class="nav-tab" data-tab="pagos"><?php esc_html_e( 'Pagos', 'ccm-checkout' ); ?></a>
+</h2>
+
+<?php /* ===== PESTAÑA: MARCA Y DISEÑO ===== */ ?>
+<div class="ccmck-tab-panel is-active" data-tab="diseno">
+
 <?php /* ============================================================
    SECCIÓN 1 — MARCA
    ============================================================ */ ?>
@@ -58,6 +75,11 @@ defined( 'ABSPATH' ) || exit;
         </td>
     </tr>
 </table>
+
+</div><?php /* /panel diseno */ ?>
+
+<?php /* ===== PESTAÑA: CONTENIDO ===== */ ?>
+<div class="ccmck-tab-panel" data-tab="contenido">
 
 <?php /* ============================================================
    SECCIÓN 2 — CABECERA (enlaces)
@@ -294,6 +316,11 @@ defined( 'ABSPATH' ) || exit;
     </tr>
 </table>
 
+</div><?php /* /panel contenido */ ?>
+
+<?php /* ===== PESTAÑA: POST-COMPRA Y GENERAL ===== */ ?>
+<div class="ccmck-tab-panel" data-tab="postgeneral">
+
 <?php /* ============================================================
    SECCIÓN 7 — GRACIAS / TRACKER
    ============================================================ */ ?>
@@ -365,6 +392,31 @@ defined( 'ABSPATH' ) || exit;
         <td>
             <input type="text" id="ccmck-newsletter-text" name="ccmck_settings[newsletter_text]"
                    value="<?php echo esc_attr( $s['newsletter_text'] ); ?>" class="large-text">
+        </td>
+    </tr>
+</table>
+
+</div><?php /* /panel postgeneral */ ?>
+
+<?php /* ===== PESTAÑA: PAGOS ===== */ ?>
+<div class="ccmck-tab-panel" data-tab="pagos">
+
+<?php /* ============================================================
+   SECCIÓN — ORDEN DEL CHECKOUT (experimental)
+   ============================================================ */ ?>
+<h2><?php esc_html_e( 'Orden del checkout', 'ccm-checkout' ); ?></h2>
+<table class="form-table" role="presentation">
+    <tr>
+        <th scope="row"><?php esc_html_e( 'Métodos de pago primero', 'ccm-checkout' ); ?></th>
+        <td>
+            <label>
+                <input type="checkbox" name="ccmck_settings[checkout_payment_first]" value="1"
+                    <?php checked( ! empty( $s['checkout_payment_first'] ) ); ?>>
+                <?php esc_html_e( 'Mostrar los métodos de pago al inicio del checkout (experimental)', 'ccm-checkout' ); ?>
+            </label>
+            <p class="description">
+                <?php esc_html_e( 'Sube la selección de método de pago al inicio de la columna; el botón "Realizar el pedido" se mantiene al final. El total y las pasarelas se recalculan igual al cambiar dirección/envío.', 'ccm-checkout' ); ?>
+            </p>
         </td>
     </tr>
 </table>
@@ -466,3 +518,5 @@ $display_ids   = array_values( array_filter( $display_ids, function ( $id ) use 
 </div>
 
 <?php endif; ?>
+
+</div><?php /* /panel pagos */ ?>
