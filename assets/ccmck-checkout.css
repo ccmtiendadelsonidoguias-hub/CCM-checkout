@@ -1851,6 +1851,10 @@ body.woocommerce-checkout .woocommerce-form-login-toggle { display: none !import
 .ccmck #payment .payment_box input,
 .ccmck #payment .payment_box select,
 .ccmck #payment .payment_box textarea { max-width: 100%; }
+/* WooCommerce default: .woocommerce-checkout #payment div.form-row { padding:1em }.
+   Lo anulamos a 0. El prefijo body + .ccmck sube la especificidad (1,3,2) sobre la
+   regla nativa (1,2,1), así gana sin !important e independiente del orden de carga. */
+body.woocommerce-checkout .ccmck #payment div.form-row { padding: 0; }
 /* Responsive móvil: iconos algo más pequeños para no empujar el título. */
 @media (max-width: 960px) {
   .ccmck .payment-icons img { height: 20px; }
