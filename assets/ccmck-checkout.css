@@ -1514,17 +1514,18 @@
   padding: 0 37px 0 13px;
 }
 
-/* ===== Panel desplegable de select2 (Departamento / Ciudad) — look moderno =====
+/* ===== Panel desplegable de select2 (Departamento / Ciudad) — look elegante =====
    El panel se inyecta fuera de .ccmck (hijo de .select2-container--open en <body>),
    por eso NO se prefija con .ccmck y se usan colores literales (las variables
    --ccmck-* no cascadean hasta aquí). Este CSS solo se encola en el checkout, así
    que las reglas sin prefijo solo afectan a /pago/. Sustituye el look plano y el
-   resaltado azul #5897fb por defecto de select2 por tarjeta redondeada con sombra
-   y resaltados neutros/de marca. */
+   resaltado azul #5897fb por defecto de select2 por una tarjeta redondeada con
+   sombra suave y resaltados NEUTROS (sin color de marca). Tipografía a 14px para
+   igualar los inputs del formulario. */
 .select2-container--open .select2-dropdown {
-  border: 1px solid #e6e6e6;
+  border: 1px solid #ececec;
   border-radius: 12px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.10);
   overflow: hidden;
   background: #fff;
 }
@@ -1532,44 +1533,44 @@
 .select2-dropdown--above,
 .select2-dropdown--below { border-radius: 12px; }
 /* Caja de búsqueda */
-.select2-container--open .select2-search--dropdown { padding: 10px 10px 6px; }
+.select2-container--open .select2-search--dropdown { padding: 9px 9px 5px; }
 .select2-container--open .select2-search--dropdown .select2-search__field {
-  border: 1px solid #d4d4d4;
-  border-radius: 10px;
-  padding: 9px 12px;
-  font-size: 15px;
+  border: 1px solid #e0e0e0;
+  border-radius: 9px;
+  padding: 8px 11px;
+  font-size: 14px;
   outline: none;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 .select2-container--open .select2-search--dropdown .select2-search__field:focus {
   border-color: #1a1a1a;
-  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.05);
 }
 /* Lista de opciones */
-.select2-container--open .select2-results__options { padding: 6px; }
+.select2-container--open .select2-results__options { padding: 5px; }
 .select2-container--default .select2-results__option {
-  padding: 10px 12px;
+  padding: 8px 11px;
   border-radius: 8px;
-  font-size: 15px;
+  font-size: 14px;
   line-height: 1.3;
-  color: #1a1a1a;
-  transition: background-color 0.12s ease, color 0.12s ease;
+  color: #2b2b2b;
+  transition: background-color 0.12s ease;
 }
-/* Resaltado por hover/teclado: gris suave (en vez del azul por defecto). */
+/* Resaltado por hover/teclado: gris suave, neutro (en vez del azul por defecto). */
 .select2-container--default .select2-results__option--highlighted[aria-selected] {
-  background-color: #f4f4f5 !important;
+  background-color: #f3f3f3 !important;
   color: #1a1a1a !important;
 }
-/* Opción ya seleccionada: tinte de marca, legible. */
+/* Opción ya seleccionada: sin color, solo negrita + gris muy tenue (elegante). */
 .select2-container--default .select2-results__option[aria-selected="true"] {
-  background-color: rgba(230, 57, 70, 0.10) !important;
-  color: #e63946 !important;
+  background-color: #f7f7f7 !important;
+  color: #1a1a1a !important;
   font-weight: 600;
 }
-/* Cuando la seleccionada está además resaltada, manda el tinte de marca. */
+/* Cuando la seleccionada está además resaltada, gris un punto más marcado. */
 .select2-container--default .select2-results__option--highlighted[aria-selected="true"] {
-  background-color: rgba(230, 57, 70, 0.14) !important;
-  color: #e63946 !important;
+  background-color: #efefef !important;
+  color: #1a1a1a !important;
 }
 /* Scrollbar más discreta dentro de la lista. */
 .select2-container--open .select2-results__options::-webkit-scrollbar { width: 10px; }
