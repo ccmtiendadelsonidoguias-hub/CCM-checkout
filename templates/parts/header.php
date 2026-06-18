@@ -11,8 +11,31 @@ $s = isset( $s ) ? $s : CCMCK_Settings::all();
 ?>
 <header class="checkout-header">
 	<?php if ( ! empty( $s['logo_image'] ) ) : ?>
+		<?php
+		// Logo = imagen "above the fold" → se prioriza para LCP y NUNCA lazy.
+		// Si es de la biblioteca de medios, wp_get_attachment_image trae width/height/
+		// srcset nativos (mejor CLS); si es URL externa, atributos manuales.
+		$ccmck_logo_alt = esc_attr( trim( $s['logo_text_1'] . ' ' . $s['logo_text_2'] ) );
+		$ccmck_logo_id  = function_exists( 'attachment_url_to_postid' ) ? attachment_url_to_postid( $s['logo_image'] ) : 0;
+		?>
 		<a href="<?php echo esc_url( home_url( '/' ) ); ?>" class="logo">
-			<img src="<?php echo esc_url( $s['logo_image'] ); ?>" alt="<?php echo esc_attr( trim( $s['logo_text_1'] . ' ' . $s['logo_text_2'] ) ); ?>" />
+			<?php
+			if ( $ccmck_logo_id ) {
+				echo wp_get_attachment_image( $ccmck_logo_id, 'full', false, array( // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+					'alt'           => $ccmck_logo_alt,
+					'class'         => 'ccmck-logo-img',
+					'loading'       => 'eager',
+					'fetchpriority' => 'high',
+					'decoding'      => 'async',
+				) );
+			} else {
+				printf(
+					'<img src="%s" alt="%s" class="ccmck-logo-img" fetchpriority="high" loading="eager" decoding="async" />',
+					esc_url( $s['logo_image'] ),
+					$ccmck_logo_alt
+				);
+			}
+			?>
 		</a>
 	<?php else : ?>
 		<a href="<?php echo esc_url( home_url( '/' ) ); ?>" class="logo">

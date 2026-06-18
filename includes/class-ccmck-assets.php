@@ -4,6 +4,26 @@ defined( 'ABSPATH' ) || exit;
 final class CCMCK_Assets {
     public static function init(): void {
         add_action( 'wp_enqueue_scripts', array( __CLASS__, 'enqueue' ) );
+        // Preload de la imagen LCP (logo) lo antes posible en el <head>.
+        add_action( 'wp_head', array( __CLASS__, 'preload_lcp' ), 1 );
+    }
+
+    /**
+     * Precarga el logo del checkout (candidato a LCP) para que el preload
+     * scanner lo baje primero. Solo en el checkout y si hay logo configurado.
+     */
+    public static function preload_lcp(): void {
+        if ( ! is_checkout() ) {
+            return;
+        }
+        $logo = CCMCK_Settings::get( 'logo_image', '' );
+        if ( empty( $logo ) ) {
+            return;
+        }
+        printf(
+            '<link rel="preload" as="image" href="%s" fetchpriority="high" />' . "\n",
+            esc_url( $logo )
+        );
     }
 
     public static function enqueue(): void {
