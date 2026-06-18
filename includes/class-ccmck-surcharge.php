@@ -3,14 +3,20 @@
  * CCM Checkout — recargo por financiación.
  *
  * Cuando el cliente paga con Addi (`addi`) o Sistecrédito (`wcsistecredito`),
- * se añade un recargo del 10,48% calculado SOLO sobre el subtotal de productos
- * (no sobre el envío). Se implementa como "fee" nativo de WooCommerce, así que
- * entra en el total del pedido y lo cobran las pasarelas.
+ * el precio de CADA producto del carrito se incrementa un 10,48%. NO se usa un
+ * "fee" con línea propia: el aumento va sobre el precio del producto, así el
+ * subtotal y el total salen ya incrementados, sin una línea de recargo visible
+ * y sin descuadre Subtotal≠Total. El total mayor lo cobran las pasarelas.
  *
  * El método de pago elegido se lee del request del checkout (en el AJAX
  * `update_order_review` WooCommerce postea `payment_method`); por eso el JS
- * dispara `update_checkout` al cambiar de método, para que el recargo se
+ * dispara `update_checkout` al cambiar de método, para que el precio se
  * recalcule y el total del sidebar se actualice.
+ *
+ * Implementación IDEMPOTENTE: en cada recálculo el precio se fija como
+ * precio_original × multiplicador (fetch fresco del precio de catálogo), de modo
+ * que el aumento NO se compone aunque el hook corra varias veces, y se revierte
+ * solo si el cliente cambia a un método sin recargo.
  *
  * @package CCM_Checkout
  */
@@ -25,8 +31,52 @@ final class CCMCK_Surcharge {
 	/** IDs de gateway con recargo. Filtrable con `ccmck_surcharge_methods`. */
 	const METHODS = array( 'addi', 'wcsistecredito' );
 
+	/** Cache de precios originales por product/variation id (por request). */
+	private static $orig_prices = array();
+
 	public static function init(): void {
-		add_action( 'woocommerce_cart_calculate_fees', array( __CLASS__, 'add_surcharge' ) );
+		// Prioridad alta para correr tras otros ajustes de precio. Idempotente.
+		add_action( 'woocommerce_before_calculate_totals', array( __CLASS__, 'apply_surcharge' ), 1000 );
+	}
+
+	/** Multiplicador a aplicar al precio según el método. PURO. */
+	public static function multiplier( string $method ): float {
+		return self::method_has_surcharge( $method ) ? ( 1.0 + self::rate() ) : 1.0;
+	}
+
+	/**
+	 * Ajusta el precio de cada ítem del carrito según el método de pago elegido.
+	 * Idempotente: usa el precio de catálogo fresco como base, nunca el ya
+	 * modificado, así no se compone. Si el método no lleva recargo, el
+	 * multiplicador es 1 (precio original).
+	 *
+	 * @param WC_Cart $cart Carrito en cálculo.
+	 */
+	public static function apply_surcharge( $cart ): void {
+		if ( is_admin() && ! wp_doing_ajax() ) {
+			return;
+		}
+		if ( ! $cart instanceof WC_Cart ) {
+			return;
+		}
+		$mult = self::multiplier( self::chosen_method() );
+		if ( 1.0 === $mult ) {
+			return; // sin recargo: no se toca el precio.
+		}
+		foreach ( $cart->get_cart() as $item ) {
+			if ( empty( $item['data'] ) || ! is_object( $item['data'] ) ) {
+				continue;
+			}
+			$product = $item['data'];
+			$id      = $product->get_id();
+			if ( ! isset( self::$orig_prices[ $id ] ) ) {
+				// Precio de catálogo fresco (no el del objeto del carrito, que
+				// podría venir ya modificado por una corrida previa del hook).
+				$fresh = function_exists( 'wc_get_product' ) ? wc_get_product( $id ) : null;
+				self::$orig_prices[ $id ] = $fresh ? (float) $fresh->get_price( 'edit' ) : (float) $product->get_price( 'edit' );
+			}
+			$product->set_price( self::$orig_prices[ $id ] * $mult );
+		}
 	}
 
 	/** Tasa efectiva (con filtro). */
@@ -67,43 +117,8 @@ final class CCMCK_Surcharge {
 		return in_array( $method, self::methods(), true );
 	}
 
-	/** Importe del recargo para un subtotal dado. PURO. */
+	/** Importe del recargo (10,48%) para un subtotal dado. PURO (helper de cálculo). */
 	public static function surcharge_amount( float $subtotal ): float {
 		return round( $subtotal * self::rate(), 2 );
-	}
-
-	/**
-	 * Añade el recargo al carrito si el método elegido lo requiere.
-	 *
-	 * @param WC_Cart $cart Carrito en cálculo.
-	 */
-	public static function add_surcharge( $cart ): void {
-		if ( is_admin() && ! wp_doing_ajax() ) {
-			return;
-		}
-		if ( ! $cart instanceof WC_Cart ) {
-			return;
-		}
-		if ( ! self::method_has_surcharge( self::chosen_method() ) ) {
-			return;
-		}
-		// Base = subtotal de PRODUCTOS (sin envío). get_subtotal() excluye envío.
-		$base = (float) $cart->get_subtotal() + (float) $cart->get_subtotal_tax();
-		$fee  = self::surcharge_amount( $base );
-		if ( $fee <= 0 ) {
-			return;
-		}
-		/* translators: %s: porcentaje del recargo */
-		$label = sprintf( __( 'Recargo por financiación (%s)', 'ccm-checkout' ), self::rate_label() );
-		$label = (string) apply_filters( 'ccmck_surcharge_label', $label );
-		$cart->add_fee( $label, $fee, false ); // sin impuesto.
-	}
-
-	/** Texto del porcentaje, p. ej. "10,48%". */
-	private static function rate_label(): string {
-		$pct = self::rate() * 100;
-		// Coma decimal (es-CO) y sin ceros de más.
-		$str = rtrim( rtrim( number_format( $pct, 2, ',', '.' ), '0' ), ',' );
-		return $str . '%';
 	}
 }

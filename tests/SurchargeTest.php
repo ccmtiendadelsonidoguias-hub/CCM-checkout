@@ -25,4 +25,14 @@ final class SurchargeTest extends TestCase {
 	public function test_surcharge_amount_zero_for_zero_subtotal(): void {
 		$this->assertSame( 0.0, CCMCK_Surcharge::surcharge_amount( 0.0 ) );
 	}
+
+	public function test_multiplier_for_surcharge_methods(): void {
+		$this->assertSame( 1.1048, CCMCK_Surcharge::multiplier( 'addi' ) );
+		$this->assertSame( 1.1048, CCMCK_Surcharge::multiplier( 'wcsistecredito' ) );
+	}
+
+	public function test_multiplier_is_one_for_other_methods(): void {
+		$this->assertSame( 1.0, CCMCK_Surcharge::multiplier( 'wompi' ) );
+		$this->assertSame( 1.0, CCMCK_Surcharge::multiplier( '' ) );
+	}
 }
