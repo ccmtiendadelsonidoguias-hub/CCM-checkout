@@ -1801,9 +1801,11 @@ body.woocommerce-checkout .woocommerce-form-login-toggle { display: none !import
    CONTENIDO (max-content ≈ 645px) en lugar de al viewport, provocando scroll
    horizontal en móvil (en desktop no se notaba porque el viewport es más ancho).
    Forzar width/max-width:100% en el wrapper lo ata al ancho disponible y el
-   contenido reflowa. En desktop es inocuo (.checkout-wrapper sigue con su
-   max-width:1200 centrado). */
-body.woocommerce-checkout .woocommerce { width: 100%; max-width: 100%; }
+   contenido reflowa. Además el tema le aplica margin-left/right:-80px (sangrado)
+   que en móvil desplazaba el checkout 80px a la izquierda dejando espacio a la
+   derecha; lo neutralizamos. En desktop es inocuo: .checkout-wrapper centra solo
+   con su max-width:1200 + margin:0 auto. */
+body.woocommerce-checkout .woocommerce { width: 100%; max-width: 100%; margin-left: 0; margin-right: 0; }
 
 /* --- P7: compactar filas (eliminar 36px fantasma) ---
    El puente P1 hizo .form-row display:flex para apilar label sobre input,
