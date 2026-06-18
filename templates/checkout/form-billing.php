@@ -17,6 +17,9 @@ defined( 'ABSPATH' ) || exit;
 
 $fields    = $checkout->get_checkout_fields( 'billing' );
 $login_url = function_exists( 'wc_get_page_permalink' ) ? wc_get_page_permalink( 'myaccount' ) : '#';
+// Si ya hay sesión, el enlace lleva a "Mi cuenta"; si no, a "Iniciar sesión".
+// En ambos casos abre en una pestaña nueva para no perder el checkout en curso.
+$account_label = is_user_logged_in() ? __( 'Mi cuenta', 'ccm-checkout' ) : __( 'Iniciar sesión', 'ccm-checkout' );
 
 do_action( 'woocommerce_before_checkout_billing_form', $checkout );
 ?>
@@ -25,7 +28,7 @@ do_action( 'woocommerce_before_checkout_billing_form', $checkout );
 	<section class="ccmck-section ccmck-contacto">
 		<div class="ccmck-section-head">
 			<h2><?php esc_html_e( 'Contacto', 'ccm-checkout' ); ?></h2>
-			<a class="ccmck-login-link" href="<?php echo esc_url( $login_url ); ?>"><?php esc_html_e( 'Iniciar sesión', 'ccm-checkout' ); ?></a>
+			<a class="ccmck-login-link" href="<?php echo esc_url( $login_url ); ?>" target="_blank" rel="noopener noreferrer"><?php echo esc_html( $account_label ); ?></a>
 		</div>
 		<div class="woocommerce-billing-fields__field-wrapper">
 			<?php
