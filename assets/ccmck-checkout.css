@@ -27,7 +27,7 @@
 /* ===== CHECKOUT LAYOUT ===== */
 .ccmck .checkout-wrapper {
   display: grid;
-  grid-template-columns: 1fr 420px;
+  grid-template-columns: 1fr 550px;
   max-width: 1200px;
   margin: 0 auto;
   min-height: 100vh;
@@ -102,7 +102,7 @@
   padding: 16px 24px;
   border-bottom: 1px solid #ececec;
   background: #fff;            /* header todo blanco */
-  max-width: 1200px;          /* alineado con el formulario; logo y carrito en sus esquinas */
+  max-width: 1000px;          /* alineado con el formulario; logo y carrito en sus esquinas */
   margin: 0 auto;
   width: 100%;
   box-sizing: border-box;
