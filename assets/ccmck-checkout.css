@@ -1795,6 +1795,16 @@ body.woocommerce-checkout e-page-transition { display: none !important; }
 body.woocommerce-checkout .woocommerce-form-login,
 body.woocommerce-checkout .woocommerce-form-login-toggle { display: none !important; }
 
+/* --- P11: overflow horizontal en móvil por el <b> roto de Addi ---
+   La etiqueta <b> que Addi inyecta (HTML inválido) envuelve el checkout y es
+   display:inline; eso hace que el wrapper div.woocommerce se dimensione a su
+   CONTENIDO (max-content ≈ 645px) en lugar de al viewport, provocando scroll
+   horizontal en móvil (en desktop no se notaba porque el viewport es más ancho).
+   Forzar width/max-width:100% en el wrapper lo ata al ancho disponible y el
+   contenido reflowa. En desktop es inocuo (.checkout-wrapper sigue con su
+   max-width:1200 centrado). */
+body.woocommerce-checkout .woocommerce { width: 100%; max-width: 100%; }
+
 /* --- P7: compactar filas (eliminar 36px fantasma) ---
    El puente P1 hizo .form-row display:flex para apilar label sobre input,
    pero eso convierte los pseudo-elementos de clearfix de WooCommerce
