@@ -403,20 +403,26 @@
         } );
     }
 
+    // Lee la cantidad actual desde el .qty-control del botón pulsado.
+    // OJO: los botones +/− llevan ellos mismos data-cart-item-key, así que NO se puede
+    // usar closest('[data-cart-item-key]') (devolvería el propio botón y .find no
+    // encontraría .ccmck-qty-value → caía a 1 y "−" mandaba 0 = vaciaba el carrito).
+    function ccmckCurrentQty( $btn ) {
+        return parseInt( $btn.closest( '.qty-control' ).find( '.ccmck-qty-value' ).first().text(), 10 ) || 1;
+    }
+
     // Botón "+" — incrementa cantidad
     $( document ).on( 'click', '.ccmck-qty-plus', function ( e ) {
         e.preventDefault();
-        var $row = $( this ).closest( '[data-cart-item-key]' );
-        var cur  = parseInt( $row.find( '.ccmck-qty-value' ).first().text(), 10 ) || 1;
-        ccmckUpdateQty( $row.data( 'cart-item-key' ), cur + 1 );
+        var $btn = $( this );
+        ccmckUpdateQty( $btn.data( 'cart-item-key' ), ccmckCurrentQty( $btn ) + 1 );
     } );
 
-    // Botón "−" — decrementa cantidad (0 elimina el ítem)
+    // Botón "−" — decrementa cantidad (mínimo 1; para eliminar está el botón ×)
     $( document ).on( 'click', '.ccmck-qty-minus', function ( e ) {
         e.preventDefault();
-        var $row = $( this ).closest( '[data-cart-item-key]' );
-        var cur  = parseInt( $row.find( '.ccmck-qty-value' ).first().text(), 10 ) || 1;
-        ccmckUpdateQty( $row.data( 'cart-item-key' ), Math.max( 0, cur - 1 ) );
+        var $btn = $( this );
+        ccmckUpdateQty( $btn.data( 'cart-item-key' ), Math.max( 1, ccmckCurrentQty( $btn ) - 1 ) );
     } );
 
     // Botón "×" — elimina el ítem directamente
