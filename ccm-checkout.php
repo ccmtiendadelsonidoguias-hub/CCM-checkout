@@ -8,7 +8,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'CCMCK_VERSION', '1.0.2' );
+define( 'CCMCK_VERSION', '1.0.3' );
 define( 'CCMCK_DIR', trailingslashit( dirname( __FILE__ ) ) );
 define( 'CCMCK_URL', plugin_dir_url( __FILE__ ) );
 
@@ -20,6 +20,7 @@ require_once CCMCK_DIR . 'includes/class-ccmck-document.php';
 require_once CCMCK_DIR . 'includes/class-ccmck-payments.php';
 require_once CCMCK_DIR . 'includes/class-ccmck-cart-ajax.php';
 require_once CCMCK_DIR . 'includes/class-ccmck-faq.php';
+require_once CCMCK_DIR . 'includes/class-ccmck-info-cards.php';
 require_once CCMCK_DIR . 'includes/class-ccmck-whatsapp.php';
 require_once CCMCK_DIR . 'includes/class-ccmck-thankyou.php';
 require_once CCMCK_DIR . 'includes/class-ccmck-shipping.php';
@@ -48,6 +49,7 @@ function ccmck_boot(): void {
     CCMCK_Payments::init();
     CCMCK_Cart_Ajax::init();
     CCMCK_Faq::init();
+    CCMCK_Info_Cards::init();
     CCMCK_Thankyou::init();
     CCMCK_Shipping::init();
     CCMCK_Pickup::init();

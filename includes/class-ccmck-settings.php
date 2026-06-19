@@ -14,6 +14,8 @@ final class CCMCK_Settings {
         return array(
             'accent_color'      => '#e63946',
             'sidebar_color'     => '#1a1a1a',
+            // Color del botón "Realizar el pedido". Vacío = hereda el de acento.
+            'button_color'      => '',
             'logo_text_1'       => 'CCM',
             'logo_text_2'       => 'Tienda Del Sonido',
             'logo_image'        => '',
@@ -53,6 +55,7 @@ final class CCMCK_Settings {
 
         $out['accent_color']  = sanitize_hex_color( $input['accent_color']  ?? '' ) ?? '';
         $out['sidebar_color'] = sanitize_hex_color( $input['sidebar_color'] ?? '' ) ?? '';
+        $out['button_color']  = sanitize_hex_color( $input['button_color'] ?? '' ) ?? '';
         $out['logo_text_1']   = sanitize_text_field( $input['logo_text_1'] ?? $d['logo_text_1'] );
         $out['logo_text_2']   = sanitize_text_field( $input['logo_text_2'] ?? $d['logo_text_2'] );
         $out['logo_image']    = esc_url_raw( $input['logo_image'] ?? '' );
@@ -114,7 +117,11 @@ final class CCMCK_Settings {
             $q = sanitize_text_field( $row['q'] ?? '' );
             $a = wp_kses_post( $row['a'] ?? '' );
             if ( '' !== $q ) {
-                $clean[] = array( 'q' => $q, 'a' => $a );
+                $clean[] = array(
+                    'q'          => $q,
+                    'a'          => $a,
+                    'icon_image' => esc_url_raw( $row['icon_image'] ?? '' ),
+                );
             }
         }
         return $clean;
@@ -129,6 +136,7 @@ final class CCMCK_Settings {
                     'icon'  => sanitize_text_field( $row['icon'] ?? '' ),
                     'title' => $title,
                     'text'  => sanitize_text_field( $row['text'] ?? '' ),
+                    'image' => esc_url_raw( $row['image'] ?? '' ),
                 );
             }
         }

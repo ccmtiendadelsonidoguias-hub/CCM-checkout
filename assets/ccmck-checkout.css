@@ -73,6 +73,9 @@
 .ccmck.ccmck-payment-first .checkout-main > .ccmck-shipping-section        { order: 2; }
 .ccmck.ccmck-payment-first #payment > .place-order                         { order: 3; }
 .ccmck.ccmck-payment-first .checkout-main > .whatsapp-cta                  { order: 4; }
+/* Tarjetas informativas (versión móvil) justo debajo del WhatsApp. Mismo order
+   que .whatsapp-cta: por orden de DOM (va después) queda inmediatamente debajo. */
+.ccmck.ccmck-payment-first .checkout-main > .mobile-bottom-info            { order: 4; }
 .ccmck.ccmck-payment-first .checkout-main > .checkout-footer               { order: 5; }
 .ccmck .checkout-sidebar {
   background: var(--ccmck-sidebar, #1a1a1a);
@@ -474,18 +477,18 @@
 .ccmck .pay-button {
   width: 100%;
   padding: 18px;
-  background: var(--ccmck-accent, #e63946);
+  background: var(--ccmck-button, var(--ccmck-accent, #e63946));
   color: #fff;
   border: none;
   border-radius: 8px;
   font-size: 16px;
   font-weight: 700;
   cursor: pointer;
-  transition: background 0.2s, transform 0.1s;
+  transition: filter 0.2s, transform 0.1s;
   margin-top: 28px;
   letter-spacing: 0.3px;
 }
-.ccmck .pay-button:hover { background: #d62839; }
+.ccmck .pay-button:hover { filter: brightness(0.92); }
 .ccmck .pay-button:active { transform: scale(0.99); }
 
 /* ===== FOOTER LINKS ===== */
@@ -800,6 +803,17 @@
 .ccmck .delivery-card .dc-text span {
   font-size: 12px;
   color: #888;
+}
+/* Icono como imagen subida (FAQ y tarjetas): encaja centrada sin recortar. */
+.ccmck .faq-header .faq-icon img,
+.ccmck .delivery-card .dc-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: inherit;
+  display: block;
+  padding: 4px;
+  box-sizing: border-box;
 }
 
 /* FAQ Accordion */
@@ -1460,6 +1474,10 @@
   padding: 0;
 }
 .ccmck .checkout-main .form-row-wide { grid-column: 1 / -1; }
+/* Razón social: oculta por defecto; ccmck-checkout.js la muestra solo cuando el
+   tipo de documento es NIT (inline display:block !important). El !important + id
+   vence al `.checkout-main .form-row{display:block !important}` (fix P7). */
+.ccmck #billing_company_field { display: none !important; }
 .ccmck .checkout-main .form-row label {
   font-size: 12px;
   font-weight: 500;
@@ -1631,7 +1649,7 @@
    de Elementor) + !important por lo agresivo de su override. */
 .ccmck #place_order,
 .ccmck #payment #place_order {
-  background: var(--ccmck-accent, #e63946) !important;
+  background: var(--ccmck-button, var(--ccmck-accent, #e63946)) !important;
   color: #fff !important;
   border: none !important;
   border-radius: 8px !important;
@@ -1641,7 +1659,7 @@
   letter-spacing: 0.3px !important;
   margin-top: 22px !important; /* el tema anula el margin de .pay-button: separar de los términos */
 }
-.ccmck #place_order:hover { background: #d62839 !important; }
+.ccmck #place_order:hover { filter: brightness(0.92) !important; }
 
 /* Aire entre la sección de pago y el bloque de privacidad/términos/botón. */
 .ccmck .form-row.place-order { margin-top: 26px; }

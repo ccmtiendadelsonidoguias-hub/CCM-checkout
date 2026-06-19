@@ -148,6 +148,14 @@
 				var forAttr = $( this ).attr( 'for' ).replace( /__i__/g, String( idx ) );
 				$( this ).attr( 'for', forAttr );
 			} );
+			// También en data-target / data-target-name (botones de subida de imagen):
+			// el clonado no los re-indexa por defecto y romperían en filas nuevas.
+			$newRow.find( '[data-target]' ).each( function () {
+				$( this ).attr( 'data-target', $( this ).attr( 'data-target' ).replace( /__i__/g, String( idx ) ) );
+			} );
+			$newRow.find( '[data-target-name]' ).each( function () {
+				$( this ).attr( 'data-target-name', $( this ).attr( 'data-target-name' ).replace( /__i__/g, String( idx ) ) );
+			} );
 
 			// Insertar antes del botón "Añadir".
 			$( this ).before( $newRow );

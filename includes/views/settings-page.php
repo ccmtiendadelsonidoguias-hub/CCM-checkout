@@ -74,6 +74,14 @@ defined( 'ABSPATH' ) || exit;
                    value="<?php echo esc_attr( $s['sidebar_color'] ); ?>" class="ccmck-color">
         </td>
     </tr>
+    <tr>
+        <th scope="row"><label for="ccmck-button-color"><?php esc_html_e( 'Color del botón de pago', 'ccm-checkout' ); ?></label></th>
+        <td>
+            <input type="text" id="ccmck-button-color" name="ccmck_settings[button_color]"
+                   value="<?php echo esc_attr( $s['button_color'] ); ?>" class="ccmck-color">
+            <p class="description"><?php esc_html_e( 'Color del botón "Realizar el pedido". Déjalo vacío para usar el color de acento.', 'ccm-checkout' ); ?></p>
+        </td>
+    </tr>
 </table>
 
 </div><?php /* /panel diseno */ ?>
@@ -233,6 +241,15 @@ defined( 'ABSPATH' ) || exit;
         <textarea name="ccmck_settings[faq_items][<?php echo esc_attr( (string) $i ); ?>][a]"
                   rows="3" class="large-text"
                   placeholder="<?php esc_attr_e( 'Respuesta', 'ccm-checkout' ); ?>"><?php echo esc_textarea( $row['a'] ); ?></textarea>
+        <input type="text"
+               name="ccmck_settings[faq_items][<?php echo esc_attr( (string) $i ); ?>][icon_image]"
+               value="<?php echo esc_url( $row['icon_image'] ?? '' ); ?>"
+               placeholder="<?php esc_attr_e( 'URL imagen icono (opcional)', 'ccm-checkout' ); ?>"
+               class="regular-text ccmck-url-input">
+        <button type="button" class="button ccmck-upload"
+                data-target-name="ccmck_settings[faq_items][<?php echo esc_attr( (string) $i ); ?>][icon_image]">
+            <?php esc_html_e( 'Subir imagen', 'ccm-checkout' ); ?>
+        </button>
         <button type="button" class="button ccmck-remove-row"><?php esc_html_e( 'Eliminar', 'ccm-checkout' ); ?></button>
     </div>
     <?php endforeach; ?>
@@ -246,6 +263,15 @@ defined( 'ABSPATH' ) || exit;
         <textarea name="ccmck_settings[faq_items][__i__][a]"
                   rows="3" class="large-text"
                   placeholder="<?php esc_attr_e( 'Respuesta', 'ccm-checkout' ); ?>"></textarea>
+        <input type="text"
+               name="ccmck_settings[faq_items][__i__][icon_image]"
+               value=""
+               placeholder="<?php esc_attr_e( 'URL imagen icono (opcional)', 'ccm-checkout' ); ?>"
+               class="regular-text ccmck-url-input">
+        <button type="button" class="button ccmck-upload"
+                data-target-name="ccmck_settings[faq_items][__i__][icon_image]">
+            <?php esc_html_e( 'Subir imagen', 'ccm-checkout' ); ?>
+        </button>
         <button type="button" class="button ccmck-remove-row"><?php esc_html_e( 'Eliminar', 'ccm-checkout' ); ?></button>
     </div>
 
@@ -266,7 +292,7 @@ defined( 'ABSPATH' ) || exit;
         <input type="text"
                name="ccmck_settings[shipping_cards][<?php echo esc_attr( (string) $i ); ?>][icon]"
                value="<?php echo esc_attr( $row['icon'] ); ?>"
-               placeholder="<?php esc_attr_e( 'Icono (dashicon o clase CSS)', 'ccm-checkout' ); ?>"
+               placeholder="<?php esc_attr_e( 'Emoji (opcional)', 'ccm-checkout' ); ?>"
                class="regular-text">
         <input type="text"
                name="ccmck_settings[shipping_cards][<?php echo esc_attr( (string) $i ); ?>][title]"
@@ -278,6 +304,15 @@ defined( 'ABSPATH' ) || exit;
                value="<?php echo esc_attr( $row['text'] ); ?>"
                placeholder="<?php esc_attr_e( 'Descripción', 'ccm-checkout' ); ?>"
                class="large-text">
+        <input type="text"
+               name="ccmck_settings[shipping_cards][<?php echo esc_attr( (string) $i ); ?>][image]"
+               value="<?php echo esc_url( $row['image'] ?? '' ); ?>"
+               placeholder="<?php esc_attr_e( 'URL imagen icono (opcional)', 'ccm-checkout' ); ?>"
+               class="regular-text ccmck-url-input">
+        <button type="button" class="button ccmck-upload"
+                data-target-name="ccmck_settings[shipping_cards][<?php echo esc_attr( (string) $i ); ?>][image]">
+            <?php esc_html_e( 'Subir imagen', 'ccm-checkout' ); ?>
+        </button>
         <button type="button" class="button ccmck-remove-row"><?php esc_html_e( 'Eliminar', 'ccm-checkout' ); ?></button>
     </div>
     <?php endforeach; ?>
@@ -286,7 +321,7 @@ defined( 'ABSPATH' ) || exit;
         <input type="text"
                name="ccmck_settings[shipping_cards][__i__][icon]"
                value=""
-               placeholder="<?php esc_attr_e( 'Icono (dashicon o clase CSS)', 'ccm-checkout' ); ?>"
+               placeholder="<?php esc_attr_e( 'Emoji (opcional)', 'ccm-checkout' ); ?>"
                class="regular-text">
         <input type="text"
                name="ccmck_settings[shipping_cards][__i__][title]"
@@ -298,6 +333,15 @@ defined( 'ABSPATH' ) || exit;
                value=""
                placeholder="<?php esc_attr_e( 'Descripción', 'ccm-checkout' ); ?>"
                class="large-text">
+        <input type="text"
+               name="ccmck_settings[shipping_cards][__i__][image]"
+               value=""
+               placeholder="<?php esc_attr_e( 'URL imagen icono (opcional)', 'ccm-checkout' ); ?>"
+               class="regular-text ccmck-url-input">
+        <button type="button" class="button ccmck-upload"
+                data-target-name="ccmck_settings[shipping_cards][__i__][image]">
+            <?php esc_html_e( 'Subir imagen', 'ccm-checkout' ); ?>
+        </button>
         <button type="button" class="button ccmck-remove-row"><?php esc_html_e( 'Eliminar', 'ccm-checkout' ); ?></button>
     </div>
 

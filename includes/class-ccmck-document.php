@@ -57,19 +57,25 @@ final class CCMCK_Document {
         add_filter( 'woocommerce_email_order_meta_fields', array( __CLASS__, 'email_fields' ), 10, 3 );
     }
 
+    /**
+     * Tipos de documento ofrecidos en el checkout. Son los códigos DIAN; el
+     * código numérico se guarda en `_billing_document_type` y la automatización
+     * de facturación (n8n → Alegra) lo mapea al tipo de identificación de Alegra.
+     * Mantener estos códigos sincronizados con el typeMap del workflow.
+     */
     public static function document_types(): array {
         return array(
-            '31' => 'NIT',
             '13' => 'CC',
-            '50' => 'NIT de otro país',
-            '41' => 'PP',
-            '47' => 'PEP',
-            '42' => 'DIE',
             '22' => 'CE',
-            '21' => 'TE',
+            '31' => 'NIT',
             '12' => 'TI',
+            '21' => 'TE',
+            '47' => 'PEP',
             '11' => 'RC',
             '91' => 'NUIP',
+            '41' => 'PP',
+            '42' => 'DIE',
+            '50' => 'NIT de otro país',
         );
     }
 
@@ -112,6 +118,21 @@ final class CCMCK_Document {
             'class'        => array( 'form-row-last' ),
             'priority'     => 36,
             'autocomplete' => 'off',
+        );
+
+        // Razón social (billing_company): se captura SOLO cuando el tipo de
+        // documento es NIT (lo muestra/oculta ccmck-checkout.js; el "required"
+        // condicional se valida en validate()). Su valor viaja como billing.company,
+        // que la automatización de Alegra usa para crear el contacto como persona
+        // jurídica. Se registra explícito porque el checkout no lo trae.
+        $fields['billing']['billing_company'] = array(
+            'type'         => 'text',
+            'label'        => __( 'Razón social', 'ccm-checkout' ),
+            'placeholder'  => __( 'Razón social', 'ccm-checkout' ),
+            'required'     => false,
+            'class'        => array( 'form-row-wide' ),
+            'priority'     => 55,
+            'autocomplete' => 'organization',
         );
 
         // El código postal había sido secuestrado/reetiquetado ("Cédula") por la
@@ -167,6 +188,7 @@ final class CCMCK_Document {
             'billing_last_name'  => array( 30,  'form-row-last' ),
             self::TYPE_KEY       => array( 40,  'form-row-first' ),
             self::NUMBER_KEY     => array( 50,  'form-row-last' ),
+            'billing_company'    => array( 55,  'form-row-wide' ),
             'billing_address_1'  => array( 60,  'form-row-wide' ),
             'billing_address_2'  => array( 70,  'form-row-wide' ),
             'billing_state'      => array( 80,  'form-row-first' ),
@@ -284,6 +306,11 @@ final class CCMCK_Document {
         }
         if ( '' === $number ) {
             $errors->add( 'billing_document_number_required', __( 'Ingresa tu número de documento.', 'ccm-checkout' ) );
+        }
+        // Razón social obligatoria SOLO para NIT (código 31): el contacto en Alegra
+        // se crea como persona jurídica y necesita la razón social.
+        if ( '31' === $type && '' === trim( (string) ( $data['billing_company'] ?? '' ) ) ) {
+            $errors->add( 'billing_company_required', __( 'Ingresa la razón social (obligatoria para NIT).', 'ccm-checkout' ) );
         }
     }
 

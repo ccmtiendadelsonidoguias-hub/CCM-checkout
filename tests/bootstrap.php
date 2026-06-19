@@ -15,6 +15,9 @@ if ( ! function_exists( 'esc_url_raw' ) ) {
         return preg_match( '#^(https?:|/|tel:|mailto:)#i', $url ) ? $url : '';
     }
 }
+if ( ! function_exists( 'esc_url' ) ) {
+    function esc_url( $url ) { return esc_url_raw( $url ); }
+}
 if ( ! function_exists( 'wp_kses_post' ) ) {
     function wp_kses_post( $s ) { return (string) $s; }
 }
@@ -41,6 +44,12 @@ if ( ! function_exists( 'esc_html__' ) ) {
 }
 if ( ! function_exists( 'esc_attr__' ) ) {
     function esc_attr__( $s, $d = 'default' ) { return $s; }
+}
+if ( ! function_exists( 'esc_html_e' ) ) {
+    function esc_html_e( $s, $d = 'default' ) { echo esc_html( $s ); }
+}
+if ( ! function_exists( 'esc_attr_e' ) ) {
+    function esc_attr_e( $s, $d = 'default' ) { echo esc_attr( $s ); }
 }
 if ( ! function_exists( 'apply_filters' ) ) {
     function apply_filters( $hook, $value ) { return $value; }
@@ -97,6 +106,8 @@ if ( ! class_exists( 'WC_Shipping_Rate' ) ) {
 }
 
 require_once dirname( __DIR__ ) . '/includes/class-ccmck-settings.php';
+require_once dirname( __DIR__ ) . '/includes/class-ccmck-info-cards.php';
+require_once dirname( __DIR__ ) . '/includes/class-ccmck-faq.php';
 require_once dirname( __DIR__ ) . '/includes/class-ccmck-document.php';
 require_once dirname( __DIR__ ) . '/includes/class-ccmck-payments.php';
 require_once dirname( __DIR__ ) . '/includes/class-ccmck-thankyou.php';

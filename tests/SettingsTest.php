@@ -8,6 +8,17 @@ final class SettingsTest extends TestCase {
         $this->assertSame( '', $out['sidebar_color'] );
     }
 
+    public function test_sanitize_button_color_hex_or_empty(): void {
+        $this->assertSame( '#0a84ff', CCMCK_Settings::sanitize( array( 'button_color' => '#0a84ff' ) )['button_color'] );
+        $this->assertSame( '', CCMCK_Settings::sanitize( array( 'button_color' => 'azul' ) )['button_color'] );
+        $this->assertSame( '', CCMCK_Settings::sanitize( array() )['button_color'] );
+    }
+
+    public function test_defaults_button_color_empty(): void {
+        $this->assertArrayHasKey( 'button_color', CCMCK_Settings::defaults() );
+        $this->assertSame( '', CCMCK_Settings::defaults()['button_color'] );
+    }
+
     public function test_sanitize_whatsapp_enabled_is_boolean(): void {
         $out = CCMCK_Settings::sanitize( array( 'whatsapp_enabled' => '1' ) );
         $this->assertTrue( $out['whatsapp_enabled'] );

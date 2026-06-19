@@ -82,6 +82,36 @@
     $( document.body ).on( 'updated_checkout', ccmckSyncBillingId );
     $( ccmckSyncBillingId );
 
+    /* Razón social (billing_company): visible y obligatoria SOLO cuando el tipo
+       de documento es NIT (código 31). Para los demás tipos se oculta y se limpia.
+       El valor viaja como billing.company → la automatización de Alegra lo usa para
+       crear el contacto como persona jurídica. Se usa .css('display') (no .toggle/
+       .show, que en jQuery 3 no vencen al display:none del stylesheet). */
+    function ccmckToggleCompany() {
+        var $field = $( '#billing_company_field' );
+        var $sel   = $( '#billing_document_type' );
+        if ( ! $field.length || ! $sel.length ) {
+            return;
+        }
+        var isNit = ( '31' === $.trim( $sel.val() || '' ) );
+        // El tema/CSS fuerza `.form-row{display:block !important}` (fix P7), así que
+        // para MOSTRAR hay que usar inline + !important (vence al !important del
+        // stylesheet). Para ocultar, quitamos el inline y manda el display:none
+        // !important del CSS (.ccmck #billing_company_field).
+        var el = $field[0];
+        if ( isNit ) {
+            el.style.setProperty( 'display', 'block', 'important' );
+            $field.addClass( 'validate-required' );
+        } else {
+            el.style.removeProperty( 'display' );
+            $field.removeClass( 'validate-required' );
+            $( '#billing_company' ).val( '' );
+        }
+    }
+    $( document ).on( 'change', '#billing_document_type', ccmckToggleCompany );
+    $( document.body ).on( 'updated_checkout', ccmckToggleCompany );
+    $( ccmckToggleCompany );
+
     /* ------------------------------------------------------------------ */
     /*  Sistecrédito: reusar el documento del checkout                     */
     /*  El plugin (wcsistecredito) pinta sus propios campos de documento   */

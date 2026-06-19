@@ -15,7 +15,45 @@ final class DocumentTest extends TestCase {
     public function test_label_for_known_code(): void {
         $this->assertSame( 'CC', CCMCK_Document::label_for( '13' ) );
         $this->assertSame( '', CCMCK_Document::label_for( '99' ) );
+        $this->assertSame( 'CE', CCMCK_Document::label_for( '22' ) );
+    }
+
+    public function test_all_dian_types_offered(): void {
+        // Los 11 códigos DIAN están disponibles (incluidos PP/41, DIE/42 y
+        // NIT de otro país/50, re-integrados para Alegra).
+        $expected = array( '11', '12', '13', '21', '22', '31', '41', '42', '47', '50', '91' );
+        foreach ( $expected as $code ) {
+            $this->assertTrue( CCMCK_Document::is_valid_type( $code ), "El código $code debe ofrecerse." );
+        }
+        $this->assertCount( 11, CCMCK_Document::document_types() );
         $this->assertSame( 'NIT de otro país', CCMCK_Document::label_for( '50' ) );
+    }
+
+    public function test_validate_requires_company_for_nit(): void {
+        $errors = new WP_Error();
+        CCMCK_Document::validate(
+            array( 'billing_document_type' => '31', 'billing_document_number' => '900123456', 'billing_company' => '' ),
+            $errors
+        );
+        $this->assertContains( 'Ingresa la razón social (obligatoria para NIT).', $errors->get_error_messages() );
+    }
+
+    public function test_validate_company_present_for_nit_passes(): void {
+        $errors = new WP_Error();
+        CCMCK_Document::validate(
+            array( 'billing_document_type' => '31', 'billing_document_number' => '900123456', 'billing_company' => 'ACME SAS' ),
+            $errors
+        );
+        $this->assertNotContains( 'Ingresa la razón social (obligatoria para NIT).', $errors->get_error_messages() );
+    }
+
+    public function test_validate_company_not_required_for_non_nit(): void {
+        $errors = new WP_Error();
+        CCMCK_Document::validate(
+            array( 'billing_document_type' => '13', 'billing_document_number' => '1020304050', 'billing_company' => '' ),
+            $errors
+        );
+        $this->assertNotContains( 'Ingresa la razón social (obligatoria para NIT).', $errors->get_error_messages() );
     }
 
     public function test_normalize_number_strips_non_alphanumerics(): void {

@@ -102,6 +102,18 @@ $ccmck_layout_class = ! empty( $s['checkout_payment_first'] ) ? ' ccmck-payment-
 
 			<?php require CCMCK_DIR . 'templates/parts/footer.php'; ?>
 
+			<?php
+			// Bloque inferior móvil (fondo claro): tarjetas informativas + FAQ,
+			// debajo del WhatsApp. Oculto en desktop por CSS (.mobile-bottom-info).
+			// Solo aquí (no en thankyou.php, que comparte footer.php). Mismo
+			// contenido de Ajustes que las copias del sidebar; markup() ya escapa.
+			$ccmck_mobile = CCMCK_Info_Cards::markup( (array) CCMCK_Settings::get( 'shipping_cards', array() ) )
+				. CCMCK_Faq::markup_from_settings();
+			if ( '' !== $ccmck_mobile ) {
+				echo '<div class="mobile-bottom-info">' . $ccmck_mobile . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+			}
+			?>
+
 		</main>
 
 		<aside class="checkout-sidebar">
