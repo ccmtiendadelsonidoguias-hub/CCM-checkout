@@ -80,6 +80,12 @@ $ccmck_layout_class = ! empty( $s['checkout_payment_first'] ) ? ' ccmck-payment-
 					<div class="ccmck-sks-card"><span class="ccmck-skb" style="width:20px;height:20px;border-radius:50%"></span><span class="ccmck-skb" style="width:42%;height:13px"></span><span class="ccmck-sks-grow"></span><span class="ccmck-skb" style="width:60px;height:13px"></span></div>
 					<div class="ccmck-sks-card"><span class="ccmck-skb" style="width:20px;height:20px;border-radius:50%"></span><span class="ccmck-skb" style="width:38%;height:13px"></span><span class="ccmck-sks-grow"></span><span class="ccmck-skb" style="width:54px;height:13px"></span></div>
 				</div>
+				<?php
+				// Aviso de recogida local: fuera de #ccmck_shipping_methods (que el
+				// fragment AJAX reemplaza) para que persista; el JS lo muestra al
+				// elegir pickup. HTML ya escapado dentro de notice_markup().
+				echo CCMCK_Pickup::notice_markup( (string) CCMCK_Settings::get( 'pickup_notice', '' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+				?>
 			</section>
 
 			<section class="ccmck-section ccmck-payment-section">
