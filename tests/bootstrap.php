@@ -6,6 +6,12 @@ if ( ! function_exists( 'sanitize_text_field' ) ) {
         return trim( preg_replace( '/[\r\n\t ]+/', ' ', wp_strip_all_tags_stub( (string) $str ) ) );
     }
 }
+if ( ! function_exists( 'sanitize_textarea_field' ) ) {
+    function sanitize_textarea_field( $str ) {
+        // Como WP: quita etiquetas pero conserva los saltos de línea.
+        return trim( wp_strip_all_tags_stub( (string) $str ) );
+    }
+}
 function wp_strip_all_tags_stub( string $s ): string {
     return preg_replace( '/<[^>]*>/', '', $s );
 }

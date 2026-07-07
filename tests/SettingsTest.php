@@ -97,4 +97,27 @@ final class SettingsTest extends TestCase {
     public function test_sanitize_surcharge_brands_empty_by_default(): void {
         $this->assertSame( array(), CCMCK_Settings::sanitize( array() )['surcharge_brands'] );
     }
+
+    public function test_defaults_include_pickup_notice(): void {
+        $d = CCMCK_Settings::defaults();
+        $this->assertArrayHasKey( 'pickup_notice', $d );
+        $this->assertStringContainsString( 'Barranquilla', $d['pickup_notice'] );
+    }
+
+    public function test_sanitize_pickup_notice_strips_tags(): void {
+        $out = CCMCK_Settings::sanitize( array( 'pickup_notice' => '<b>Recoge</b> en <script>x</script>tienda' ) );
+        $this->assertStringNotContainsString( '<b>', $out['pickup_notice'] );
+        $this->assertStringNotContainsString( '<script>', $out['pickup_notice'] );
+        $this->assertStringContainsString( 'Recoge', $out['pickup_notice'] );
+    }
+
+    public function test_sanitize_pickup_notice_missing_becomes_empty(): void {
+        $this->assertSame( '', CCMCK_Settings::sanitize( array() )['pickup_notice'] );
+    }
+
+    public function test_sanitize_pickup_notice_is_idempotent(): void {
+        $once  = CCMCK_Settings::sanitize( array( 'pickup_notice' => "Recoge\nen tienda <b>x</b>" ) )['pickup_notice'];
+        $twice = CCMCK_Settings::sanitize( array( 'pickup_notice' => $once ) )['pickup_notice'];
+        $this->assertSame( $once, $twice );
+    }
 }

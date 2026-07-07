@@ -29,6 +29,8 @@ final class CCMCK_Settings {
             'faq_items'         => array(),
             'shipping_cards'    => array(),
             'secure_badge'      => 'Pago seguro con encriptación SSL',
+            // Aviso que se muestra al elegir "Recogida local" (vacío = no se muestra).
+            'pickup_notice'     => '📍 Recogida en tienda: al elegir esta opción tu pedido no se envía a domicilio. Deberás recogerlo personalmente en nuestro local en Barranquilla. Te escribiremos por WhatsApp cuando esté listo para recoger.',
             'tracker_enabled'   => true,
             'tracker_labels'    => array( 'Pedido recibido', 'Pago confirmado', 'En preparación', 'Enviado' ),
             'thankyou_message'  => 'Hemos recibido tu pedido y te enviaremos un correo de confirmación.',
@@ -73,6 +75,7 @@ final class CCMCK_Settings {
 
         $out['shipping_cards'] = self::sanitize_cards( $input['shipping_cards'] ?? array() );
         $out['secure_badge']   = sanitize_text_field( $input['secure_badge'] ?? '' );
+        $out['pickup_notice']  = sanitize_textarea_field( $input['pickup_notice'] ?? '' );
 
         $out['tracker_enabled'] = ! empty( $input['tracker_enabled'] );
         $out['tracker_labels']  = array_map( 'sanitize_text_field', array_slice( (array) ( $input['tracker_labels'] ?? $d['tracker_labels'] ), 0, 4 ) );
