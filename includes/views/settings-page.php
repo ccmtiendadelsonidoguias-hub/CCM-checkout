@@ -350,6 +350,12 @@ defined( 'ABSPATH' ) || exit;
     </button>
 </div>
 
+<h3><?php esc_html_e( 'Aviso de recogida local', 'ccm-checkout' ); ?></h3>
+<p class="description">
+    <?php esc_html_e( 'Se muestra bajo las tarjetas de envío solo cuando el cliente elige "Recogida local". Si lo dejas vacío, no se muestra.', 'ccm-checkout' ); ?>
+</p>
+<textarea name="ccmck_settings[pickup_notice]" rows="3" class="large-text"><?php echo esc_textarea( $s['pickup_notice'] ); ?></textarea>
+
 <table class="form-table" role="presentation">
     <tr>
         <th scope="row"><label for="ccmck-secure-badge"><?php esc_html_e( 'Texto insignia de seguridad', 'ccm-checkout' ); ?></label></th>
