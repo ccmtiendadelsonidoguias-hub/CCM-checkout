@@ -2481,3 +2481,21 @@ body.ccmck-modal-open { overflow: hidden; }
   color: #666;
   line-height: 1.5;
 }
+
+/* ------------------------------------------------------------------ *
+ *  Aviso de recogida local (bajo las tarjetas de envío).             *
+ *  Oculto por defecto; el JS añade .is-visible al elegir pickup.     *
+ * ------------------------------------------------------------------ */
+.ccmck-pickup-notice {
+    display: none;
+    margin-top: 12px;
+    padding: 12px 14px;
+    border-radius: 8px;
+    border-left: 3px solid var(--ccmck-accent, #e63946);
+    background: #fdeff0; /* fallback rojo CCM muy claro */
+    background: color-mix(in srgb, var(--ccmck-accent, #e63946) 7%, #fff);
+    font-size: 14px;
+    line-height: 1.45;
+    color: #333;
+}
+.ccmck-pickup-notice.is-visible { display: block; }

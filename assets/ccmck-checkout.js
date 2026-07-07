@@ -559,6 +559,9 @@
             $row.toggleClass( 'validate-required', required );
             $row.toggleClass( 'ccmck-optional-pickup', ! required );
         } );
+
+        // Aviso de recogida local: visible solo cuando el envío elegido es pickup.
+        $( '[data-ccmck-pickup-notice]' ).toggleClass( 'is-visible', pickup );
     }
 
     $( document ).on( 'change', 'input[name^="shipping_method"]', ccmckSyncPickupRequired );
