@@ -38,4 +38,48 @@ final class CCMCK_Coordinadora {
         }
         return array( 'kind' => 'small', 'units_per_box' => 0 );
     }
+
+    /**
+     * Apila unidades en un bulto: footprint = máximo, alto y peso = suma. Para
+     * unidades idénticas el volumen escala lineal con la cantidad. PURO.
+     *
+     * @param array $units Lista de {largo,ancho,alto,peso}.
+     * @return array{largo:float,ancho:float,alto:float,peso:float}
+     */
+    public static function stack_box( array $units ): array {
+        $largo = 0.0; $ancho = 0.0; $alto = 0.0; $peso = 0.0;
+        foreach ( $units as $u ) {
+            $largo  = max( $largo, (float) ( $u['largo'] ?? 0 ) );
+            $ancho  = max( $ancho, (float) ( $u['ancho'] ?? 0 ) );
+            $alto  += (float) ( $u['alto'] ?? 0 );
+            $peso  += (float) ( $u['peso'] ?? 0 );
+        }
+        return array( 'largo' => $largo, 'ancho' => $ancho, 'alto' => $alto, 'peso' => $peso );
+    }
+
+    /**
+     * Agrupa cajas idénticas (dims + peso redondeados) en entradas detalle[] con
+     * su conteo en `unidades`. PURO.
+     *
+     * @param array $boxes Lista de {largo,ancho,alto,peso}.
+     * @return array<int,array{ubl:int,alto:float,ancho:float,largo:float,peso:float,unidades:int}>
+     */
+    public static function build_detalle( array $boxes ): array {
+        $groups = array();
+        foreach ( $boxes as $b ) {
+            $largo = round( (float) ( $b['largo'] ?? 0 ), 2 );
+            $ancho = round( (float) ( $b['ancho'] ?? 0 ), 2 );
+            $alto  = round( (float) ( $b['alto'] ?? 0 ), 2 );
+            $peso  = round( (float) ( $b['peso'] ?? 0 ), 3 );
+            $key   = $largo . 'x' . $ancho . 'x' . $alto . 'x' . $peso;
+            if ( ! isset( $groups[ $key ] ) ) {
+                $groups[ $key ] = array(
+                    'ubl' => 0, 'alto' => $alto, 'ancho' => $ancho,
+                    'largo' => $largo, 'peso' => $peso, 'unidades' => 0,
+                );
+            }
+            $groups[ $key ]['unidades']++;
+        }
+        return array_values( $groups );
+    }
 }
