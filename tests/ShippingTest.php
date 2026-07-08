@@ -2,14 +2,15 @@
 use PHPUnit\Framework\TestCase;
 
 final class ShippingTest extends TestCase {
-    /** Crea un stub de WC_Shipping_Rate con get_id/get_label/get_cost. */
-    private function rate( string $id, string $label, float $cost ): object {
-        return new class( $id, $label, $cost ) {
-            public $id; public $label; public $cost;
-            public function __construct( $i, $l, $c ) { $this->id = $i; $this->label = $l; $this->cost = $c; }
+    /** Crea un stub de WC_Shipping_Rate con get_id/get_label/get_cost/get_meta_data. */
+    private function rate( string $id, string $label, float $cost, array $meta = array() ): object {
+        return new class( $id, $label, $cost, $meta ) {
+            public $id; public $label; public $cost; public $meta;
+            public function __construct( $i, $l, $c, $m ) { $this->id = $i; $this->label = $l; $this->cost = $c; $this->meta = $m; }
             public function get_id() { return $this->id; }
             public function get_label() { return $this->label; }
             public function get_cost() { return $this->cost; }
+            public function get_meta_data() { return $this->meta; }
         };
     }
 
@@ -114,5 +115,37 @@ final class ShippingTest extends TestCase {
             array( 'Coordinadora', 'Recogida local' ),
             CCMCK_Shipping::missing_placeholder_labels( array(), array( 'Coordinadora', 'Recogida local' ) )
         );
+    }
+
+    // --- eta (días de entrega) ---
+
+    public function test_build_methods_reads_eta_from_meta(): void {
+        $packages = array( array( 'rates' => array(
+            $this->rate( 'ccmck_coordinadora', 'Coordinadora', 15700, array( 'dias_entrega' => 2 ) ),
+        ) ) );
+        $out = CCMCK_Shipping::build_methods( $packages, array() );
+        $this->assertSame( 2, $out[0]['rates'][0]['eta'] );
+    }
+
+    public function test_build_methods_eta_zero_when_no_meta(): void {
+        $packages = array( array( 'rates' => array( $this->rate( 'a', 'A', 100 ) ) ) );
+        $out = CCMCK_Shipping::build_methods( $packages, array() );
+        $this->assertSame( 0, $out[0]['rates'][0]['eta'] );
+    }
+
+    public function test_render_cards_prints_eta_when_present(): void {
+        $methods = array( array( 'index' => 0, 'rates' => array(
+            array( 'id' => 'ccmck_coordinadora', 'label' => 'Coordinadora', 'cost' => 15700.0, 'checked' => true, 'eta' => 2 ),
+        ) ) );
+        $html = CCMCK_Shipping::render_cards( $methods );
+        $this->assertStringContainsString( 'ccmck-ship-eta', $html );
+        $this->assertStringContainsString( '2 días hábiles', $html );
+    }
+
+    public function test_render_cards_no_eta_when_zero(): void {
+        $methods = array( array( 'index' => 0, 'rates' => array(
+            array( 'id' => 'a', 'label' => 'A', 'cost' => 100.0, 'checked' => true, 'eta' => 0 ),
+        ) ) );
+        $this->assertStringNotContainsString( 'ccmck-ship-eta', CCMCK_Shipping::render_cards( $methods ) );
     }
 }

@@ -39,6 +39,11 @@ if ( ! function_exists( 'absint' ) ) {
 if ( ! function_exists( '__' ) ) {
     function __( $text, $domain = 'default' ) { return $text; }
 }
+if ( ! function_exists( '_n' ) ) {
+    function _n( $single, $plural, $number, $domain = 'default' ) {
+        return 1 === (int) $number ? $single : $plural;
+    }
+}
 if ( ! function_exists( 'esc_attr' ) ) {
     function esc_attr( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
 }
