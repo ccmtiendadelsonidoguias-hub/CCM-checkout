@@ -189,4 +189,155 @@ final class CCMCK_Coordinadora {
             'error'       => '',
         );
     }
+
+    /**
+     * Aplica la cotización a las tarifas del paquete: si ok, quita la tarifa del
+     * plugin viejo (coordinadora*) y añade la propia con los días en meta; si no,
+     * devuelve las tarifas intactas (fallback). PURO (salvo el new WC_Shipping_Rate).
+     *
+     * @param array $rates rate_id => WC_Shipping_Rate
+     * @param array $quote Salida de parse_response/quote.
+     */
+    public static function apply_quote( array $rates, array $quote ): array {
+        if ( empty( $quote['ok'] ) || ! class_exists( 'WC_Shipping_Rate' ) ) {
+            return $rates;
+        }
+        foreach ( array_keys( $rates ) as $id ) {
+            if ( 0 === strpos( (string) $id, 'coordinadora' ) ) {
+                unset( $rates[ $id ] );
+            }
+        }
+        $rate = new WC_Shipping_Rate( self::RATE_ID, self::LABEL, (float) $quote['flete_total'], array(), self::RATE_ID );
+        if ( ! empty( $quote['dias'] ) && method_exists( $rate, 'add_meta_data' ) ) {
+            $rate->add_meta_data( 'dias_entrega', (int) $quote['dias'] );
+        }
+        $rates[ self::RATE_ID ] = $rate;
+        return $rates;
+    }
+
+    /** Log al canal de WooCommerce. */
+    private static function log( string $msg ): void {
+        if ( function_exists( 'wc_get_logger' ) ) {
+            wc_get_logger()->warning( $msg, array( 'source' => 'ccmck-coordinadora' ) );
+        }
+    }
+
+    /** Reglas de caja como mapa cat_id => N desde los ajustes. */
+    private static function rules_map(): array {
+        $rows = (array) CCMCK_Settings::get( 'coordinadora_box_rules', array() );
+        $map  = array();
+        foreach ( $rows as $row ) {
+            $cat = (int) ( $row['cat'] ?? 0 );
+            $n   = (int) ( $row['n'] ?? 0 );
+            if ( $cat > 0 && $n > 0 ) {
+                $map[ $cat ] = $n;
+            }
+        }
+        return $map;
+    }
+
+    /** Normaliza $package['contents'] a la forma que consume pack(). */
+    private static function items_from_package( array $package ): array {
+        $items    = array();
+        $contents = ( isset( $package['contents'] ) && is_array( $package['contents'] ) ) ? $package['contents'] : array();
+        foreach ( $contents as $line ) {
+            $product = ( isset( $line['data'] ) && is_object( $line['data'] ) ) ? $line['data'] : null;
+            if ( ! $product ) {
+                continue;
+            }
+            $id      = method_exists( $product, 'get_id' ) ? (int) $product->get_id() : 0;
+            $cat_ids = ( $id && function_exists( 'wc_get_product_cat_ids' ) ) ? (array) wc_get_product_cat_ids( $id ) : array();
+            $items[] = array(
+                'qty'     => (int) ( $line['quantity'] ?? 0 ),
+                'weight'  => (float) ( method_exists( $product, 'get_weight' ) ? $product->get_weight() : 0 ),
+                'largo'   => (float) ( method_exists( $product, 'get_length' ) ? $product->get_length() : 0 ),
+                'ancho'   => (float) ( method_exists( $product, 'get_width' )  ? $product->get_width()  : 0 ),
+                'alto'    => (float) ( method_exists( $product, 'get_height' ) ? $product->get_height() : 0 ),
+                'cat_ids' => array_map( 'intval', $cat_ids ),
+            );
+        }
+        return $items;
+    }
+
+    /** Valor declarado = subtotal del paquete (COP, int). */
+    private static function valoracion_from_package( array $package ): int {
+        $total    = 0.0;
+        $contents = ( isset( $package['contents'] ) && is_array( $package['contents'] ) ) ? $package['contents'] : array();
+        foreach ( $contents as $line ) {
+            $total += (float) ( $line['line_total'] ?? 0 );
+        }
+        return (int) round( $total );
+    }
+
+    /** Llama a Cotizador.cotizar (timeout 5 s). Devuelve la forma de parse_response. */
+    public static function quote( array $args ): array {
+        $body     = wp_json_encode( self::build_request( $args ) );
+        $response = wp_remote_post( 'https://ws.coordinadora.com/ags/1.5/server.php', array(
+            'timeout' => 5,
+            'headers' => array( 'Content-Type' => 'application/json' ),
+            'body'    => $body,
+        ) );
+        if ( is_wp_error( $response ) ) {
+            self::log( 'HTTP: ' . $response->get_error_message() );
+            return array( 'ok' => false, 'flete_total' => 0, 'dias' => 0, 'error' => $response->get_error_message() );
+        }
+        $parsed = self::parse_response(
+            (string) wp_remote_retrieve_body( $response ),
+            wp_remote_retrieve_response_code( $response )
+        );
+        if ( ! $parsed['ok'] ) {
+            self::log( 'API: ' . $parsed['error'] );
+        }
+        return $parsed;
+    }
+
+    /**
+     * Filtro woocommerce_package_rates: cotiza y reemplaza la tarifa de
+     * Coordinadora. Aborta (devuelve $rates intacto) si el toggle está off, faltan
+     * credenciales, algún producto no tiene peso/dimensiones, o no hay DANE destino.
+     */
+    public static function rates( $rates, $package = array() ): array {
+        $rates = is_array( $rates ) ? $rates : array();
+        if ( ! CCMCK_Settings::get( 'coordinadora_enabled', false ) ) {
+            return $rates;
+        }
+        $apikey = (string) CCMCK_Settings::get( 'coordinadora_apikey', '' );
+        $clave  = (string) CCMCK_Settings::get( 'coordinadora_clave', '' );
+        if ( '' === $apikey || '' === $clave ) {
+            return $rates;
+        }
+        $package = is_array( $package ) ? $package : array();
+        $items   = self::items_from_package( $package );
+        if ( ! $items ) {
+            return $rates;
+        }
+        foreach ( $items as $it ) {
+            if ( $it['weight'] <= 0 || $it['largo'] <= 0 || $it['ancho'] <= 0 || $it['alto'] <= 0 ) {
+                self::log( 'Producto sin peso/dimensiones; se usa el fallback del plugin viejo.' );
+                return $rates;
+            }
+        }
+        $destino = self::dane_from_city( (string) ( $package['destination']['city'] ?? '' ) );
+        if ( '' === $destino ) {
+            return $rates;
+        }
+        $threshold = (float) CCMCK_Settings::get( 'coordinadora_weight_threshold', 5.0 );
+        $boxes     = self::pack( $items, $threshold, self::rules_map() );
+        $detalle   = self::build_detalle( $boxes );
+
+        $quote = self::quote( array(
+            'nit'        => (string) CCMCK_Settings::get( 'coordinadora_nit', '' ),
+            'origen'     => (string) CCMCK_Settings::get( 'coordinadora_origin', '08001000' ),
+            'destino'    => $destino,
+            'valoracion' => self::valoracion_from_package( $package ),
+            'detalle'    => $detalle,
+            'apikey'     => $apikey,
+            'clave'      => $clave,
+        ) );
+        return self::apply_quote( $rates, $quote );
+    }
+
+    public static function init(): void {
+        add_filter( 'woocommerce_package_rates', array( __CLASS__, 'rates' ), 20, 2 );
+    }
 }

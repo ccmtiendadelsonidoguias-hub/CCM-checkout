@@ -155,4 +155,25 @@ final class CoordinadoraTest extends TestCase {
         $r = CCMCK_Coordinadora::parse_response( '{"jsonrpc":"2.0","result":{}}', 200 );
         $this->assertFalse( $r['ok'] );
     }
+
+    // --- apply_quote ---
+    public function test_apply_quote_replaces_coordinadora_rate(): void {
+        $rates = array(
+            'coordinadora:3'     => new WC_Shipping_Rate( 'coordinadora:3', 'Coordinadora', 99000 ),
+            'ccmck_local_pickup' => new WC_Shipping_Rate( 'ccmck_local_pickup', 'Recogida local', 0 ),
+        );
+        $out = CCMCK_Coordinadora::apply_quote( $rates, array( 'ok' => true, 'flete_total' => 15700, 'dias' => 2, 'error' => '' ) );
+        $this->assertArrayNotHasKey( 'coordinadora:3', $out );
+        $this->assertArrayHasKey( 'ccmck_coordinadora', $out );
+        $this->assertArrayHasKey( 'ccmck_local_pickup', $out );
+        $this->assertSame( 15700.0, $out['ccmck_coordinadora']->get_cost() );
+        $this->assertSame( 2, $out['ccmck_coordinadora']->get_meta_data()['dias_entrega'] );
+    }
+
+    public function test_apply_quote_failure_keeps_rates_intact(): void {
+        $rates = array( 'coordinadora:3' => new WC_Shipping_Rate( 'coordinadora:3', 'Coordinadora', 99000 ) );
+        $out = CCMCK_Coordinadora::apply_quote( $rates, array( 'ok' => false, 'flete_total' => 0, 'dias' => 0, 'error' => 'x' ) );
+        $this->assertArrayHasKey( 'coordinadora:3', $out );
+        $this->assertArrayNotHasKey( 'ccmck_coordinadora', $out );
+    }
 }

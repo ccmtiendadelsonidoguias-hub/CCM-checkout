@@ -108,6 +108,9 @@ if ( ! class_exists( 'WC_Shipping_Rate' ) ) {
         public function get_id() { return $this->id; }
         public function get_label() { return $this->label; }
         public function get_cost() { return $this->cost; }
+        public $meta_data = array();
+        public function add_meta_data( $key, $value ) { $this->meta_data[ $key ] = $value; }
+        public function get_meta_data() { return $this->meta_data; }
     }
 }
 
