@@ -112,4 +112,47 @@ final class CoordinadoraTest extends TestCase {
         $boxes = CCMCK_Coordinadora::pack( array( $this->speaker( 2 ), $heavy, $acc ), 5.0, array( 1253 => 2 ) );
         $this->assertCount( 3, $boxes );
     }
+
+    // --- build_request ---
+    public function test_build_request_shape(): void {
+        $req = CCMCK_Coordinadora::build_request( array(
+            'nit' => '901677789', 'origen' => '08001000', 'destino' => '11001000',
+            'valoracion' => 50000, 'apikey' => 'K', 'clave' => 'C',
+            'detalle' => array( array( 'ubl' => 0, 'alto' => 10, 'ancho' => 10, 'largo' => 10, 'peso' => 2, 'unidades' => 1 ) ),
+        ) );
+        $this->assertSame( '2.0', $req['jsonrpc'] );
+        $this->assertSame( 'Cotizador.cotizar', $req['method'] );
+        $this->assertSame( '08001000', $req['params']['origen'] );
+        $this->assertSame( 2, $req['params']['cuenta'] );
+        $this->assertSame( 0, $req['params']['producto'] );
+        $this->assertSame( array( array( 'item' => 1 ) ), $req['params']['nivel_servicio'] );
+        $this->assertSame( 50000, $req['params']['valoracion'] );
+        $this->assertCount( 1, $req['params']['detalle'] );
+    }
+
+    // --- parse_response ---
+    public function test_parse_response_success(): void {
+        $body = '{"jsonrpc":"2.0","id":0,"error":null,"result":{"flete_total":15700,"dias_entrega":"2"}}';
+        $r = CCMCK_Coordinadora::parse_response( $body, 200 );
+        $this->assertTrue( $r['ok'] );
+        $this->assertSame( 15700, $r['flete_total'] );
+        $this->assertSame( 2, $r['dias'] );
+    }
+
+    public function test_parse_response_business_error(): void {
+        $body = '{"jsonrpc":"2.0","id":0,"error":{"code":0,"message":"Error, apikey no valido"}}';
+        $r = CCMCK_Coordinadora::parse_response( $body, 200 );
+        $this->assertFalse( $r['ok'] );
+        $this->assertStringContainsString( 'apikey', $r['error'] );
+    }
+
+    public function test_parse_response_non_json_html(): void {
+        $r = CCMCK_Coordinadora::parse_response( '<b>Fatal error</b>', 200 );
+        $this->assertFalse( $r['ok'] );
+    }
+
+    public function test_parse_response_missing_flete(): void {
+        $r = CCMCK_Coordinadora::parse_response( '{"jsonrpc":"2.0","result":{}}', 200 );
+        $this->assertFalse( $r['ok'] );
+    }
 }

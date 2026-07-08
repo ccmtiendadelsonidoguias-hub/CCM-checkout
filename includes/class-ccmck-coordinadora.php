@@ -131,4 +131,62 @@ final class CCMCK_Coordinadora {
         }
         return $boxes;
     }
+
+    /**
+     * Arma el body JSON-RPC de Cotizador.cotizar. Campos fijos verificados:
+     * div="01", cuenta=2, producto=0, nivel_servicio=[{item:1}]. PURO.
+     *
+     * @param array $args {nit,origen,destino,valoracion,detalle,apikey,clave}
+     */
+    public static function build_request( array $args ): array {
+        return array(
+            'jsonrpc' => '2.0',
+            'id'      => 0,
+            'method'  => 'Cotizador.cotizar',
+            'params'  => array(
+                'nit'            => (string) ( $args['nit'] ?? '' ),
+                'div'            => '01',
+                'cuenta'         => 2,
+                'producto'       => 0,
+                'origen'         => (string) ( $args['origen'] ?? '' ),
+                'destino'        => (string) ( $args['destino'] ?? '' ),
+                'valoracion'     => (int) ( $args['valoracion'] ?? 0 ),
+                'nivel_servicio' => array( array( 'item' => 1 ) ),
+                'detalle'        => array_values( (array) ( $args['detalle'] ?? array() ) ),
+                'apikey'         => (string) ( $args['apikey'] ?? '' ),
+                'clave'          => (string) ( $args['clave'] ?? '' ),
+            ),
+        );
+    }
+
+    /**
+     * Parsea la respuesta. HTTP siempre 200: falló si el body no es JSON o si
+     * error !== null. PURO.
+     *
+     * @return array{ok:bool, flete_total:int, dias:int, error:string}
+     */
+    public static function parse_response( string $body, $http_code ): array {
+        $fail = array( 'ok' => false, 'flete_total' => 0, 'dias' => 0, 'error' => '' );
+        $data = json_decode( $body, true );
+        if ( ! is_array( $data ) ) {
+            $fail['error'] = 'Respuesta no-JSON de Coordinadora (HTTP ' . (int) $http_code . ')';
+            return $fail;
+        }
+        if ( isset( $data['error'] ) && null !== $data['error'] ) {
+            $msg = is_array( $data['error'] ) ? ( $data['error']['message'] ?? 'error' ) : (string) $data['error'];
+            $fail['error'] = (string) $msg;
+            return $fail;
+        }
+        $result = $data['result'] ?? null;
+        if ( ! is_array( $result ) || ! isset( $result['flete_total'] ) ) {
+            $fail['error'] = 'Respuesta sin flete_total';
+            return $fail;
+        }
+        return array(
+            'ok'          => true,
+            'flete_total' => (int) $result['flete_total'],
+            'dias'        => (int) ( $result['dias_entrega'] ?? 0 ),
+            'error'       => '',
+        );
+    }
 }
