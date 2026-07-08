@@ -68,4 +68,48 @@ final class CoordinadoraTest extends TestCase {
         $this->assertSame( 1, $det[0]['unidades'] );
         $this->assertSame( 1, $det[1]['unidades'] );
     }
+
+    // --- pack ---
+    private function speaker( int $qty ): array {
+        return array( 'qty' => $qty, 'weight' => 10.0, 'largo' => 40, 'ancho' => 40, 'alto' => 60, 'cat_ids' => array( 1253 ) );
+    }
+
+    public function test_pack_speakers_two_per_box(): void {
+        // 4 parlantes, N=2 -> 2 cajas.
+        $boxes = CCMCK_Coordinadora::pack( array( $this->speaker( 4 ) ), 5.0, array( 1253 => 2 ) );
+        $this->assertCount( 2, $boxes );
+        $this->assertSame( 20.0, $boxes[0]['peso'] ); // 2 x 10 kg
+    }
+
+    public function test_pack_speakers_odd_leaves_half_box(): void {
+        // 5 parlantes, N=2 -> cajas 2,2,1.
+        $boxes = CCMCK_Coordinadora::pack( array( $this->speaker( 5 ) ), 5.0, array( 1253 => 2 ) );
+        $this->assertCount( 3, $boxes );
+        $det = CCMCK_Coordinadora::build_detalle( $boxes );
+        $this->assertCount( 2, $det );                 // caja llena + media
+        $this->assertSame( 2, $det[0]['unidades'] );
+        $this->assertSame( 1, $det[1]['unidades'] );
+    }
+
+    public function test_pack_heavy_non_rule_one_per_box(): void {
+        $heavy = array( 'qty' => 3, 'weight' => 8.0, 'largo' => 30, 'ancho' => 30, 'alto' => 30, 'cat_ids' => array( 99 ) );
+        $boxes = CCMCK_Coordinadora::pack( array( $heavy ), 5.0, array() );
+        $this->assertCount( 3, $boxes );
+    }
+
+    public function test_pack_small_items_consolidate_into_one_box(): void {
+        $acc = array( 'qty' => 6, 'weight' => 0.5, 'largo' => 10, 'ancho' => 10, 'alto' => 5, 'cat_ids' => array() );
+        $boxes = CCMCK_Coordinadora::pack( array( $acc ), 5.0, array() );
+        $this->assertCount( 1, $boxes );
+        $this->assertSame( 3.0, $boxes[0]['peso'] );   // 6 x 0.5 kg
+        $this->assertSame( 30.0, $boxes[0]['alto'] );  // 6 x 5 cm (apilado)
+    }
+
+    public function test_pack_mixed_cart(): void {
+        // 2 parlantes (1 caja) + 1 pesado (1 caja) + 3 accesorios (1 caja) = 3 cajas.
+        $heavy = array( 'qty' => 1, 'weight' => 8.0, 'largo' => 30, 'ancho' => 30, 'alto' => 30, 'cat_ids' => array( 99 ) );
+        $acc   = array( 'qty' => 3, 'weight' => 0.5, 'largo' => 10, 'ancho' => 10, 'alto' => 5, 'cat_ids' => array() );
+        $boxes = CCMCK_Coordinadora::pack( array( $this->speaker( 2 ), $heavy, $acc ), 5.0, array( 1253 => 2 ) );
+        $this->assertCount( 3, $boxes );
+    }
 }

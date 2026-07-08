@@ -82,4 +82,53 @@ final class CCMCK_Coordinadora {
         }
         return array_values( $groups );
     }
+
+    /**
+     * Reparte el carrito en cajas. rule/heavy → ceil(qty/N) cajas homogéneas de
+     * hasta N unidades del mismo producto; small → una caja consolidada con todas
+     * las unidades <umbral (de todos los productos). PURO.
+     *
+     * @param array          $items     Lista {qty,weight,largo,ancho,alto,cat_ids}.
+     * @param float          $threshold Umbral de "pesado" (kg).
+     * @param array<int,int> $rules     cat_id => unidades por caja.
+     * @return array<int,array{largo:float,ancho:float,alto:float,peso:float}>
+     */
+    public static function pack( array $items, float $threshold, array $rules ): array {
+        $boxes       = array();
+        $small_units = array();
+
+        foreach ( $items as $item ) {
+            $qty = max( 0, (int) ( $item['qty'] ?? 0 ) );
+            if ( $qty <= 0 ) {
+                continue;
+            }
+            $unit = array(
+                'largo' => (float) ( $item['largo'] ?? 0 ),
+                'ancho' => (float) ( $item['ancho'] ?? 0 ),
+                'alto'  => (float) ( $item['alto'] ?? 0 ),
+                'peso'  => (float) ( $item['weight'] ?? 0 ),
+            );
+            $c = self::classify_item( $item, $threshold, $rules );
+
+            if ( 'small' === $c['kind'] ) {
+                for ( $i = 0; $i < $qty; $i++ ) {
+                    $small_units[] = $unit;
+                }
+                continue;
+            }
+
+            $n         = max( 1, (int) $c['units_per_box'] );
+            $remaining = $qty;
+            while ( $remaining > 0 ) {
+                $in_box     = min( $n, $remaining );
+                $boxes[]    = self::stack_box( array_fill( 0, $in_box, $unit ) );
+                $remaining -= $in_box;
+            }
+        }
+
+        if ( $small_units ) {
+            $boxes[] = self::stack_box( $small_units );
+        }
+        return $boxes;
+    }
 }
