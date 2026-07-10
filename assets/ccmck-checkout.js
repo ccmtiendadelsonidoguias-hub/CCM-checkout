@@ -580,6 +580,35 @@
     } );
 
     /* ------------------------------------------------------------------ */
+    /*  Auto-selección de Coordinadora: cuando la tarifa cotizada aparece   */
+    /*  (tras ingresar la dirección), se selecciona sola en vez de dejar    */
+    /*  "Recogida local" por defecto. Si el cliente elige un método a mano  */
+    /*  (incluida la recogida), se respeta y ya no se le cambia.            */
+    /* ------------------------------------------------------------------ */
+    var CCMCK_COORD_ID          = 'ccmck_coordinadora';
+    var ccmckUserPickedShipping = false; // el cliente eligió el envío a mano
+    var ccmckAutoSelecting      = false; // guard: cambio programático propio
+
+    // Solo los cambios reales del cliente marcan la elección manual; nuestro
+    // propio trigger('change') queda excluido por el guard.
+    $( document ).on( 'change', 'input[name^="shipping_method"]', function () {
+        if ( ccmckAutoSelecting ) { return; }
+        ccmckUserPickedShipping = true;
+    } );
+
+    function ccmckAutoSelectCoordinadora() {
+        if ( ccmckUserPickedShipping ) { return; } // respeta la elección manual (incl. pickup)
+        var $coord = $( 'input[name^="shipping_method"][value="' + CCMCK_COORD_ID + '"]' );
+        if ( ! $coord.length || $coord.prop( 'checked' ) ) { return; } // no está o ya está marcada
+        ccmckAutoSelecting = true;
+        $coord.prop( 'checked', true ).trigger( 'change' ); // WC recalcula al cambiar el radio
+        ccmckAutoSelecting = false;
+    }
+
+    $( document.body ).on( 'updated_checkout', ccmckAutoSelectCoordinadora );
+    $( ccmckAutoSelectCoordinadora );
+
+    /* ------------------------------------------------------------------ */
     /*  Validación inline estilo Shopify (solo campos obligatorios)         */
     /*  Al pulsar "Finalizar pedido": si hay campos obligatorios vacíos,    */
     /*  bloqueamos el envío de WooCommerce y mostramos el error DEBAJO de    */
