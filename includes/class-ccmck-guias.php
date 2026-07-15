@@ -94,4 +94,52 @@ final class CCMCK_Guias {
             'clave'                  => (string) ( $args['clave_sha256'] ?? '' ),
         );
     }
+
+    /**
+     * Parsea la respuesta de Guias.generarGuia. HTTP siempre 200: falló si el
+     * body no es JSON, error !== null o no llega codigo_remision. PURO.
+     *
+     * @return array{ok:bool, codigo_remision:string, id_remision:int, tracking_url:string, error:string}
+     */
+    public static function parse_guia_response( string $body, $http_code ): array {
+        $fail = array( 'ok' => false, 'codigo_remision' => '', 'id_remision' => 0, 'tracking_url' => '', 'error' => '' );
+        $data = json_decode( $body, true );
+        if ( ! is_array( $data ) ) {
+            $fail['error'] = 'Respuesta no-JSON del WS de guías (HTTP ' . (int) $http_code . ')';
+            return $fail;
+        }
+        if ( isset( $data['error'] ) && null !== $data['error'] ) {
+            $msg = is_array( $data['error'] ) ? ( $data['error']['message'] ?? 'error' ) : (string) $data['error'];
+            $fail['error'] = (string) $msg;
+            return $fail;
+        }
+        $result = $data['result'] ?? null;
+        $codigo = is_array( $result ) ? (string) ( $result['codigo_remision'] ?? '' ) : '';
+        if ( '' === $codigo ) {
+            $fail['error'] = 'Respuesta sin codigo_remision';
+            return $fail;
+        }
+        return array(
+            'ok'              => true,
+            'codigo_remision' => $codigo,
+            'id_remision'     => (int) ( $result['id_remision'] ?? 0 ),
+            'tracking_url'    => (string) ( $result['url_terceros'] ?? '' ),
+            'error'           => '',
+        );
+    }
+
+    /** Payload del webhook a n8n (aviso WhatsApp). PURO. */
+    public static function build_webhook_payload( array $args ): array {
+        return array(
+            'order_id'     => (int) ( $args['order_id'] ?? 0 ),
+            'order_number' => (string) ( $args['order_number'] ?? '' ),
+            'guia'         => (string) ( $args['guia'] ?? '' ),
+            'tracking_url' => (string) ( $args['tracking_url'] ?? '' ),
+            'customer'     => array(
+                'name'  => (string) ( $args['name'] ?? '' ),
+                'phone' => (string) ( $args['phone'] ?? '' ),
+            ),
+            'total'        => (float) ( $args['total'] ?? 0 ),
+        );
+    }
 }

@@ -78,4 +78,41 @@ final class GuiasTest extends TestCase {
         $this->assertFalse( CCMCK_Guias::should_generate( $this->ctx( array( 'has_lock' => true ) ) )['ok'] );
         $this->assertFalse( CCMCK_Guias::should_generate( $this->ctx( array( 'clave' => '' ) ) )['ok'] );
     }
+
+    // --- parse_guia_response ---
+    public function test_parse_guia_success(): void {
+        $body = '{"jsonrpc":2,"id":0,"error":null,"result":{"id_remision":48454758,"codigo_remision":"33042000009","pdf_guia":"","url_terceros":"http://x.co/vmi/?guia=330","referencia":"1234"}}';
+        $r = CCMCK_Guias::parse_guia_response( $body, 200 );
+        $this->assertTrue( $r['ok'] );
+        $this->assertSame( '33042000009', $r['codigo_remision'] );
+        $this->assertSame( 48454758, $r['id_remision'] );
+        $this->assertSame( 'http://x.co/vmi/?guia=330', $r['tracking_url'] );
+    }
+
+    public function test_parse_guia_business_error(): void {
+        $r = CCMCK_Guias::parse_guia_response( '{"jsonrpc":2,"id":0,"error":{"code":"-1","message":"Exception: Usuario o clave invalido"}}', 200 );
+        $this->assertFalse( $r['ok'] );
+        $this->assertStringContainsString( 'invalido', $r['error'] );
+    }
+
+    public function test_parse_guia_non_json_and_missing_code(): void {
+        $this->assertFalse( CCMCK_Guias::parse_guia_response( '<b>Fatal</b>', 200 )['ok'] );
+        $this->assertFalse( CCMCK_Guias::parse_guia_response( '{"jsonrpc":2,"result":{"codigo_remision":""}}', 200 )['ok'] );
+    }
+
+    // --- build_webhook_payload ---
+    public function test_webhook_payload_shape(): void {
+        $p = CCMCK_Guias::build_webhook_payload( array(
+            'order_id' => 55, 'order_number' => '1234', 'guia' => '33042000009',
+            'tracking_url' => 'http://x.co/t', 'name' => 'Cliente Prueba',
+            'phone' => '3014373975', 'total' => 693290.0,
+        ) );
+        $this->assertSame( 55, $p['order_id'] );
+        $this->assertSame( '1234', $p['order_number'] );
+        $this->assertSame( '33042000009', $p['guia'] );
+        $this->assertSame( 'http://x.co/t', $p['tracking_url'] );
+        $this->assertSame( 'Cliente Prueba', $p['customer']['name'] );
+        $this->assertSame( '3014373975', $p['customer']['phone'] );
+        $this->assertSame( 693290.0, $p['total'] );
+    }
 }
