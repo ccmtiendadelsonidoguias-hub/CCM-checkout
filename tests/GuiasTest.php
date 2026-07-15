@@ -115,4 +115,17 @@ final class GuiasTest extends TestCase {
         $this->assertSame( '3014373975', $p['customer']['phone'] );
         $this->assertSame( 693290.0, $p['total'] );
     }
+
+    // --- guia_box_markup ---
+    public function test_guia_box_markup_renders_links(): void {
+        $html = CCMCK_Guias::guia_box_markup( '33042000009', 'http://x.co/t', 'http://admin.x/label' );
+        $this->assertStringContainsString( '33042000009', $html );
+        $this->assertStringContainsString( 'http://x.co/t', $html );
+        $this->assertStringContainsString( 'http://admin.x/label', $html );
+        $this->assertStringContainsString( 'Descargar rótulo', $html );
+    }
+
+    public function test_guia_box_markup_empty_when_no_guia(): void {
+        $this->assertSame( '', CCMCK_Guias::guia_box_markup( '', 'x', 'y' ) );
+    }
 }

@@ -329,7 +329,72 @@ final class CCMCK_Guias {
         }
     }
 
+    /** Markup de la caja de guía en el pedido del admin. PURO. */
+    public static function guia_box_markup( string $guia, string $tracking_url, string $label_url ): string {
+        if ( '' === trim( $guia ) ) {
+            return '';
+        }
+        $html  = '<div class="ccmck-guia-box" style="margin-top:12px;padding:10px;border:1px solid #c3c4c7;border-radius:4px;">';
+        $html .= '<p style="margin:0 0 6px;"><strong>' . esc_html__( 'Guía Coordinadora:', 'ccm-checkout' ) . '</strong> ' . esc_html( $guia ) . '</p>';
+        if ( '' !== $tracking_url ) {
+            $html .= '<p style="margin:0 0 6px;"><a href="' . esc_url( $tracking_url ) . '" target="_blank" rel="noopener">' . esc_html__( 'Ver rastreo', 'ccm-checkout' ) . '</a></p>';
+        }
+        $html .= '<a class="button" href="' . esc_url( $label_url ) . '">' . esc_html__( 'Descargar rótulo', 'ccm-checkout' ) . '</a>';
+        $html .= '</div>';
+        return $html;
+    }
+
+    /** Render en el pedido del admin (hook woocommerce_admin_order_data_after_billing_address). */
+    public static function render_admin( $order ): void {
+        $guia = (string) $order->get_meta( self::META_GUIA );
+        if ( '' === $guia ) {
+            return;
+        }
+        $label_url = wp_nonce_url(
+            admin_url( 'admin-ajax.php?action=ccmck_guia_label&order_id=' . (int) $order->get_id() ),
+            'ccmck_guia_label'
+        );
+        echo self::guia_box_markup( $guia, (string) $order->get_meta( self::META_URL ), $label_url ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escapado dentro del método.
+    }
+
+    /** AJAX: descarga el rótulo PDF al vuelo vía Guias.reimprimirGuia. */
+    public static function ajax_label(): void {
+        check_ajax_referer( 'ccmck_guia_label' );
+        if ( ! current_user_can( 'edit_shop_orders' ) ) {
+            wp_die( esc_html__( 'Sin permisos.', 'ccm-checkout' ) );
+        }
+        $order_id = isset( $_GET['order_id'] ) ? absint( $_GET['order_id'] ) : 0;
+        $order    = $order_id ? wc_get_order( $order_id ) : null;
+        $guia     = $order ? (string) $order->get_meta( self::META_GUIA ) : '';
+        if ( '' === $guia ) {
+            wp_die( esc_html__( 'El pedido no tiene guía.', 'ccm-checkout' ) );
+        }
+        $response = self::rpc( 'Guias.reimprimirGuia', array(
+            'usuario'          => (string) CCMCK_Settings::get( 'guias_usuario', '' ),
+            'clave'            => hash( 'sha256', (string) CCMCK_Settings::get( 'guias_clave', '' ) ),
+            'codigo_remision'  => $guia,
+            'formato_impresion' => '1',
+        ) );
+        if ( is_wp_error( $response ) ) {
+            wp_die( esc_html( $response->get_error_message() ) );
+        }
+        $data = json_decode( (string) wp_remote_retrieve_body( $response ), true );
+        $pdf  = is_array( $data ) && isset( $data['result']['pdf'] ) ? base64_decode( (string) $data['result']['pdf'] ) : '';
+        if ( '' === $pdf || '%PDF' !== substr( $pdf, 0, 4 ) ) {
+            $msg = is_array( $data ) && isset( $data['error']['message'] ) ? (string) $data['error']['message'] : 'Rótulo no disponible.';
+            wp_die( esc_html( $msg ) );
+        }
+        nocache_headers();
+        header( 'Content-Type: application/pdf' );
+        header( 'Content-Disposition: attachment; filename="guia-' . rawurlencode( $guia ) . '.pdf"' );
+        header( 'Content-Length: ' . strlen( $pdf ) );
+        echo $pdf; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- binario PDF.
+        exit;
+    }
+
     public static function init(): void {
         add_action( 'woocommerce_order_status_processing', array( __CLASS__, 'on_processing' ), 20 );
+        add_action( 'woocommerce_admin_order_data_after_billing_address', array( __CLASS__, 'render_admin' ) );
+        add_action( 'wp_ajax_ccmck_guia_label', array( __CLASS__, 'ajax_label' ) );
     }
 }
