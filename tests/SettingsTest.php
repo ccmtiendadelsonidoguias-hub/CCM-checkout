@@ -156,4 +156,32 @@ final class SettingsTest extends TestCase {
         ) ) );
         $this->assertSame( array( array( 'cat' => 1253, 'n' => 2 ) ), $out['coordinadora_box_rules'] );
     }
+
+    public function test_defaults_include_guias_keys(): void {
+        $d = CCMCK_Settings::defaults();
+        $this->assertFalse( $d['guias_enabled'] );
+        $this->assertSame( 'sandbox', $d['guias_env'] );
+        $this->assertSame( 'ccmtienda.ws', $d['guias_usuario'] );
+        $this->assertSame( '', $d['guias_clave'] );
+        $this->assertSame( 49444, $d['guias_id_cliente'] );
+        $this->assertSame( 'CCM Tienda del Sonido', $d['guias_remitente_nombre'] );
+        $this->assertSame( '', $d['guias_webhook_url'] );
+    }
+
+    public function test_sanitize_guias_env_whitelist(): void {
+        $this->assertSame( 'production', CCMCK_Settings::sanitize( array( 'guias_env' => 'production' ) )['guias_env'] );
+        $this->assertSame( 'sandbox', CCMCK_Settings::sanitize( array( 'guias_env' => 'otro' ) )['guias_env'] );
+        $this->assertSame( 'sandbox', CCMCK_Settings::sanitize( array() )['guias_env'] );
+    }
+
+    public function test_sanitize_guias_id_cliente_and_phone(): void {
+        $out = CCMCK_Settings::sanitize( array( 'guias_id_cliente' => '49444x', 'guias_remitente_telefono' => '+57 317-811' ) );
+        $this->assertSame( 49444, $out['guias_id_cliente'] );
+        $this->assertSame( '57317811', $out['guias_remitente_telefono'] );
+    }
+
+    public function test_sanitize_guias_webhook_url(): void {
+        $this->assertSame( 'https://n8n.x.co/webhook/abc', CCMCK_Settings::sanitize( array( 'guias_webhook_url' => 'https://n8n.x.co/webhook/abc' ) )['guias_webhook_url'] );
+        $this->assertSame( '', CCMCK_Settings::sanitize( array( 'guias_webhook_url' => 'javascript:x' ) )['guias_webhook_url'] );
+    }
 }

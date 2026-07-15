@@ -56,6 +56,17 @@ final class CCMCK_Settings {
             'coordinadora_origin'           => '08001000',
             'coordinadora_weight_threshold' => 5.0,
             'coordinadora_box_rules'        => array(),
+            // Generación de guías (ver spec 2026-07-15). Clave se guarda plana; se
+            // hashea SHA-256 al llamar el WS.
+            'guias_enabled'             => false,
+            'guias_env'                 => 'sandbox',
+            'guias_usuario'             => 'ccmtienda.ws',
+            'guias_clave'               => '',
+            'guias_id_cliente'          => 49444,
+            'guias_remitente_nombre'    => 'CCM Tienda del Sonido',
+            'guias_remitente_direccion' => '',
+            'guias_remitente_telefono'  => '',
+            'guias_webhook_url'         => '',
         );
     }
 
@@ -119,6 +130,17 @@ final class CCMCK_Settings {
         $out['coordinadora_weight_threshold'] = max( 0.0, round( (float) $thr, 2 ) );
 
         $out['coordinadora_box_rules'] = self::sanitize_box_rules( $input['coordinadora_box_rules'] ?? array() );
+
+        $out['guias_enabled'] = ! empty( $input['guias_enabled'] );
+        $env                  = (string) ( $input['guias_env'] ?? 'sandbox' );
+        $out['guias_env']     = in_array( $env, array( 'sandbox', 'production' ), true ) ? $env : 'sandbox';
+        $out['guias_usuario'] = sanitize_text_field( $input['guias_usuario'] ?? $d['guias_usuario'] );
+        $out['guias_clave']   = sanitize_text_field( $input['guias_clave'] ?? '' );
+        $out['guias_id_cliente'] = absint( $input['guias_id_cliente'] ?? $d['guias_id_cliente'] );
+        $out['guias_remitente_nombre']    = sanitize_text_field( $input['guias_remitente_nombre'] ?? $d['guias_remitente_nombre'] );
+        $out['guias_remitente_direccion'] = sanitize_text_field( $input['guias_remitente_direccion'] ?? '' );
+        $out['guias_remitente_telefono']  = preg_replace( '/[^0-9]/', '', (string) ( $input['guias_remitente_telefono'] ?? '' ) );
+        $out['guias_webhook_url']         = esc_url_raw( $input['guias_webhook_url'] ?? '' );
 
         return $out;
     }
