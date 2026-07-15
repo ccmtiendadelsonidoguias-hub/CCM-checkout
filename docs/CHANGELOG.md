@@ -8,6 +8,19 @@ y el proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 ## [Sin publicar]
 
 ### Añadido
+- **Generación automática de guías de Coordinadora**: al pasar un pedido a "Procesando"
+  (pago aprobado), el módulo nuevo `CCMCK_Guias` genera la guía vía `Guias.generarGuia`
+  con las **mismas cajas** que cotizó el checkout (`CCMCK_Coordinadora::pack`), cumpliendo
+  las observaciones de go-live de Coordinadora (fecha y `nit_remitente` vacíos, razón
+  social como remitente, DANE real de recogida). Guarda el nº de guía en
+  `_coordinadora_tracking_number` (compatible con el plugin de terceros) + URL de rastreo,
+  deja nota en el pedido, muestra la guía en el admin con botón **"Descargar rótulo"**
+  (PDF al vuelo vía `reimprimirGuia`) y dispara un **webhook a n8n** para avisar al
+  cliente por WhatsApp (workflow `wfGuiaWhatsApp01`, patrón `cwSendWa01`). Se excluyen
+  pedidos de recogida local y hay guard de idempotencia (nunca dos guías por pedido).
+  Ajustes en *Checkout CCM → Coordinadora → Generación de guías* (toggle off por defecto,
+  selector sandbox/producción, credenciales del WS de guías con clave SHA-256 en runtime,
+  datos del remitente, webhook). Tests en `GuiasTest` y `SettingsTest`.
 - **Auto-selección de Coordinadora en el checkout**: cuando la tarifa cotizada de Coordinadora (`ccmck_coordinadora`) aparece tras ingresar la dirección, se **selecciona sola** en lugar de dejar "Recogida local" marcada por defecto (antes el cliente tenía que cambiarla a mano). Si el cliente elige un método de envío a mano —incluida la recogida local— se respeta su elección y no se le vuelve a cambiar (`ccmckUserPickedShipping`, con guard `ccmckAutoSelecting` para no contar la selección programática como elección manual). Solo JS (`assets/ccmck-checkout.js`), espejando el patrón `ccmckUserPayment`; sin cambios de PHP. Verificado en dev.
 - **Cotización de Coordinadora con armado de cajas por tipo de producto**: nuevo módulo `CCMCK_Coordinadora` que cotiza el flete directo contra `Cotizador.cotizar` (JSON-RPC) con las credenciales de la tienda, agrupando el carrito en cajas (parlantes N por caja configurable por categoría, productos ≥umbral en cajas separadas, <umbral consolidados) y sumando dimensiones por bulto para reflejar el peso volumétrico real. Reemplaza la tarifa del plugin de terceros (`coordinadora:N`) por la propia (`ccmck_coordinadora`) y, si la API falla o falta peso/dimensiones en algún producto, conserva la tarifa anterior como *fallback*. Muestra los días de entrega en la card. Configurable en *Ajustes → Checkout CCM → Coordinadora* (toggle, credenciales, ciudad origen, umbral y tabla de reglas por categoría). Enganchado a `woocommerce_package_rates` (patrón de `CCMCK_Pickup`). Tests en `CoordinadoraTest`, `ShippingTest` y `SettingsTest`.
 - **Aviso de recogida local en el checkout**: al elegir el método de envío "Recogida local", aparece un aviso —editable desde *Ajustes → Checkout CCM → Contenido → Envío* (`pickup_notice`)— **bajo las tarjetas de envío**, recordando que el pedido no se envía a domicilio y que debe recogerse en el local de **Barranquilla**. Se pinta **fuera** del fragment AJAX (`#ccmck_shipping_methods`) para que persista, y el JS existente (`ccmckSyncPickupRequired`) lo muestra/oculta **al instante** al cambiar de método de envío. Estilo de marca (borde + fondo con el color de acento). Si el texto se deja vacío, no se muestra. Método puro `CCMCK_Pickup::notice_markup()`. Tests en `PickupTest` y `SettingsTest`.

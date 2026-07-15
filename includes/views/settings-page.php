@@ -709,4 +709,67 @@ $ccmck_cats = is_array( $ccmck_cats ) ? $ccmck_cats : array();
 	</button>
 </div>
 
+<h3><?php esc_html_e( 'Generación de guías', 'ccm-checkout' ); ?></h3>
+<p class="description">
+	<?php esc_html_e( 'Genera la guía automáticamente cuando el pedido pasa a "Procesando" (pago aprobado). Prueba primero en sandbox; Coordinadora debe revisar la liquidación de los primeros despachos en producción.', 'ccm-checkout' ); ?>
+</p>
+
+<table class="form-table" role="presentation">
+	<tr>
+		<th scope="row"><?php esc_html_e( 'Activar', 'ccm-checkout' ); ?></th>
+		<td>
+			<label>
+				<input type="checkbox" name="ccmck_settings[guias_enabled]" value="1" <?php checked( ! empty( $s['guias_enabled'] ) ); ?>>
+				<?php esc_html_e( 'Generar guías automáticamente', 'ccm-checkout' ); ?>
+			</label>
+		</td>
+	</tr>
+	<tr>
+		<th scope="row"><label for="ccmck_guias_env"><?php esc_html_e( 'Ambiente', 'ccm-checkout' ); ?></label></th>
+		<td>
+			<select id="ccmck_guias_env" name="ccmck_settings[guias_env]">
+				<option value="sandbox" <?php selected( $s['guias_env'], 'sandbox' ); ?>><?php esc_html_e( 'Sandbox (pruebas)', 'ccm-checkout' ); ?></option>
+				<option value="production" <?php selected( $s['guias_env'], 'production' ); ?>><?php esc_html_e( 'Producción', 'ccm-checkout' ); ?></option>
+			</select>
+		</td>
+	</tr>
+	<tr>
+		<th scope="row"><label for="ccmck_guias_usuario"><?php esc_html_e( 'Usuario WS guías', 'ccm-checkout' ); ?></label></th>
+		<td><input type="text" id="ccmck_guias_usuario" class="regular-text" name="ccmck_settings[guias_usuario]" value="<?php echo esc_attr( $s['guias_usuario'] ); ?>" autocomplete="off"></td>
+	</tr>
+	<tr>
+		<th scope="row"><label for="ccmck_guias_clave"><?php esc_html_e( 'Clave WS guías', 'ccm-checkout' ); ?></label></th>
+		<td>
+			<input type="password" id="ccmck_guias_clave" class="regular-text" name="ccmck_settings[guias_clave]" value="<?php echo esc_attr( $s['guias_clave'] ); ?>" autocomplete="new-password">
+			<p class="description"><?php esc_html_e( 'Se envía cifrada (SHA-256) al web service.', 'ccm-checkout' ); ?></p>
+		</td>
+	</tr>
+	<tr>
+		<th scope="row"><label for="ccmck_guias_idc"><?php esc_html_e( 'ID de cliente (acuerdo)', 'ccm-checkout' ); ?></label></th>
+		<td><input type="number" id="ccmck_guias_idc" name="ccmck_settings[guias_id_cliente]" value="<?php echo esc_attr( (string) $s['guias_id_cliente'] ); ?>"></td>
+	</tr>
+	<tr>
+		<th scope="row"><label for="ccmck_guias_rn"><?php esc_html_e( 'Remitente — razón social', 'ccm-checkout' ); ?></label></th>
+		<td><input type="text" id="ccmck_guias_rn" class="regular-text" name="ccmck_settings[guias_remitente_nombre]" value="<?php echo esc_attr( $s['guias_remitente_nombre'] ); ?>"></td>
+	</tr>
+	<tr>
+		<th scope="row"><label for="ccmck_guias_rd"><?php esc_html_e( 'Remitente — dirección', 'ccm-checkout' ); ?></label></th>
+		<td>
+			<input type="text" id="ccmck_guias_rd" class="regular-text" name="ccmck_settings[guias_remitente_direccion]" value="<?php echo esc_attr( $s['guias_remitente_direccion'] ); ?>">
+			<p class="description"><?php esc_html_e( 'Dirección física de donde Coordinadora recoge el despacho. La ciudad usa el mismo código DANE de origen de la cotización.', 'ccm-checkout' ); ?></p>
+		</td>
+	</tr>
+	<tr>
+		<th scope="row"><label for="ccmck_guias_rt"><?php esc_html_e( 'Remitente — teléfono', 'ccm-checkout' ); ?></label></th>
+		<td><input type="text" id="ccmck_guias_rt" class="regular-text" name="ccmck_settings[guias_remitente_telefono]" value="<?php echo esc_attr( $s['guias_remitente_telefono'] ); ?>"></td>
+	</tr>
+	<tr>
+		<th scope="row"><label for="ccmck_guias_wh"><?php esc_html_e( 'Webhook n8n (aviso WhatsApp)', 'ccm-checkout' ); ?></label></th>
+		<td>
+			<input type="text" id="ccmck_guias_wh" class="regular-text ccmck-url-input" name="ccmck_settings[guias_webhook_url]" value="<?php echo esc_attr( $s['guias_webhook_url'] ); ?>" placeholder="https://">
+			<p class="description"><?php esc_html_e( 'Opcional. Al generarse la guía se envía un POST con pedido, guía, rastreo y cliente. Vacío = no se envía.', 'ccm-checkout' ); ?></p>
+		</td>
+	</tr>
+</table>
+
 </div><?php /* /panel coordinadora */ ?>
