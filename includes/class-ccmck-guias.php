@@ -31,7 +31,7 @@ final class CCMCK_Guias {
             return array( 'ok' => false, 'reason' => 'faltan credenciales del WS de guías' );
         }
         foreach ( (array) ( $ctx['shipping_ids'] ?? array() ) as $id ) {
-            if ( 0 === strpos( (string) $id, 'ccmck_local_pickup' ) ) {
+            if ( false !== strpos( (string) $id, 'local_pickup' ) ) {
                 return array( 'ok' => false, 'reason' => 'pedido con recogida local' );
             }
         }
@@ -190,6 +190,9 @@ final class CCMCK_Guias {
         foreach ( $order->get_items() as $line ) {
             $product = is_callable( array( $line, 'get_product' ) ) ? $line->get_product() : null;
             if ( ! $product ) {
+                if ( '' === $missing ) {
+                    $missing = is_callable( array( $line, 'get_name' ) ) ? (string) $line->get_name() : 'ítem sin producto';
+                }
                 continue;
             }
             $it = array(
@@ -236,15 +239,22 @@ final class CCMCK_Guias {
 
         $extracted = self::items_from_order( $order );
         if ( ! $extracted['items'] || '' !== $extracted['missing'] ) {
-            $order->add_order_note( 'Guía Coordinadora NO generada: producto sin peso/medidas (' . $extracted['missing'] . '). Generar manualmente.' );
-            self::log( 'Guía pedido #' . $order_id . ': producto sin peso/medidas (' . $extracted['missing'] . ')' );
+            $descriptor = '' !== $extracted['missing'] ? $extracted['missing'] : 'sin ítems';
+            $order->add_order_note( 'Guía Coordinadora NO generada: producto sin peso/medidas (' . $descriptor . '). Generar manualmente.' );
+            self::log( 'Guía pedido #' . $order_id . ': producto sin peso/medidas (' . $descriptor . ')' );
+            delete_transient( 'ccmck_guia_lock_' . $order_id );
             return;
         }
 
-        $destino = CCMCK_Coordinadora::dane_from_city( (string) $order->get_billing_city() );
+        $city_raw = (string) $order->get_shipping_city();
+        if ( '' === $city_raw ) {
+            $city_raw = (string) $order->get_billing_city();
+        }
+        $destino = CCMCK_Coordinadora::dane_from_city( $city_raw );
         if ( '' === $destino ) {
             $order->add_order_note( 'Guía Coordinadora NO generada: no se pudo extraer el código DANE de la ciudad. Generar manualmente.' );
             self::log( 'Guía pedido #' . $order_id . ': ciudad sin DANE' );
+            delete_transient( 'ccmck_guia_lock_' . $order_id );
             return;
         }
 
@@ -287,12 +297,14 @@ final class CCMCK_Guias {
         if ( is_wp_error( $response ) ) {
             $order->add_order_note( 'Guía Coordinadora NO generada (HTTP): ' . $response->get_error_message() );
             self::log( 'Guía pedido #' . $order_id . ' HTTP: ' . $response->get_error_message() );
+            delete_transient( 'ccmck_guia_lock_' . $order_id );
             return;
         }
         $parsed = self::parse_guia_response( (string) wp_remote_retrieve_body( $response ), wp_remote_retrieve_response_code( $response ) );
         if ( ! $parsed['ok'] ) {
             $order->add_order_note( 'Guía Coordinadora NO generada: ' . $parsed['error'] );
             self::log( 'Guía pedido #' . $order_id . ' API: ' . $parsed['error'] );
+            delete_transient( 'ccmck_guia_lock_' . $order_id );
             return;
         }
 

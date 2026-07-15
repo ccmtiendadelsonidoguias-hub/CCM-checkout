@@ -16,7 +16,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const b = $input.first().json.body || $input.first().json;\nlet phone = String(b.customer?.phone || '').replace(/[^0-9]/g, '');\nif (phone.length === 10 && phone.startsWith('3')) phone = '57' + phone;\nconst msg = `¡Hola ${b.customer?.name || ''}! Tu pedido #${b.order_number} ya va en camino 🚚\\n\\nGuía Coordinadora: *${b.guia}*\\nSíguelo aquí: ${b.tracking_url}`;\nreturn [{ json: { phone, message: msg, order_number: b.order_number, guia: b.guia } }];"
+        "jsCode": "const b = $input.first().json.body || $input.first().json;\nlet phone = String(b.customer?.phone || '').replace(/[^0-9]/g, '');\nif (phone.length === 10 && phone.startsWith('3')) phone = '57' + phone;\nconst track = b.tracking_url ? `\\nSíguelo aquí: ${b.tracking_url}` : '';\nconst msg = `¡Hola ${b.customer?.name || ''}! Tu pedido #${b.order_number} ya va en camino 🚚\\n\\nGuía Coordinadora: *${b.guia}*${track}`;\nreturn [{ json: { phone, message: msg, order_number: b.order_number, guia: b.guia } }];"
       },
       "id": "fn-guia-1",
       "name": "Normalizar y armar mensaje",

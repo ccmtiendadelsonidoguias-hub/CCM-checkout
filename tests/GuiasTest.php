@@ -67,9 +67,12 @@ final class GuiasTest extends TestCase {
         $this->assertFalse( $r['ok'] );
     }
     public function test_should_generate_blocks_pickup(): void {
-        $r = CCMCK_Guias::should_generate( $this->ctx( array( 'shipping_ids' => array( 'ccmck_local_pickup' ) ) ) );
+        $r = CCMCK_Guias::should_generate( $this->ctx( array( 'shipping_ids' => array( 'local_pickup' ) ) ) );
         $this->assertFalse( $r['ok'] );
         $this->assertStringContainsString( 'recogida', strtolower( $r['reason'] ) );
+
+        $r2 = CCMCK_Guias::should_generate( $this->ctx( array( 'shipping_ids' => array( 'ccmck_local_pickup' ) ) ) );
+        $this->assertFalse( $r2['ok'] );
     }
     public function test_should_generate_blocks_existing_guia(): void {
         $this->assertFalse( CCMCK_Guias::should_generate( $this->ctx( array( 'existing_guia' => '33042000009' ) ) )['ok'] );
