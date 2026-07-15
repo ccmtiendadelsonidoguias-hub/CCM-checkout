@@ -6,6 +6,12 @@ if ( ! function_exists( 'sanitize_text_field' ) ) {
         return trim( preg_replace( '/[\r\n\t ]+/', ' ', wp_strip_all_tags_stub( (string) $str ) ) );
     }
 }
+if ( ! function_exists( 'sanitize_textarea_field' ) ) {
+    function sanitize_textarea_field( $str ) {
+        // Como WP: quita etiquetas pero conserva los saltos de línea.
+        return trim( wp_strip_all_tags_stub( (string) $str ) );
+    }
+}
 function wp_strip_all_tags_stub( string $s ): string {
     return preg_replace( '/<[^>]*>/', '', $s );
 }
@@ -32,6 +38,11 @@ if ( ! function_exists( 'absint' ) ) {
 }
 if ( ! function_exists( '__' ) ) {
     function __( $text, $domain = 'default' ) { return $text; }
+}
+if ( ! function_exists( '_n' ) ) {
+    function _n( $single, $plural, $number, $domain = 'default' ) {
+        return 1 === (int) $number ? $single : $plural;
+    }
 }
 if ( ! function_exists( 'esc_attr' ) ) {
     function esc_attr( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
@@ -102,6 +113,9 @@ if ( ! class_exists( 'WC_Shipping_Rate' ) ) {
         public function get_id() { return $this->id; }
         public function get_label() { return $this->label; }
         public function get_cost() { return $this->cost; }
+        public $meta_data = array();
+        public function add_meta_data( $key, $value ) { $this->meta_data[ $key ] = $value; }
+        public function get_meta_data() { return $this->meta_data; }
     }
 }
 
@@ -115,3 +129,4 @@ require_once dirname( __DIR__ ) . '/includes/class-ccmck-shipping.php';
 require_once dirname( __DIR__ ) . '/includes/class-ccmck-pickup.php';
 require_once dirname( __DIR__ ) . '/includes/class-ccmck-dequeue.php';
 require_once dirname( __DIR__ ) . '/includes/class-ccmck-surcharge.php';
+require_once dirname( __DIR__ ) . '/includes/class-ccmck-coordinadora.php';

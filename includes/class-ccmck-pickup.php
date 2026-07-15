@@ -68,6 +68,23 @@ final class CCMCK_Pickup {
         return $fields;
     }
 
+    /**
+     * Markup del aviso de recogida local. Oculto por CSS por defecto; el JS le
+     * añade .is-visible cuando el envío elegido es pickup. Devuelve '' si el
+     * texto está vacío (así "vacío = no se muestra"). PURO.
+     *
+     * @param string $text Texto del ajuste pickup_notice.
+     */
+    public static function notice_markup( string $text ): string {
+        $text = trim( $text );
+        if ( '' === $text ) {
+            return '';
+        }
+        return '<div class="ccmck-pickup-notice" data-ccmck-pickup-notice>'
+            . nl2br( esc_html( $text ) )
+            . '</div>';
+    }
+
     public static function init(): void {
         add_filter( 'woocommerce_package_rates', array( __CLASS__, 'inject' ), 10, 2 );
         add_filter( 'woocommerce_checkout_fields', array( __CLASS__, 'relax_checkout_fields' ), 9999 );

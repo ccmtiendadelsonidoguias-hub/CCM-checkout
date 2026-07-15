@@ -97,4 +97,63 @@ final class SettingsTest extends TestCase {
     public function test_sanitize_surcharge_brands_empty_by_default(): void {
         $this->assertSame( array(), CCMCK_Settings::sanitize( array() )['surcharge_brands'] );
     }
+
+    public function test_defaults_include_pickup_notice(): void {
+        $d = CCMCK_Settings::defaults();
+        $this->assertArrayHasKey( 'pickup_notice', $d );
+        $this->assertStringContainsString( 'Barranquilla', $d['pickup_notice'] );
+    }
+
+    public function test_sanitize_pickup_notice_strips_tags(): void {
+        $out = CCMCK_Settings::sanitize( array( 'pickup_notice' => '<b>Recoge</b> en <script>x</script>tienda' ) );
+        $this->assertStringNotContainsString( '<b>', $out['pickup_notice'] );
+        $this->assertStringNotContainsString( '<script>', $out['pickup_notice'] );
+        $this->assertStringContainsString( 'Recoge', $out['pickup_notice'] );
+    }
+
+    public function test_sanitize_pickup_notice_missing_becomes_empty(): void {
+        $this->assertSame( '', CCMCK_Settings::sanitize( array() )['pickup_notice'] );
+    }
+
+    public function test_sanitize_pickup_notice_is_idempotent(): void {
+        $once  = CCMCK_Settings::sanitize( array( 'pickup_notice' => "Recoge\nen tienda <b>x</b>" ) )['pickup_notice'];
+        $twice = CCMCK_Settings::sanitize( array( 'pickup_notice' => $once ) )['pickup_notice'];
+        $this->assertSame( $once, $twice );
+    }
+
+    public function test_defaults_include_coordinadora_keys(): void {
+        $d = CCMCK_Settings::defaults();
+        $this->assertFalse( $d['coordinadora_enabled'] );
+        $this->assertSame( '901677789', $d['coordinadora_nit'] );
+        $this->assertSame( '08001000', $d['coordinadora_origin'] );
+        $this->assertSame( 5.0, $d['coordinadora_weight_threshold'] );
+        $this->assertSame( array(), $d['coordinadora_box_rules'] );
+    }
+
+    public function test_sanitize_coordinadora_enabled_boolean(): void {
+        $this->assertTrue( CCMCK_Settings::sanitize( array( 'coordinadora_enabled' => '1' ) )['coordinadora_enabled'] );
+        $this->assertFalse( CCMCK_Settings::sanitize( array() )['coordinadora_enabled'] );
+    }
+
+    public function test_sanitize_nit_and_origin_keep_only_digits(): void {
+        $out = CCMCK_Settings::sanitize( array( 'coordinadora_nit' => '901.677.789-0', 'coordinadora_origin' => 'DANE 08001000' ) );
+        $this->assertSame( '9016777890', $out['coordinadora_nit'] );
+        $this->assertSame( '08001000', $out['coordinadora_origin'] );
+    }
+
+    public function test_sanitize_weight_threshold_comma_and_floor(): void {
+        $this->assertSame( 7.5, CCMCK_Settings::sanitize( array( 'coordinadora_weight_threshold' => '7,5' ) )['coordinadora_weight_threshold'] );
+        $this->assertSame( 0.0, CCMCK_Settings::sanitize( array( 'coordinadora_weight_threshold' => '-2' ) )['coordinadora_weight_threshold'] );
+        $this->assertSame( 5.0, CCMCK_Settings::sanitize( array() )['coordinadora_weight_threshold'] );
+    }
+
+    public function test_sanitize_box_rules_drops_invalid_and_dedupes_category(): void {
+        $out = CCMCK_Settings::sanitize( array( 'coordinadora_box_rules' => array(
+            array( 'cat' => '1253', 'n' => '2' ),
+            array( 'cat' => '0',    'n' => '3' ),   // cat inválida
+            array( 'cat' => '1400', 'n' => '0' ),   // n inválido
+            array( 'cat' => '1253', 'n' => '9' ),   // duplicada -> se ignora
+        ) ) );
+        $this->assertSame( array( array( 'cat' => 1253, 'n' => 2 ) ), $out['coordinadora_box_rules'] );
+    }
 }

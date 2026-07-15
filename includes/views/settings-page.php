@@ -26,6 +26,7 @@ defined( 'ABSPATH' ) || exit;
 	<a href="#contenido"   class="nav-tab" data-tab="contenido"><?php esc_html_e( 'Contenido', 'ccm-checkout' ); ?></a>
 	<a href="#postgeneral" class="nav-tab" data-tab="postgeneral"><?php esc_html_e( 'Post-compra y general', 'ccm-checkout' ); ?></a>
 	<a href="#pagos"       class="nav-tab" data-tab="pagos"><?php esc_html_e( 'Pagos', 'ccm-checkout' ); ?></a>
+	<a href="#coordinadora" class="nav-tab" data-tab="coordinadora"><?php esc_html_e( 'Coordinadora', 'ccm-checkout' ); ?></a>
 </h2>
 
 <?php /* ===== PESTAÑA: MARCA Y DISEÑO ===== */ ?>
@@ -350,6 +351,12 @@ defined( 'ABSPATH' ) || exit;
     </button>
 </div>
 
+<h3><?php esc_html_e( 'Aviso de recogida local', 'ccm-checkout' ); ?></h3>
+<p class="description">
+    <?php esc_html_e( 'Se muestra bajo las tarjetas de envío solo cuando el cliente elige "Recogida local". Si lo dejas vacío, no se muestra.', 'ccm-checkout' ); ?>
+</p>
+<textarea name="ccmck_settings[pickup_notice]" rows="3" class="large-text"><?php echo esc_textarea( $s['pickup_notice'] ); ?></textarea>
+
 <table class="form-table" role="presentation">
     <tr>
         <th scope="row"><label for="ccmck-secure-badge"><?php esc_html_e( 'Texto insignia de seguridad', 'ccm-checkout' ); ?></label></th>
@@ -614,3 +621,92 @@ $display_ids   = array_values( array_filter( $display_ids, function ( $id ) use 
 <?php endif; ?>
 
 </div><?php /* /panel pagos */ ?>
+
+<?php /* ===== PESTAÑA: COORDINADORA ===== */ ?>
+<div class="ccmck-tab-panel" data-tab="coordinadora">
+
+<h2><?php esc_html_e( 'Cotización de envío (Coordinadora)', 'ccm-checkout' ); ?></h2>
+<p class="description">
+	<?php esc_html_e( 'Cotiza el flete directo con tus credenciales agrupando el carrito en cajas. Con el interruptor apagado, el checkout sigue usando el método anterior.', 'ccm-checkout' ); ?>
+</p>
+
+<table class="form-table" role="presentation">
+	<tr>
+		<th scope="row"><?php esc_html_e( 'Activar', 'ccm-checkout' ); ?></th>
+		<td>
+			<label>
+				<input type="checkbox" name="ccmck_settings[coordinadora_enabled]" value="1" <?php checked( ! empty( $s['coordinadora_enabled'] ) ); ?>>
+				<?php esc_html_e( 'Cotizar el flete de Coordinadora desde este plugin', 'ccm-checkout' ); ?>
+			</label>
+		</td>
+	</tr>
+	<tr>
+		<th scope="row"><label for="ccmck_coord_apikey">API key</label></th>
+		<td><input type="text" id="ccmck_coord_apikey" class="regular-text" name="ccmck_settings[coordinadora_apikey]" value="<?php echo esc_attr( $s['coordinadora_apikey'] ); ?>" autocomplete="off"></td>
+	</tr>
+	<tr>
+		<th scope="row"><label for="ccmck_coord_clave"><?php esc_html_e( 'Clave', 'ccm-checkout' ); ?></label></th>
+		<td><input type="password" id="ccmck_coord_clave" class="regular-text" name="ccmck_settings[coordinadora_clave]" value="<?php echo esc_attr( $s['coordinadora_clave'] ); ?>" autocomplete="new-password"></td>
+	</tr>
+	<tr>
+		<th scope="row"><label for="ccmck_coord_nit">NIT</label></th>
+		<td><input type="text" id="ccmck_coord_nit" class="regular-text" name="ccmck_settings[coordinadora_nit]" value="<?php echo esc_attr( $s['coordinadora_nit'] ); ?>"></td>
+	</tr>
+	<tr>
+		<th scope="row"><label for="ccmck_coord_origin"><?php esc_html_e( 'Ciudad origen (DANE)', 'ccm-checkout' ); ?></label></th>
+		<td>
+			<input type="text" id="ccmck_coord_origin" class="regular-text" name="ccmck_settings[coordinadora_origin]" value="<?php echo esc_attr( $s['coordinadora_origin'] ); ?>">
+			<p class="description"><?php esc_html_e( 'Código DANE de 8 dígitos. Barranquilla = 08001000.', 'ccm-checkout' ); ?></p>
+		</td>
+	</tr>
+	<tr>
+		<th scope="row"><label for="ccmck_coord_thr"><?php esc_html_e( 'Umbral de peso (kg)', 'ccm-checkout' ); ?></label></th>
+		<td>
+			<input type="number" step="0.1" min="0" id="ccmck_coord_thr" name="ccmck_settings[coordinadora_weight_threshold]" value="<?php echo esc_attr( (string) $s['coordinadora_weight_threshold'] ); ?>">
+			<p class="description"><?php esc_html_e( 'Productos con peso ≥ este valor van en cajas separadas; por debajo se consolidan.', 'ccm-checkout' ); ?></p>
+		</td>
+	</tr>
+</table>
+
+<h3><?php esc_html_e( 'Reglas de caja por categoría', 'ccm-checkout' ); ?></h3>
+<p class="description"><?php esc_html_e( 'Cuántas unidades de una categoría caben por caja (ej.: Parlantes → 2). Las categorías sin regla se resuelven por peso.', 'ccm-checkout' ); ?></p>
+
+<?php
+$ccmck_cats = function_exists( 'get_terms' ) ? get_terms( array( 'taxonomy' => 'product_cat', 'hide_empty' => false ) ) : array();
+$ccmck_cats = is_array( $ccmck_cats ) ? $ccmck_cats : array();
+?>
+
+<div class="ccmck-repeater" data-field="coordinadora_box_rules" id="ccmck-repeater-coordinadora_box_rules">
+	<?php foreach ( (array) $s['coordinadora_box_rules'] as $i => $row ) : ?>
+	<div class="ccmck-row ccmck-row--rule" data-index="<?php echo esc_attr( (string) $i ); ?>">
+		<select name="ccmck_settings[coordinadora_box_rules][<?php echo esc_attr( (string) $i ); ?>][cat]">
+			<option value="0"><?php esc_html_e( '— Categoría —', 'ccm-checkout' ); ?></option>
+			<?php foreach ( $ccmck_cats as $cat ) : ?>
+				<option value="<?php echo esc_attr( (string) $cat->term_id ); ?>" <?php selected( (int) ( $row['cat'] ?? 0 ), (int) $cat->term_id ); ?>><?php echo esc_html( $cat->name ); ?></option>
+			<?php endforeach; ?>
+		</select>
+		<input type="number" min="1" step="1" placeholder="<?php esc_attr_e( 'N por caja', 'ccm-checkout' ); ?>"
+		       name="ccmck_settings[coordinadora_box_rules][<?php echo esc_attr( (string) $i ); ?>][n]"
+		       value="<?php echo esc_attr( (int) ( $row['n'] ?? 0 ) > 0 ? (string) (int) $row['n'] : '' ); ?>">
+		<button type="button" class="button ccmck-remove-row"><?php esc_html_e( 'Eliminar', 'ccm-checkout' ); ?></button>
+	</div>
+	<?php endforeach; ?>
+
+	<div class="ccmck-row-template ccmck-row ccmck-row--rule" style="display:none" data-index="__i__">
+		<select name="ccmck_settings[coordinadora_box_rules][__i__][cat]">
+			<option value="0"><?php esc_html_e( '— Categoría —', 'ccm-checkout' ); ?></option>
+			<?php foreach ( $ccmck_cats as $cat ) : ?>
+				<option value="<?php echo esc_attr( (string) $cat->term_id ); ?>"><?php echo esc_html( $cat->name ); ?></option>
+			<?php endforeach; ?>
+		</select>
+		<input type="number" min="1" step="1" placeholder="<?php esc_attr_e( 'N por caja', 'ccm-checkout' ); ?>"
+		       name="ccmck_settings[coordinadora_box_rules][__i__][n]" value="">
+		<button type="button" class="button ccmck-remove-row"><?php esc_html_e( 'Eliminar', 'ccm-checkout' ); ?></button>
+	</div>
+
+	<button type="button" class="button ccmck-add-row" data-repeater="ccmck-repeater-coordinadora_box_rules">
+		<?php esc_html_e( '+ Añadir regla', 'ccm-checkout' ); ?>
+	</button>
+</div>
+
+</div><?php /* /panel coordinadora */ ?>

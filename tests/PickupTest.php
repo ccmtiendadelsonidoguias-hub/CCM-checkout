@@ -86,4 +86,29 @@ final class PickupTest extends TestCase {
             unset( $_POST['shipping_method'] );
         }
     }
+
+    public function test_notice_markup_empty_string_returns_empty(): void {
+        $this->assertSame( '', CCMCK_Pickup::notice_markup( '' ) );
+    }
+
+    public function test_notice_markup_whitespace_returns_empty(): void {
+        $this->assertSame( '', CCMCK_Pickup::notice_markup( "   \n  " ) );
+    }
+
+    public function test_notice_markup_wraps_text_with_hook_attribute(): void {
+        $html = CCMCK_Pickup::notice_markup( 'Recoge en tienda' );
+        $this->assertStringContainsString( 'ccmck-pickup-notice', $html );
+        $this->assertStringContainsString( 'data-ccmck-pickup-notice', $html );
+        $this->assertStringContainsString( 'Recoge en tienda', $html );
+    }
+
+    public function test_notice_markup_preserves_line_breaks(): void {
+        $html = CCMCK_Pickup::notice_markup( "linea1\nlinea2" );
+        $this->assertStringContainsString( '<br', $html );
+    }
+
+    public function test_notice_markup_escapes_html(): void {
+        $html = CCMCK_Pickup::notice_markup( '<script>alert(1)</script>' );
+        $this->assertStringNotContainsString( '<script>', $html );
+    }
 }

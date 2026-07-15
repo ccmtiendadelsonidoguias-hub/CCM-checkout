@@ -29,6 +29,8 @@ final class CCMCK_Settings {
             'faq_items'         => array(),
             'shipping_cards'    => array(),
             'secure_badge'      => 'Pago seguro con encriptación SSL',
+            // Aviso que se muestra al elegir "Recogida local" (vacío = no se muestra).
+            'pickup_notice'     => '📍 Recogida en tienda: al elegir esta opción tu pedido no se envía a domicilio. Deberás recogerlo personalmente en nuestro local en Barranquilla. Te escribiremos por WhatsApp cuando esté listo para recoger.',
             'tracker_enabled'   => true,
             'tracker_labels'    => array( 'Pedido recibido', 'Pago confirmado', 'En preparación', 'Enviado' ),
             'thankyou_message'  => 'Hemos recibido tu pedido y te enviaremos un correo de confirmación.',
@@ -46,6 +48,14 @@ final class CCMCK_Settings {
             // IDs de términos de marca (taxonomía product_brand) a los que aplica el
             // recargo. Vacío = aplica a TODOS los productos.
             'surcharge_brands'       => array(),
+            // Coordinadora — cotización directa del flete (ver spec 2026-07-08).
+            'coordinadora_enabled'          => false,
+            'coordinadora_apikey'           => '',
+            'coordinadora_clave'            => '',
+            'coordinadora_nit'              => '901677789',
+            'coordinadora_origin'           => '08001000',
+            'coordinadora_weight_threshold' => 5.0,
+            'coordinadora_box_rules'        => array(),
         );
     }
 
@@ -73,6 +83,7 @@ final class CCMCK_Settings {
 
         $out['shipping_cards'] = self::sanitize_cards( $input['shipping_cards'] ?? array() );
         $out['secure_badge']   = sanitize_text_field( $input['secure_badge'] ?? '' );
+        $out['pickup_notice']  = sanitize_textarea_field( $input['pickup_notice'] ?? '' );
 
         $out['tracker_enabled'] = ! empty( $input['tracker_enabled'] );
         $out['tracker_labels']  = array_map( 'sanitize_text_field', array_slice( (array) ( $input['tracker_labels'] ?? $d['tracker_labels'] ), 0, 4 ) );
@@ -95,6 +106,19 @@ final class CCMCK_Settings {
         // Marcas con recargo: IDs de término (>0), sin duplicados.
         $brands = array_map( 'absint', (array) ( $input['surcharge_brands'] ?? array() ) );
         $out['surcharge_brands'] = array_values( array_unique( array_filter( $brands ) ) );
+
+        $out['coordinadora_enabled'] = ! empty( $input['coordinadora_enabled'] );
+        $out['coordinadora_apikey']  = sanitize_text_field( $input['coordinadora_apikey'] ?? '' );
+        $out['coordinadora_clave']   = sanitize_text_field( $input['coordinadora_clave'] ?? '' );
+        $out['coordinadora_nit']     = preg_replace( '/[^0-9]/', '', (string) ( $input['coordinadora_nit'] ?? '' ) );
+        $out['coordinadora_origin']  = preg_replace( '/[^0-9]/', '', (string) ( $input['coordinadora_origin'] ?? '' ) );
+
+        $thr = isset( $input['coordinadora_weight_threshold'] )
+            ? str_replace( ',', '.', (string) $input['coordinadora_weight_threshold'] )
+            : (string) $d['coordinadora_weight_threshold'];
+        $out['coordinadora_weight_threshold'] = max( 0.0, round( (float) $thr, 2 ) );
+
+        $out['coordinadora_box_rules'] = self::sanitize_box_rules( $input['coordinadora_box_rules'] ?? array() );
 
         return $out;
     }
@@ -122,6 +146,24 @@ final class CCMCK_Settings {
                     'a'          => $a,
                     'icon_image' => esc_url_raw( $row['icon_image'] ?? '' ),
                 );
+            }
+        }
+        return $clean;
+    }
+
+    /**
+     * Reglas de empaque: filas {cat, n}. Descarta cat<=0 o n<1 y deduplica por
+     * categoría (la primera fila de cada categoría gana). PURO.
+     */
+    private static function sanitize_box_rules( $rows ): array {
+        $clean = array();
+        $seen  = array();
+        foreach ( (array) $rows as $row ) {
+            $cat = absint( $row['cat'] ?? 0 );
+            $n   = absint( $row['n'] ?? 0 );
+            if ( $cat > 0 && $n > 0 && ! isset( $seen[ $cat ] ) ) {
+                $seen[ $cat ] = true;
+                $clean[]      = array( 'cat' => $cat, 'n' => $n );
             }
         }
         return $clean;

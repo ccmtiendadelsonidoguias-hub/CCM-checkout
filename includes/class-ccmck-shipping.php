@@ -33,11 +33,21 @@ final class CCMCK_Shipping {
                 $id    = is_object( $rate ) && method_exists( $rate, 'get_id' ) ? (string) $rate->get_id() : '';
                 $label = is_object( $rate ) && method_exists( $rate, 'get_label' ) ? (string) $rate->get_label() : '';
                 $cost  = is_object( $rate ) && method_exists( $rate, 'get_cost' ) ? (float) $rate->get_cost() : 0.0;
+
+                $eta = 0;
+                if ( is_object( $rate ) && method_exists( $rate, 'get_meta_data' ) ) {
+                    $meta = (array) $rate->get_meta_data();
+                    if ( isset( $meta['dias_entrega'] ) ) {
+                        $eta = (int) $meta['dias_entrega'];
+                    }
+                }
+
                 $methods[] = array(
                     'id'      => $id,
                     'label'   => $label,
                     'cost'    => $cost,
                     'checked' => ( '' !== $id && $id === $chosen_id ),
+                    'eta'     => $eta,
                 );
             }
 
@@ -80,6 +90,13 @@ final class CCMCK_Shipping {
                 $html  .= '<label for="' . esc_attr( $dom_id ) . '">';
                 $html  .= '<span class="ccmck-ship-label">' . esc_html( (string) $rate['label'] ) . '</span>';
                 $html  .= '<span class="ccmck-ship-cost">' . self::format_cost( (float) $rate['cost'] ) . '</span>';
+                if ( ! empty( $rate['eta'] ) && (int) $rate['eta'] > 0 ) {
+                    $eta   = (int) $rate['eta'];
+                    $html .= '<span class="ccmck-ship-eta">' . esc_html( sprintf(
+                        _n( 'Llega en %d día hábil', 'Llega en %d días hábiles', $eta, 'ccm-checkout' ),
+                        $eta
+                    ) ) . '</span>';
+                }
                 $html  .= '</label></li>';
             }
             $html .= '</ul>';
