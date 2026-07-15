@@ -142,4 +142,194 @@ final class CCMCK_Guias {
             'total'        => (float) ( $args['total'] ?? 0 ),
         );
     }
+
+    /** Log al canal de WooCommerce. */
+    private static function log( string $msg ): void {
+        if ( function_exists( 'wc_get_logger' ) ) {
+            wc_get_logger()->warning( $msg, array( 'source' => 'ccmck-coordinadora' ) );
+        }
+    }
+
+    /** Endpoint según el ambiente configurado. */
+    private static function endpoint(): string {
+        return 'production' === CCMCK_Settings::get( 'guias_env', 'sandbox' )
+            ? self::ENDPOINT_PROD
+            : self::ENDPOINT_SANDBOX;
+    }
+
+    /** Llama un método del WS de guías. Devuelve el body crudo o WP_Error. */
+    private static function rpc( string $method, array $params, int $timeout = 15 ) {
+        return wp_remote_post( self::endpoint(), array(
+            'timeout' => $timeout,
+            'headers' => array( 'Content-Type' => 'application/json' ),
+            'body'    => wp_json_encode( array( 'jsonrpc' => '2.0', 'id' => 0, 'method' => $method, 'params' => $params ) ),
+        ) );
+    }
+
+    /** Mapa cat_id => N de las reglas de caja (mismo formato que el cotizador). */
+    private static function rules_map(): array {
+        $map = array();
+        foreach ( (array) CCMCK_Settings::get( 'coordinadora_box_rules', array() ) as $row ) {
+            $cat = (int) ( $row['cat'] ?? 0 );
+            $n   = (int) ( $row['n'] ?? 0 );
+            if ( $cat > 0 && $n > 0 ) {
+                $map[ $cat ] = $n;
+            }
+        }
+        return $map;
+    }
+
+    /**
+     * Normaliza los items del pedido a la forma de CCMCK_Coordinadora::pack().
+     * Devuelve array{items:array, missing:string} (missing = primer SKU/nombre
+     * sin peso o dimensiones, '' si todo bien).
+     */
+    private static function items_from_order( $order ): array {
+        $items   = array();
+        $missing = '';
+        foreach ( $order->get_items() as $line ) {
+            $product = is_callable( array( $line, 'get_product' ) ) ? $line->get_product() : null;
+            if ( ! $product ) {
+                continue;
+            }
+            $it = array(
+                'qty'     => (int) $line->get_quantity(),
+                'weight'  => (float) $product->get_weight(),
+                'largo'   => (float) $product->get_length(),
+                'ancho'   => (float) $product->get_width(),
+                'alto'    => (float) $product->get_height(),
+                'cat_ids' => array_map( 'intval', (array) ( function_exists( 'wc_get_product_cat_ids' ) ? wc_get_product_cat_ids( $product->get_id() ) : array() ) ),
+            );
+            if ( '' === $missing && ( $it['weight'] <= 0 || $it['largo'] <= 0 || $it['ancho'] <= 0 || $it['alto'] <= 0 ) ) {
+                $missing = $product->get_sku() ? $product->get_sku() : $product->get_name();
+            }
+            $items[] = $it;
+        }
+        return array( 'items' => $items, 'missing' => $missing );
+    }
+
+    /** Hook woocommerce_order_status_processing: genera la guía. */
+    public static function on_processing( $order_id ): void {
+        $order = function_exists( 'wc_get_order' ) ? wc_get_order( $order_id ) : null;
+        if ( ! $order ) {
+            return;
+        }
+
+        $shipping_ids = array();
+        foreach ( $order->get_shipping_methods() as $sm ) {
+            $shipping_ids[] = (string) $sm->get_method_id();
+        }
+
+        $check = self::should_generate( array(
+            'enabled'       => (bool) CCMCK_Settings::get( 'guias_enabled', false ),
+            'usuario'       => (string) CCMCK_Settings::get( 'guias_usuario', '' ),
+            'clave'         => (string) CCMCK_Settings::get( 'guias_clave', '' ),
+            'shipping_ids'  => $shipping_ids,
+            'existing_guia' => (string) $order->get_meta( self::META_GUIA ),
+            'has_lock'      => false !== get_transient( 'ccmck_guia_lock_' . $order_id ),
+        ) );
+        if ( ! $check['ok'] ) {
+            // Silencioso para off/pickup/duplicado; son casos normales.
+            return;
+        }
+        set_transient( 'ccmck_guia_lock_' . $order_id, 1, 60 );
+
+        $extracted = self::items_from_order( $order );
+        if ( ! $extracted['items'] || '' !== $extracted['missing'] ) {
+            $order->add_order_note( 'Guía Coordinadora NO generada: producto sin peso/medidas (' . $extracted['missing'] . '). Generar manualmente.' );
+            self::log( 'Guía pedido #' . $order_id . ': producto sin peso/medidas (' . $extracted['missing'] . ')' );
+            return;
+        }
+
+        $destino = CCMCK_Coordinadora::dane_from_city( (string) $order->get_billing_city() );
+        if ( '' === $destino ) {
+            $order->add_order_note( 'Guía Coordinadora NO generada: no se pudo extraer el código DANE de la ciudad. Generar manualmente.' );
+            self::log( 'Guía pedido #' . $order_id . ': ciudad sin DANE' );
+            return;
+        }
+
+        $threshold = (float) CCMCK_Settings::get( 'coordinadora_weight_threshold', 5.0 );
+        $boxes     = CCMCK_Coordinadora::pack( $extracted['items'], $threshold, self::rules_map() );
+        $detalle   = CCMCK_Coordinadora::build_detalle( $boxes );
+
+        $total_lineas = 0.0;
+        foreach ( $order->get_items() as $line ) {
+            $total_lineas += (float) $line->get_total();
+        }
+
+        $direccion = trim( $order->get_billing_address_1() . ' ' . $order->get_billing_address_2() );
+
+        $params = self::build_guia_params( array(
+            'usuario'      => (string) CCMCK_Settings::get( 'guias_usuario', '' ),
+            'clave_sha256' => hash( 'sha256', (string) CCMCK_Settings::get( 'guias_clave', '' ) ),
+            'id_cliente'   => (int) CCMCK_Settings::get( 'guias_id_cliente', 49444 ),
+            'remitente'    => array(
+                'nombre'    => (string) CCMCK_Settings::get( 'guias_remitente_nombre', '' ),
+                'direccion' => (string) CCMCK_Settings::get( 'guias_remitente_direccion', '' ),
+                'telefono'  => (string) CCMCK_Settings::get( 'guias_remitente_telefono', '' ),
+                'ciudad'    => (string) CCMCK_Settings::get( 'coordinadora_origin', '08001000' ),
+            ),
+            'destinatario' => array(
+                'nombre'      => trim( $order->get_billing_first_name() . ' ' . $order->get_billing_last_name() ),
+                'direccion'   => $direccion,
+                'ciudad_dane' => $destino,
+                'telefono'    => (string) $order->get_billing_phone(),
+                'documento'   => (string) $order->get_meta( '_billing_document_number' ),
+            ),
+            'valor_declarado' => (int) round( $total_lineas ),
+            'contenido'    => 'Equipos de sonido',
+            'referencia'   => (string) $order->get_order_number(),
+            'observaciones'=> (string) $order->get_customer_note(),
+            'detalle'      => $detalle,
+        ) );
+
+        $response = self::rpc( 'Guias.generarGuia', $params );
+        if ( is_wp_error( $response ) ) {
+            $order->add_order_note( 'Guía Coordinadora NO generada (HTTP): ' . $response->get_error_message() );
+            self::log( 'Guía pedido #' . $order_id . ' HTTP: ' . $response->get_error_message() );
+            return;
+        }
+        $parsed = self::parse_guia_response( (string) wp_remote_retrieve_body( $response ), wp_remote_retrieve_response_code( $response ) );
+        if ( ! $parsed['ok'] ) {
+            $order->add_order_note( 'Guía Coordinadora NO generada: ' . $parsed['error'] );
+            self::log( 'Guía pedido #' . $order_id . ' API: ' . $parsed['error'] );
+            return;
+        }
+
+        $order->update_meta_data( self::META_GUIA, $parsed['codigo_remision'] );
+        $order->update_meta_data( self::META_URL, $parsed['tracking_url'] );
+        $order->update_meta_data( self::META_ID, (string) $parsed['id_remision'] );
+        $order->save();
+        $order->add_order_note( 'Guía Coordinadora generada: ' . $parsed['codigo_remision'] );
+
+        self::send_webhook( self::build_webhook_payload( array(
+            'order_id'     => (int) $order_id,
+            'order_number' => (string) $order->get_order_number(),
+            'guia'         => $parsed['codigo_remision'],
+            'tracking_url' => $parsed['tracking_url'],
+            'name'         => trim( $order->get_billing_first_name() . ' ' . $order->get_billing_last_name() ),
+            'phone'        => (string) $order->get_billing_phone(),
+            'total'        => (float) $order->get_total(),
+        ) ) );
+    }
+
+    /** Webhook a n8n (aviso WhatsApp). Fire-and-forget: el fallo solo se loguea. */
+    private static function send_webhook( array $payload ): void {
+        $url = (string) CCMCK_Settings::get( 'guias_webhook_url', '' );
+        if ( '' === $url ) {
+            return;
+        }
+        $response = wp_remote_post( $url, array(
+            'timeout' => 5,
+            'headers' => array( 'Content-Type' => 'application/json' ),
+            'body'    => wp_json_encode( $payload ),
+        ) );
+        if ( is_wp_error( $response ) ) {
+            self::log( 'Webhook n8n falló (pedido #' . $payload['order_id'] . '): ' . $response->get_error_message() );
+        }
+    }
+
+    public static function init(): void {
+        add_action( 'woocommerce_order_status_processing', array( __CLASS__, 'on_processing' ), 20 );
+    }
 }
