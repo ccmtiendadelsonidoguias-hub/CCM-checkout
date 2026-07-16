@@ -13,6 +13,10 @@ final class CCMCK_Guias {
     const META_GUIA = '_coordinadora_tracking_number'; // compatible con el plugin de terceros
     const META_URL  = '_coordinadora_tracking_url';
     const META_ID   = '_ccmck_guia_id_remision';
+    // DANE del destino capturado en el checkout ANTES de que el plugin de
+    // ciudades (wc-departamentos-y-ciudades-colombia, main.php:48-53) recorte
+    // los últimos 11 caracteres de la ciudad al guardar el pedido.
+    const META_DANE = '_ccmck_city_dane';
 
     const ENDPOINT_PROD    = 'https://guias.coordinadora.com/ws/guias/1.6/server.php';
     const ENDPOINT_SANDBOX = 'https://sandbox.coordinadora.com/agw/ws/guias/1.6/server.php';
@@ -126,6 +130,22 @@ final class CCMCK_Guias {
             'tracking_url'    => (string) ( $result['url_terceros'] ?? '' ),
             'error'           => '',
         );
+    }
+
+    /**
+     * Resuelve el DANE del destino: meta capturado en el checkout (fuente más
+     * fiable, inmune al recorte del plugin de ciudades) > ciudad de envío >
+     * ciudad de facturación. Devuelve '' si ninguna fuente trae un DANE. PURO.
+     */
+    public static function resolve_destino( string $meta_dane, string $shipping_city, string $billing_city ): string {
+        if ( preg_match( '/^\d{8}$/', $meta_dane ) ) {
+            return $meta_dane;
+        }
+        $destino = CCMCK_Coordinadora::dane_from_city( $shipping_city );
+        if ( '' !== $destino ) {
+            return $destino;
+        }
+        return CCMCK_Coordinadora::dane_from_city( $billing_city );
     }
 
     /** Payload del webhook a n8n (aviso WhatsApp). PURO. */
@@ -246,11 +266,11 @@ final class CCMCK_Guias {
             return;
         }
 
-        $city_raw = (string) $order->get_shipping_city();
-        if ( '' === $city_raw ) {
-            $city_raw = (string) $order->get_billing_city();
-        }
-        $destino = CCMCK_Coordinadora::dane_from_city( $city_raw );
+        $destino = self::resolve_destino(
+            (string) $order->get_meta( self::META_DANE ),
+            (string) $order->get_shipping_city(),
+            (string) $order->get_billing_city()
+        );
         if ( '' === $destino ) {
             $order->add_order_note( 'Guía Coordinadora NO generada: no se pudo extraer el código DANE de la ciudad. Generar manualmente.' );
             self::log( 'Guía pedido #' . $order_id . ': ciudad sin DANE' );
@@ -323,6 +343,26 @@ final class CCMCK_Guias {
             'phone'        => (string) $order->get_billing_phone(),
             'total'        => (float) $order->get_total(),
         ) ) );
+    }
+
+    /**
+     * Captura el DANE del destino en el checkout, ANTES de que el plugin de
+     * ciudades recorte la ciudad al guardar (woocommerce_checkout_update_order_meta).
+     * Hook woocommerce_checkout_create_order: lee la ciudad cruda del POST del
+     * checkout y guarda el DANE en meta propio. El save lo hace WooCommerce.
+     *
+     * @param WC_Order $order Pedido en construcción.
+     * @param array    $data  Datos posteados del checkout.
+     */
+    public static function capture_checkout_dane( $order, $data ): void {
+        $city = (string) ( $data['billing_city'] ?? '' );
+        if ( '' === $city && isset( $data['billing']['city'] ) ) {
+            $city = (string) $data['billing']['city'];
+        }
+        $dane = CCMCK_Coordinadora::dane_from_city( $city );
+        if ( '' !== $dane && is_object( $order ) && method_exists( $order, 'update_meta_data' ) ) {
+            $order->update_meta_data( self::META_DANE, $dane );
+        }
     }
 
     /** Webhook a n8n (aviso WhatsApp). Fire-and-forget: el fallo solo se loguea. */
@@ -408,5 +448,8 @@ final class CCMCK_Guias {
         add_action( 'woocommerce_order_status_processing', array( __CLASS__, 'on_processing' ), 20 );
         add_action( 'woocommerce_admin_order_data_after_billing_address', array( __CLASS__, 'render_admin' ) );
         add_action( 'wp_ajax_ccmck_guia_label', array( __CLASS__, 'ajax_label' ) );
+        // Prio 10: corre antes de woocommerce_checkout_update_order_meta, donde
+        // el plugin de ciudades recorta el DANE de la ciudad.
+        add_action( 'woocommerce_checkout_create_order', array( __CLASS__, 'capture_checkout_dane' ), 10, 2 );
     }
 }

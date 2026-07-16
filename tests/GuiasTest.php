@@ -131,4 +131,27 @@ final class GuiasTest extends TestCase {
     public function test_guia_box_markup_empty_when_no_guia(): void {
         $this->assertSame( '', CCMCK_Guias::guia_box_markup( '', 'x', 'y' ) );
     }
+
+    // --- resolve_destino (meta DANE del checkout > ciudad de envío > facturación) ---
+    public function test_resolve_destino_prefers_checkout_meta(): void {
+        $this->assertSame( '08001000', CCMCK_Guias::resolve_destino( '08001000', 'MEDELLIN (ANT) (05001000)', 'CALI (VAC) (76001000)' ) );
+    }
+
+    public function test_resolve_destino_falls_back_to_shipping_city(): void {
+        $this->assertSame( '05001000', CCMCK_Guias::resolve_destino( '', 'MEDELLIN (ANT) (05001000)', 'CALI (VAC) (76001000)' ) );
+    }
+
+    public function test_resolve_destino_falls_back_to_billing_city(): void {
+        $this->assertSame( '76001000', CCMCK_Guias::resolve_destino( '', '', '76001000' ) );
+    }
+
+    public function test_resolve_destino_invalid_meta_falls_through(): void {
+        // Meta corrupto (no son 8 dígitos) no debe ganar.
+        $this->assertSame( '05001000', CCMCK_Guias::resolve_destino( 'basura', 'MEDELLIN (ANT) (05001000)', '' ) );
+    }
+
+    public function test_resolve_destino_trimmed_cities_yield_empty(): void {
+        // Caso real: el plugin de ciudades recorta el DANE al guardar el pedido.
+        $this->assertSame( '', CCMCK_Guias::resolve_destino( '', 'BARRANQUILLA (ATL)', 'BARRANQUILLA (ATL)' ) );
+    }
 }
