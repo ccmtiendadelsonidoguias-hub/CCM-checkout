@@ -16,7 +16,7 @@ y el proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
   `_coordinadora_tracking_number` (compatible con el plugin de terceros) + URL de rastreo,
   deja nota en el pedido, muestra la guía en el admin con botón **"Descargar rótulo"**
   (PDF al vuelo vía `reimprimirGuia`) y dispara un **webhook a n8n** para avisar al
-  cliente por WhatsApp (workflow `wfGuiaWhatsApp01`, patrón `cwSendWa01`). Se excluyen
+  cliente por WhatsApp (workflow `cwGuiaWa01` del n8n de Chatwoot, plantilla WABA `pedido_despachado`). Se excluyen
   pedidos de recogida local y hay guard de idempotencia (nunca dos guías por pedido).
   Ajustes en *Checkout CCM → Coordinadora → Generación de guías* (toggle off por defecto,
   selector sandbox/producción, credenciales del WS de guías con clave SHA-256 en runtime,

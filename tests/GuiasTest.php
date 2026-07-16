@@ -103,20 +103,23 @@ final class GuiasTest extends TestCase {
         $this->assertFalse( CCMCK_Guias::parse_guia_response( '{"jsonrpc":2,"result":{"codigo_remision":""}}', 200 )['ok'] );
     }
 
-    // --- build_webhook_payload ---
-    public function test_webhook_payload_shape(): void {
+    // --- build_webhook_payload (contrato del endpoint cwGuiaWa01 en n8n) ---
+    public function test_webhook_payload_matches_n8n_contract(): void {
         $p = CCMCK_Guias::build_webhook_payload( array(
-            'order_id' => 55, 'order_number' => '1234', 'guia' => '33042000009',
+            'order_id' => '1234', 'guia' => '33042000009',
             'tracking_url' => 'http://x.co/t', 'name' => 'Cliente Prueba',
-            'phone' => '3014373975', 'total' => 693290.0,
+            'phone' => '3014373975',
         ) );
-        $this->assertSame( 55, $p['order_id'] );
-        $this->assertSame( '1234', $p['order_number'] );
+        // Forma EXACTA que espera el webhook: campos planos, sin extras.
+        $this->assertSame(
+            array( 'order_id', 'phone', 'guia', 'tracking_url', 'customer_name' ),
+            array_keys( $p )
+        );
+        $this->assertSame( '1234', $p['order_id'] );
+        $this->assertSame( '3014373975', $p['phone'] );
         $this->assertSame( '33042000009', $p['guia'] );
         $this->assertSame( 'http://x.co/t', $p['tracking_url'] );
-        $this->assertSame( 'Cliente Prueba', $p['customer']['name'] );
-        $this->assertSame( '3014373975', $p['customer']['phone'] );
-        $this->assertSame( 693290.0, $p['total'] );
+        $this->assertSame( 'Cliente Prueba', $p['customer_name'] );
     }
 
     // --- guia_box_markup ---
