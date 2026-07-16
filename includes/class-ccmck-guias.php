@@ -148,18 +148,21 @@ final class CCMCK_Guias {
         return CCMCK_Coordinadora::dane_from_city( $billing_city );
     }
 
-    /** Payload del webhook a n8n (aviso WhatsApp). PURO. */
+    /**
+     * Payload del webhook a n8n (aviso WhatsApp). Contrato EXACTO del workflow
+     * cwGuiaWa01 (n8n de Chatwoot): campos planos {order_id, phone, guia,
+     * tracking_url, customer_name}; order_id y guia obligatorios; el endpoint
+     * normaliza el teléfono (10 dígitos CO, 57… o +57…). Llamar UNA sola vez
+     * por guía (el endpoint no deduplica; nuestro guard de idempotencia lo
+     * garantiza). PURO.
+     */
     public static function build_webhook_payload( array $args ): array {
         return array(
-            'order_id'     => (int) ( $args['order_id'] ?? 0 ),
-            'order_number' => (string) ( $args['order_number'] ?? '' ),
-            'guia'         => (string) ( $args['guia'] ?? '' ),
-            'tracking_url' => (string) ( $args['tracking_url'] ?? '' ),
-            'customer'     => array(
-                'name'  => (string) ( $args['name'] ?? '' ),
-                'phone' => (string) ( $args['phone'] ?? '' ),
-            ),
-            'total'        => (float) ( $args['total'] ?? 0 ),
+            'order_id'      => (string) ( $args['order_id'] ?? '' ),
+            'phone'         => (string) ( $args['phone'] ?? '' ),
+            'guia'          => (string) ( $args['guia'] ?? '' ),
+            'tracking_url'  => (string) ( $args['tracking_url'] ?? '' ),
+            'customer_name' => (string) ( $args['name'] ?? '' ),
         );
     }
 
@@ -334,15 +337,17 @@ final class CCMCK_Guias {
         $order->save();
         $order->add_order_note( 'Guía Coordinadora generada: ' . $parsed['codigo_remision'] );
 
-        self::send_webhook( self::build_webhook_payload( array(
-            'order_id'     => (int) $order_id,
-            'order_number' => (string) $order->get_order_number(),
+        $wa = self::send_webhook( self::build_webhook_payload( array(
+            'order_id'     => (string) $order->get_order_number(),
             'guia'         => $parsed['codigo_remision'],
             'tracking_url' => $parsed['tracking_url'],
             'name'         => trim( $order->get_billing_first_name() . ' ' . $order->get_billing_last_name() ),
             'phone'        => (string) $order->get_billing_phone(),
-            'total'        => (float) $order->get_total(),
         ) ) );
+        if ( is_array( $wa ) && ! empty( $wa['ok'] ) ) {
+            $modo = (string) ( $wa['mode_used'] ?? '' );
+            $order->add_order_note( 'Aviso de guía enviado al cliente por WhatsApp' . ( '' !== $modo ? ' (' . $modo . ')' : '' ) . '.' );
+        }
     }
 
     /**
@@ -365,11 +370,15 @@ final class CCMCK_Guias {
         }
     }
 
-    /** Webhook a n8n (aviso WhatsApp). Fire-and-forget: el fallo solo se loguea. */
-    private static function send_webhook( array $payload ): void {
+    /**
+     * Webhook a n8n (aviso WhatsApp). Fire-and-forget: el fallo solo se loguea,
+     * nunca bloquea la guía. Devuelve la respuesta decodificada del endpoint
+     * ({ok, mode_used, ...}) o null si no hay URL configurada / falló.
+     */
+    private static function send_webhook( array $payload ): ?array {
         $url = (string) CCMCK_Settings::get( 'guias_webhook_url', '' );
         if ( '' === $url ) {
-            return;
+            return null;
         }
         $response = wp_remote_post( $url, array(
             'timeout' => 5,
@@ -378,7 +387,14 @@ final class CCMCK_Guias {
         ) );
         if ( is_wp_error( $response ) ) {
             self::log( 'Webhook n8n falló (pedido #' . $payload['order_id'] . '): ' . $response->get_error_message() );
+            return null;
         }
+        $body = json_decode( (string) wp_remote_retrieve_body( $response ), true );
+        if ( ! is_array( $body ) || empty( $body['ok'] ) ) {
+            self::log( 'Webhook n8n sin ok (pedido #' . $payload['order_id'] . '): ' . substr( (string) wp_remote_retrieve_body( $response ), 0, 200 ) );
+            return null;
+        }
+        return $body;
     }
 
     /** Markup de la caja de guía en el pedido del admin. PURO. */
