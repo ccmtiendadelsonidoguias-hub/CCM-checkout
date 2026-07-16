@@ -90,6 +90,12 @@ final class GuiasTest extends TestCase {
         $this->assertSame( '33042000009', $r['codigo_remision'] );
         $this->assertSame( 48454758, $r['id_remision'] );
         $this->assertSame( 'http://x.co/vmi/?guia=330', $r['tracking_url'] );
+        $this->assertSame( '', $r['pdf_b64'] ); // pdf_guia vacío en la práctica
+    }
+
+    public function test_parse_guia_returns_pdf_when_present(): void {
+        $body = '{"jsonrpc":2,"id":0,"error":null,"result":{"codigo_remision":"330","pdf_guia":"JVBERi0xLjM="}}';
+        $this->assertSame( 'JVBERi0xLjM=', CCMCK_Guias::parse_guia_response( $body, 200 )['pdf_b64'] );
     }
 
     public function test_parse_guia_business_error(): void {
@@ -114,6 +120,18 @@ final class GuiasTest extends TestCase {
         $this->assertSame(
             array( 'order_id', 'phone', 'guia', 'tracking_url', 'customer_name' ),
             array_keys( $p )
+        );
+        // v2: email y rotulo_b64 son opcionales — solo van si vienen con valor.
+        $p2 = CCMCK_Guias::build_webhook_payload( array(
+            'order_id' => '1234', 'guia' => '33042000009', 'tracking_url' => 'http://x.co/t',
+            'name' => 'Cliente Prueba', 'phone' => '3014373975',
+            'email' => 'cliente@correo.com', 'rotulo_b64' => 'JVBERi0xLjM=',
+        ) );
+        $this->assertSame( 'cliente@correo.com', $p2['email'] );
+        $this->assertSame( 'JVBERi0xLjM=', $p2['rotulo_b64'] );
+        $this->assertSame(
+            array( 'order_id', 'phone', 'guia', 'tracking_url', 'customer_name', 'email', 'rotulo_b64' ),
+            array_keys( $p2 )
         );
         $this->assertSame( '1234', $p['order_id'] );
         $this->assertSame( '3014373975', $p['phone'] );

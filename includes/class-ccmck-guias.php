@@ -109,7 +109,7 @@ final class CCMCK_Guias {
      * @return array{ok:bool, codigo_remision:string, id_remision:int, tracking_url:string, error:string}
      */
     public static function parse_guia_response( string $body, $http_code ): array {
-        $fail = array( 'ok' => false, 'codigo_remision' => '', 'id_remision' => 0, 'tracking_url' => '', 'error' => '' );
+        $fail = array( 'ok' => false, 'codigo_remision' => '', 'id_remision' => 0, 'tracking_url' => '', 'pdf_b64' => '', 'error' => '' );
         $data = json_decode( $body, true );
         if ( ! is_array( $data ) ) {
             $fail['error'] = 'Respuesta no-JSON del WS de guías (HTTP ' . (int) $http_code . ')';
@@ -131,6 +131,7 @@ final class CCMCK_Guias {
             'codigo_remision' => $codigo,
             'id_remision'     => (int) ( $result['id_remision'] ?? 0 ),
             'tracking_url'    => (string) ( $result['url_terceros'] ?? '' ),
+            'pdf_b64'         => (string) ( $result['pdf_guia'] ?? '' ),
             'error'           => '',
         );
     }
@@ -160,13 +161,22 @@ final class CCMCK_Guias {
      * garantiza). PURO.
      */
     public static function build_webhook_payload( array $args ): array {
-        return array(
+        $payload = array(
             'order_id'      => (string) ( $args['order_id'] ?? '' ),
             'phone'         => (string) ( $args['phone'] ?? '' ),
             'guia'          => (string) ( $args['guia'] ?? '' ),
             'tracking_url'  => (string) ( $args['tracking_url'] ?? '' ),
             'customer_name' => (string) ( $args['name'] ?? '' ),
         );
+        // v2: opcionales — correo de despacho al cliente y rótulo PDF (base64)
+        // que el workflow reenvía SIEMPRE al correo de la tienda para imprimir.
+        if ( '' !== (string) ( $args['email'] ?? '' ) ) {
+            $payload['email'] = (string) $args['email'];
+        }
+        if ( '' !== (string) ( $args['rotulo_b64'] ?? '' ) ) {
+            $payload['rotulo_b64'] = (string) $args['rotulo_b64'];
+        }
+        return $payload;
     }
 
     /** Log al canal de WooCommerce. */
@@ -350,12 +360,19 @@ final class CCMCK_Guias {
         $order->save();
         $order->add_order_note( 'Guía Coordinadora generada: ' . $parsed['codigo_remision'] );
 
+        // v2: rótulo en base64 — generarGuia suele devolverlo vacío; si es así,
+        // se pide con reimprimirGuia. El workflow lo manda por correo a la
+        // tienda para imprimir (y al cliente si hay email).
+        $rotulo = '' !== $parsed['pdf_b64'] ? $parsed['pdf_b64'] : self::fetch_label_b64( $parsed['codigo_remision'] );
+
         $wa = self::send_webhook( self::build_webhook_payload( array(
             'order_id'     => (string) $order->get_order_number(),
             'guia'         => $parsed['codigo_remision'],
             'tracking_url' => $parsed['tracking_url'],
             'name'         => trim( $order->get_billing_first_name() . ' ' . $order->get_billing_last_name() ),
             'phone'        => (string) $order->get_billing_phone(),
+            'email'        => (string) $order->get_billing_email(),
+            'rotulo_b64'   => $rotulo,
         ) ) );
         if ( is_array( $wa ) && ! empty( $wa['ok'] ) ) {
             $modo = (string) ( $wa['mode_used'] ?? '' );
@@ -505,6 +522,31 @@ final class CCMCK_Guias {
         exit;
     }
 
+    /**
+     * Rótulo de una guía en base64 vía Guias.reimprimirGuia (formato "1").
+     * Devuelve '' si falla o el contenido no es un PDF válido.
+     */
+    private static function fetch_label_b64( string $guia ): string {
+        $response = self::rpc( 'Guias.reimprimirGuia', array(
+            'usuario'           => (string) CCMCK_Settings::get( 'guias_usuario', '' ),
+            'clave'             => hash( 'sha256', (string) CCMCK_Settings::get( 'guias_clave', '' ) ),
+            'codigo_remision'   => $guia,
+            'formato_impresion' => '1',
+        ) );
+        if ( is_wp_error( $response ) ) {
+            self::log( 'Rótulo guía ' . $guia . ' HTTP: ' . $response->get_error_message() );
+            return '';
+        }
+        $data = json_decode( (string) wp_remote_retrieve_body( $response ), true );
+        $b64  = is_array( $data ) && isset( $data['result']['pdf'] ) ? (string) $data['result']['pdf'] : '';
+        if ( '' === $b64 || '%PDF' !== substr( (string) base64_decode( $b64 ), 0, 4 ) ) {
+            $msg = is_array( $data ) && isset( $data['error']['message'] ) ? (string) $data['error']['message'] : 'sin PDF';
+            self::log( 'Rótulo guía ' . $guia . ': ' . $msg );
+            return '';
+        }
+        return $b64;
+    }
+
     /** AJAX: descarga el rótulo PDF al vuelo vía Guias.reimprimirGuia. */
     public static function ajax_label(): void {
         check_ajax_referer( 'ccmck_guia_label' );
@@ -517,20 +559,10 @@ final class CCMCK_Guias {
         if ( '' === $guia ) {
             wp_die( esc_html__( 'El pedido no tiene guía.', 'ccm-checkout' ) );
         }
-        $response = self::rpc( 'Guias.reimprimirGuia', array(
-            'usuario'          => (string) CCMCK_Settings::get( 'guias_usuario', '' ),
-            'clave'            => hash( 'sha256', (string) CCMCK_Settings::get( 'guias_clave', '' ) ),
-            'codigo_remision'  => $guia,
-            'formato_impresion' => '1',
-        ) );
-        if ( is_wp_error( $response ) ) {
-            wp_die( esc_html( $response->get_error_message() ) );
-        }
-        $data = json_decode( (string) wp_remote_retrieve_body( $response ), true );
-        $pdf  = is_array( $data ) && isset( $data['result']['pdf'] ) ? base64_decode( (string) $data['result']['pdf'] ) : '';
+        $b64 = self::fetch_label_b64( $guia );
+        $pdf = '' !== $b64 ? base64_decode( $b64 ) : '';
         if ( '' === $pdf || '%PDF' !== substr( $pdf, 0, 4 ) ) {
-            $msg = is_array( $data ) && isset( $data['error']['message'] ) ? (string) $data['error']['message'] : 'Rótulo no disponible.';
-            wp_die( esc_html( $msg ) );
+            wp_die( esc_html__( 'Rótulo no disponible.', 'ccm-checkout' ) );
         }
         nocache_headers();
         header( 'Content-Type: application/pdf' );
