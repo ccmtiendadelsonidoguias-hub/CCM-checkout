@@ -184,4 +184,14 @@ final class SettingsTest extends TestCase {
         $this->assertSame( 'https://n8n.x.co/webhook/abc', CCMCK_Settings::sanitize( array( 'guias_webhook_url' => 'https://n8n.x.co/webhook/abc' ) )['guias_webhook_url'] );
         $this->assertSame( '', CCMCK_Settings::sanitize( array( 'guias_webhook_url' => 'javascript:x' ) )['guias_webhook_url'] );
     }
+
+    public function test_defaults_and_sanitize_guias_contra_entrega(): void {
+        $d = CCMCK_Settings::defaults();
+        $this->assertSame( 49445, $d['guias_id_cliente_ce'] );
+        $this->assertSame( 3, $d['guias_cuenta_ce'] );
+        $out = CCMCK_Settings::sanitize( array( 'guias_id_cliente_ce' => '49445x', 'guias_cuenta_ce' => '6' ) );
+        $this->assertSame( 49445, $out['guias_id_cliente_ce'] );
+        $this->assertSame( 6, $out['guias_cuenta_ce'] );
+        $this->assertSame( 3, CCMCK_Settings::sanitize( array() )['guias_cuenta_ce'] );
+    }
 }

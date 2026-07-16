@@ -67,6 +67,11 @@ final class CCMCK_Settings {
             'guias_remitente_direccion' => '',
             'guias_remitente_telefono'  => '',
             'guias_webhook_url'         => '',
+            // Rescate de recogidas: acuerdo de flete contra entrega (el cliente
+            // paga el flete al recibir). Cuenta pendiente de confirmar con
+            // Coordinadora (3 = Flete Pago según doc).
+            'guias_id_cliente_ce'       => 49445,
+            'guias_cuenta_ce'           => 3,
         );
     }
 
@@ -141,6 +146,8 @@ final class CCMCK_Settings {
         $out['guias_remitente_direccion'] = sanitize_text_field( $input['guias_remitente_direccion'] ?? '' );
         $out['guias_remitente_telefono']  = preg_replace( '/[^0-9]/', '', (string) ( $input['guias_remitente_telefono'] ?? '' ) );
         $out['guias_webhook_url']         = esc_url_raw( $input['guias_webhook_url'] ?? '' );
+        $out['guias_id_cliente_ce']       = absint( $input['guias_id_cliente_ce'] ?? $d['guias_id_cliente_ce'] );
+        $out['guias_cuenta_ce']           = absint( $input['guias_cuenta_ce'] ?? $d['guias_cuenta_ce'] );
 
         return $out;
     }

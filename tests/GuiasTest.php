@@ -205,4 +205,27 @@ final class GuiasTest extends TestCase {
     public function test_generate_button_markup_empty_url(): void {
         $this->assertSame( '', CCMCK_Guias::generate_button_markup( '' ) );
     }
+
+    // --- flete contra entrega (rescate de recogidas) ---
+    public function test_params_codigo_cuenta_default_and_override(): void {
+        $this->assertSame( 2, CCMCK_Guias::build_guia_params( $this->args() )['codigo_cuenta'] );
+        $a = $this->args(); $a['codigo_cuenta'] = 3; $a['id_cliente'] = 49445;
+        $p = CCMCK_Guias::build_guia_params( $a );
+        $this->assertSame( 3, $p['codigo_cuenta'] );
+        $this->assertSame( 49445, $p['id_cliente'] );
+    }
+
+    public function test_has_pickup(): void {
+        $this->assertTrue( CCMCK_Guias::has_pickup( array( 'local_pickup' ) ) );
+        $this->assertTrue( CCMCK_Guias::has_pickup( array( 'ccmck_local_pickup' ) ) );
+        $this->assertFalse( CCMCK_Guias::has_pickup( array( 'ccmck_coordinadora' ) ) );
+        $this->assertFalse( CCMCK_Guias::has_pickup( array() ) );
+    }
+
+    public function test_generate_button_markup_contra_entrega_variant(): void {
+        $ce = CCMCK_Guias::generate_button_markup( 'http://x/g', true );
+        $this->assertStringContainsString( 'CONTRA ENTREGA', $ce );
+        $normal = CCMCK_Guias::generate_button_markup( 'http://x/g', false );
+        $this->assertStringNotContainsString( 'CONTRA ENTREGA', $normal );
+    }
 }
