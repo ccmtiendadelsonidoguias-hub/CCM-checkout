@@ -8,6 +8,14 @@ y el proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 ## [Sin publicar]
 
 ### Añadido
+- **Rescate de recogidas con flete CONTRA ENTREGA**: cuando el botón "Generar guía"
+  se usa en un pedido de recogida local (marcada por error), la guía sale con el acuerdo
+  de flete contra entrega (`guias_id_cliente_ce`, default 49445; `guias_cuenta_ce`,
+  default 3) — el cliente paga el flete al recibir, porque no pagó envío en la web. El
+  botón lo advierte antes de confirmar y la nota del pedido lo registra. Los rescates de
+  pedidos normales siguen con el acuerdo estándar. NOTA: bloqueado hasta que Coordinadora
+  repare la parametrización del acuerdo 49445 (error interno `foreach` verificado en
+  sandbox; reclamo enviado). Tests en `GuiasTest` y `SettingsTest`.
 - **Botón "Generar guía Coordinadora" en el pedido**: para pedidos **sin guía**
   (recogidas marcadas por error que sí necesitan envío, o fallos de la automática ya
   corregidos), el admin del pedido muestra un botón que genera la guía con el mismo

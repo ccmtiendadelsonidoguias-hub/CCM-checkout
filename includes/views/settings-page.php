@@ -764,6 +764,20 @@ $ccmck_cats = is_array( $ccmck_cats ) ? $ccmck_cats : array();
 		<td><input type="text" id="ccmck_guias_rt" class="regular-text" name="ccmck_settings[guias_remitente_telefono]" value="<?php echo esc_attr( $s['guias_remitente_telefono'] ); ?>"></td>
 	</tr>
 	<tr>
+		<th scope="row"><label for="ccmck_guias_idce"><?php esc_html_e( 'ID cliente contra entrega', 'ccm-checkout' ); ?></label></th>
+		<td>
+			<input type="number" id="ccmck_guias_idce" name="ccmck_settings[guias_id_cliente_ce]" value="<?php echo esc_attr( (string) $s['guias_id_cliente_ce'] ); ?>">
+			<p class="description"><?php esc_html_e( 'Acuerdo para rescates de recogida local: la guía sale con flete contra entrega (el cliente paga el flete al recibir).', 'ccm-checkout' ); ?></p>
+		</td>
+	</tr>
+	<tr>
+		<th scope="row"><label for="ccmck_guias_ctace"><?php esc_html_e( 'Código de cuenta contra entrega', 'ccm-checkout' ); ?></label></th>
+		<td>
+			<input type="number" id="ccmck_guias_ctace" name="ccmck_settings[guias_cuenta_ce]" value="<?php echo esc_attr( (string) $s['guias_cuenta_ce'] ); ?>">
+			<p class="description"><?php esc_html_e( '3 = Flete Pago (pendiente de confirmar con Coordinadora).', 'ccm-checkout' ); ?></p>
+		</td>
+	</tr>
+	<tr>
 		<th scope="row"><label for="ccmck_guias_wh"><?php esc_html_e( 'Webhook n8n (aviso WhatsApp)', 'ccm-checkout' ); ?></label></th>
 		<td>
 			<input type="text" id="ccmck_guias_wh" class="regular-text ccmck-url-input" name="ccmck_settings[guias_webhook_url]" value="<?php echo esc_attr( $s['guias_webhook_url'] ); ?>" placeholder="https://">

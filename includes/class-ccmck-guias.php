@@ -35,12 +35,8 @@ final class CCMCK_Guias {
         if ( '' === (string) ( $ctx['usuario'] ?? '' ) || '' === (string) ( $ctx['clave'] ?? '' ) ) {
             return array( 'ok' => false, 'reason' => 'faltan credenciales del WS de guías' );
         }
-        if ( ! $manual ) {
-            foreach ( (array) ( $ctx['shipping_ids'] ?? array() ) as $id ) {
-                if ( false !== strpos( (string) $id, 'local_pickup' ) ) {
-                    return array( 'ok' => false, 'reason' => 'pedido con recogida local' );
-                }
-            }
+        if ( ! $manual && self::has_pickup( (array) ( $ctx['shipping_ids'] ?? array() ) ) ) {
+            return array( 'ok' => false, 'reason' => 'pedido con recogida local' );
         }
         if ( '' !== (string) ( $ctx['existing_guia'] ?? '' ) ) {
             return array( 'ok' => false, 'reason' => 'el pedido ya tiene guía' );
@@ -49,6 +45,16 @@ final class CCMCK_Guias {
             return array( 'ok' => false, 'reason' => 'generación en curso (lock)' );
         }
         return array( 'ok' => true, 'reason' => '' );
+    }
+
+    /** ¿Alguno de los métodos de envío es recogida local? PURO. */
+    public static function has_pickup( array $shipping_ids ): bool {
+        foreach ( $shipping_ids as $id ) {
+            if ( false !== strpos( (string) $id, 'local_pickup' ) ) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -85,7 +91,7 @@ final class CCMCK_Guias {
             'ciudad_destinatario'    => (string) ( $dest['ciudad_dane'] ?? '' ),
             'telefono_destinatario'  => (string) ( $dest['telefono'] ?? '' ),
             'valor_declarado'        => (int) ( $args['valor_declarado'] ?? 0 ),
-            'codigo_cuenta'          => 2,
+            'codigo_cuenta'          => (int) ( $args['codigo_cuenta'] ?? 2 ),
             'codigo_producto'        => 0,
             'nivel_servicio'         => 1,
             'linea'                  => '',
@@ -247,6 +253,15 @@ final class CCMCK_Guias {
         return array( 'items' => $items, 'missing' => $missing );
     }
 
+    /** IDs de método de envío del pedido (method_id de cada shipping item). */
+    private static function order_shipping_ids( $order ): array {
+        $ids = array();
+        foreach ( $order->get_shipping_methods() as $sm ) {
+            $ids[] = (string) $sm->get_method_id();
+        }
+        return $ids;
+    }
+
     /** Hook woocommerce_order_status_processing: genera la guía. */
     public static function on_processing( $order_id ): void {
         $order = function_exists( 'wc_get_order' ) ? wc_get_order( $order_id ) : null;
@@ -254,10 +269,7 @@ final class CCMCK_Guias {
             return;
         }
 
-        $shipping_ids = array();
-        foreach ( $order->get_shipping_methods() as $sm ) {
-            $shipping_ids[] = (string) $sm->get_method_id();
-        }
+        $shipping_ids = self::order_shipping_ids( $order );
 
         $check = self::should_generate( array(
             'enabled'       => (bool) CCMCK_Settings::get( 'guias_enabled', false ),
@@ -288,8 +300,9 @@ final class CCMCK_Guias {
      *
      * @return array{ok:bool, error:string}
      */
-    private static function generate_for_order( $order ): array {
+    private static function generate_for_order( $order, array $opts = array() ): array {
         $order_id = (int) $order->get_id();
+        $ce       = ! empty( $opts['contra_entrega'] );
 
         $extracted = self::items_from_order( $order );
         if ( ! $extracted['items'] || '' !== $extracted['missing'] ) {
@@ -322,7 +335,10 @@ final class CCMCK_Guias {
         $params = self::build_guia_params( array(
             'usuario'      => (string) CCMCK_Settings::get( 'guias_usuario', '' ),
             'clave_sha256' => hash( 'sha256', (string) CCMCK_Settings::get( 'guias_clave', '' ) ),
-            'id_cliente'   => (int) CCMCK_Settings::get( 'guias_id_cliente', 49444 ),
+            'id_cliente'   => $ce
+                ? (int) CCMCK_Settings::get( 'guias_id_cliente_ce', 49445 )
+                : (int) CCMCK_Settings::get( 'guias_id_cliente', 49444 ),
+            'codigo_cuenta' => $ce ? (int) CCMCK_Settings::get( 'guias_cuenta_ce', 3 ) : 2,
             'remitente'    => array(
                 'nombre'    => (string) CCMCK_Settings::get( 'guias_remitente_nombre', '' ),
                 'direccion' => (string) CCMCK_Settings::get( 'guias_remitente_direccion', '' ),
@@ -358,7 +374,7 @@ final class CCMCK_Guias {
         $order->update_meta_data( self::META_URL, $parsed['tracking_url'] );
         $order->update_meta_data( self::META_ID, (string) $parsed['id_remision'] );
         $order->save();
-        $order->add_order_note( 'Guía Coordinadora generada: ' . $parsed['codigo_remision'] );
+        $order->add_order_note( 'Guía Coordinadora generada' . ( $ce ? ' (FLETE CONTRA ENTREGA: el cliente paga el flete al recibir)' : '' ) . ': ' . $parsed['codigo_remision'] );
 
         // v2: rótulo en base64 — generarGuia suele devolverlo vacío; si es así,
         // se pide con reimprimirGuia. El workflow lo manda por correo a la
@@ -456,7 +472,7 @@ final class CCMCK_Guias {
                 admin_url( 'admin-ajax.php?action=ccmck_guia_generate&order_id=' . (int) $order->get_id() ),
                 'ccmck_guia_generate'
             );
-            echo self::generate_button_markup( $generate_url ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escapado dentro del método.
+            echo self::generate_button_markup( $generate_url, self::has_pickup( self::order_shipping_ids( $order ) ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escapado dentro del método.
             return;
         }
         $label_url = wp_nonce_url(
@@ -471,12 +487,18 @@ final class CCMCK_Guias {
      * manual salta la exclusión de recogida local (caso de rescate) pero
      * mantiene idempotencia, lock y validaciones. PURO.
      */
-    public static function generate_button_markup( string $generate_url ): string {
+    public static function generate_button_markup( string $generate_url, bool $contra_entrega = false ): string {
         if ( '' === trim( $generate_url ) ) {
             return '';
         }
-        $html  = '<div class="ccmck-guia-box" style="margin-top:12px;">';
-        $html .= '<a class="button" href="' . esc_url( $generate_url ) . '" onclick="return confirm(\'' . esc_js( __( '¿Generar la guía de Coordinadora para este pedido? Se enviará el aviso por WhatsApp al cliente.', 'ccm-checkout' ) ) . '\');">';
+        $html = '<div class="ccmck-guia-box" style="margin-top:12px;">';
+        if ( $contra_entrega ) {
+            $html .= '<p style="margin:0 0 6px;color:#996800;"><strong>' . esc_html__( 'Pedido de recogida local: la guía saldrá con flete CONTRA ENTREGA (el cliente paga el flete al recibir).', 'ccm-checkout' ) . '</strong></p>';
+        }
+        $confirm = $contra_entrega
+            ? __( '¿Generar la guía CONTRA ENTREGA para este pedido? El cliente pagará el flete al recibir. Se enviará el aviso por WhatsApp.', 'ccm-checkout' )
+            : __( '¿Generar la guía de Coordinadora para este pedido? Se enviará el aviso por WhatsApp al cliente.', 'ccm-checkout' );
+        $html .= '<a class="button" href="' . esc_url( $generate_url ) . '" onclick="return confirm(\'' . esc_js( $confirm ) . '\');">';
         $html .= esc_html__( 'Generar guía Coordinadora', 'ccm-checkout' );
         $html .= '</a>';
         $html .= '<p class="description" style="margin:6px 0 0;">' . esc_html__( 'Para recogidas marcadas por error u otros casos manuales. Requiere ciudad con código DANE.', 'ccm-checkout' ) . '</p>';
@@ -508,7 +530,9 @@ final class CCMCK_Guias {
         }
         set_transient( 'ccmck_guia_lock_' . $order_id, 1, 60 );
 
-        $result = self::generate_for_order( $order );
+        $result = self::generate_for_order( $order, array(
+            'contra_entrega' => self::has_pickup( self::order_shipping_ids( $order ) ),
+        ) );
         if ( ! $result['ok'] ) {
             delete_transient( 'ccmck_guia_lock_' . $order_id );
             wp_die(
