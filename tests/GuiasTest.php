@@ -157,4 +157,34 @@ final class GuiasTest extends TestCase {
         // Caso real: el plugin de ciudades recorta el DANE al guardar el pedido.
         $this->assertSame( '', CCMCK_Guias::resolve_destino( '', 'BARRANQUILLA (ATL)', 'BARRANQUILLA (ATL)' ) );
     }
+
+    // --- generación manual (botón en el pedido) ---
+    public function test_manual_skips_pickup_and_enabled_guards(): void {
+        // El botón es acción deliberada del admin: ignora el toggle de
+        // generación automática y la exclusión de recogida local.
+        $r = CCMCK_Guias::should_generate( $this->ctx( array(
+            'manual'       => true,
+            'enabled'      => false,
+            'shipping_ids' => array( 'local_pickup' ),
+        ) ) );
+        $this->assertTrue( $r['ok'] );
+    }
+
+    public function test_manual_still_blocks_existing_guia_and_lock(): void {
+        $this->assertFalse( CCMCK_Guias::should_generate( $this->ctx( array( 'manual' => true, 'existing_guia' => '33042000011' ) ) )['ok'] );
+        $this->assertFalse( CCMCK_Guias::should_generate( $this->ctx( array( 'manual' => true, 'has_lock' => true ) ) )['ok'] );
+        $this->assertFalse( CCMCK_Guias::should_generate( $this->ctx( array( 'manual' => true, 'clave' => '' ) ) )['ok'] );
+    }
+
+    // --- generate_button_markup ---
+    public function test_generate_button_markup_renders_link_and_confirm(): void {
+        $html = CCMCK_Guias::generate_button_markup( 'http://admin.x/generate' );
+        $this->assertStringContainsString( 'http://admin.x/generate', $html );
+        $this->assertStringContainsString( 'Generar guía Coordinadora', $html );
+        $this->assertStringContainsString( 'confirm(', $html );
+    }
+
+    public function test_generate_button_markup_empty_url(): void {
+        $this->assertSame( '', CCMCK_Guias::generate_button_markup( '' ) );
+    }
 }

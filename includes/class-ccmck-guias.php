@@ -28,15 +28,18 @@ final class CCMCK_Guias {
      * @return array{ok:bool, reason:string}
      */
     public static function should_generate( array $ctx ): array {
-        if ( empty( $ctx['enabled'] ) ) {
+        $manual = ! empty( $ctx['manual'] ); // botón del admin: salta toggle y exclusión de pickup
+        if ( ! $manual && empty( $ctx['enabled'] ) ) {
             return array( 'ok' => false, 'reason' => 'generación de guías desactivada' );
         }
         if ( '' === (string) ( $ctx['usuario'] ?? '' ) || '' === (string) ( $ctx['clave'] ?? '' ) ) {
             return array( 'ok' => false, 'reason' => 'faltan credenciales del WS de guías' );
         }
-        foreach ( (array) ( $ctx['shipping_ids'] ?? array() ) as $id ) {
-            if ( false !== strpos( (string) $id, 'local_pickup' ) ) {
-                return array( 'ok' => false, 'reason' => 'pedido con recogida local' );
+        if ( ! $manual ) {
+            foreach ( (array) ( $ctx['shipping_ids'] ?? array() ) as $id ) {
+                if ( false !== strpos( (string) $id, 'local_pickup' ) ) {
+                    return array( 'ok' => false, 'reason' => 'pedido con recogida local' );
+                }
             }
         }
         if ( '' !== (string) ( $ctx['existing_guia'] ?? '' ) ) {
@@ -260,13 +263,29 @@ final class CCMCK_Guias {
         }
         set_transient( 'ccmck_guia_lock_' . $order_id, 1, 60 );
 
+        $result = self::generate_for_order( $order );
+        if ( ! $result['ok'] ) {
+            $order->add_order_note( 'Guía Coordinadora NO generada: ' . $result['error'] . '. Generar manualmente.' );
+            delete_transient( 'ccmck_guia_lock_' . $order_id );
+        }
+    }
+
+    /**
+     * Núcleo compartido de generación (lo usan el hook automático y el botón
+     * manual del pedido). Asume que los guards del llamador ya pasaron. En
+     * éxito guarda metas + notas y dispara el aviso de WhatsApp; en fallo
+     * loguea y devuelve el motivo (el llamador decide cómo presentarlo).
+     *
+     * @return array{ok:bool, error:string}
+     */
+    private static function generate_for_order( $order ): array {
+        $order_id = (int) $order->get_id();
+
         $extracted = self::items_from_order( $order );
         if ( ! $extracted['items'] || '' !== $extracted['missing'] ) {
             $descriptor = '' !== $extracted['missing'] ? $extracted['missing'] : 'sin ítems';
-            $order->add_order_note( 'Guía Coordinadora NO generada: producto sin peso/medidas (' . $descriptor . '). Generar manualmente.' );
             self::log( 'Guía pedido #' . $order_id . ': producto sin peso/medidas (' . $descriptor . ')' );
-            delete_transient( 'ccmck_guia_lock_' . $order_id );
-            return;
+            return array( 'ok' => false, 'error' => 'producto sin peso/medidas (' . $descriptor . ')' );
         }
 
         $destino = self::resolve_destino(
@@ -275,10 +294,8 @@ final class CCMCK_Guias {
             (string) $order->get_billing_city()
         );
         if ( '' === $destino ) {
-            $order->add_order_note( 'Guía Coordinadora NO generada: no se pudo extraer el código DANE de la ciudad. Generar manualmente.' );
             self::log( 'Guía pedido #' . $order_id . ': ciudad sin DANE' );
-            delete_transient( 'ccmck_guia_lock_' . $order_id );
-            return;
+            return array( 'ok' => false, 'error' => 'no se pudo extraer el código DANE de la ciudad' );
         }
 
         $threshold = (float) CCMCK_Settings::get( 'coordinadora_weight_threshold', 5.0 );
@@ -318,17 +335,13 @@ final class CCMCK_Guias {
 
         $response = self::rpc( 'Guias.generarGuia', $params );
         if ( is_wp_error( $response ) ) {
-            $order->add_order_note( 'Guía Coordinadora NO generada (HTTP): ' . $response->get_error_message() );
             self::log( 'Guía pedido #' . $order_id . ' HTTP: ' . $response->get_error_message() );
-            delete_transient( 'ccmck_guia_lock_' . $order_id );
-            return;
+            return array( 'ok' => false, 'error' => 'error de conexión con el WS de guías (' . $response->get_error_message() . ')' );
         }
         $parsed = self::parse_guia_response( (string) wp_remote_retrieve_body( $response ), wp_remote_retrieve_response_code( $response ) );
         if ( ! $parsed['ok'] ) {
-            $order->add_order_note( 'Guía Coordinadora NO generada: ' . $parsed['error'] );
             self::log( 'Guía pedido #' . $order_id . ' API: ' . $parsed['error'] );
-            delete_transient( 'ccmck_guia_lock_' . $order_id );
-            return;
+            return array( 'ok' => false, 'error' => $parsed['error'] );
         }
 
         $order->update_meta_data( self::META_GUIA, $parsed['codigo_remision'] );
@@ -348,6 +361,8 @@ final class CCMCK_Guias {
             $modo = (string) ( $wa['mode_used'] ?? '' );
             $order->add_order_note( 'Aviso de guía enviado al cliente por WhatsApp' . ( '' !== $modo ? ' (' . $modo . ')' : '' ) . '.' );
         }
+
+        return array( 'ok' => true, 'error' => '' );
     }
 
     /**
@@ -416,6 +431,13 @@ final class CCMCK_Guias {
     public static function render_admin( $order ): void {
         $guia = (string) $order->get_meta( self::META_GUIA );
         if ( '' === $guia ) {
+            // Sin guía: botón de generación manual (recogidas marcadas por
+            // error, fallos de la automática ya corregidos, etc.).
+            $generate_url = wp_nonce_url(
+                admin_url( 'admin-ajax.php?action=ccmck_guia_generate&order_id=' . (int) $order->get_id() ),
+                'ccmck_guia_generate'
+            );
+            echo self::generate_button_markup( $generate_url ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escapado dentro del método.
             return;
         }
         $label_url = wp_nonce_url(
@@ -423,6 +445,62 @@ final class CCMCK_Guias {
             'ccmck_guia_label'
         );
         echo self::guia_box_markup( $guia, (string) $order->get_meta( self::META_URL ), $label_url ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escapado dentro del método.
+    }
+
+    /**
+     * Botón "Generar guía Coordinadora" para pedidos sin guía. La generación
+     * manual salta la exclusión de recogida local (caso de rescate) pero
+     * mantiene idempotencia, lock y validaciones. PURO.
+     */
+    public static function generate_button_markup( string $generate_url ): string {
+        if ( '' === trim( $generate_url ) ) {
+            return '';
+        }
+        $html  = '<div class="ccmck-guia-box" style="margin-top:12px;">';
+        $html .= '<a class="button" href="' . esc_url( $generate_url ) . '" onclick="return confirm(\'' . esc_js( __( '¿Generar la guía de Coordinadora para este pedido? Se enviará el aviso por WhatsApp al cliente.', 'ccm-checkout' ) ) . '\');">';
+        $html .= esc_html__( 'Generar guía Coordinadora', 'ccm-checkout' );
+        $html .= '</a>';
+        $html .= '<p class="description" style="margin:6px 0 0;">' . esc_html__( 'Para recogidas marcadas por error u otros casos manuales. Requiere ciudad con código DANE.', 'ccm-checkout' ) . '</p>';
+        $html .= '</div>';
+        return $html;
+    }
+
+    /** AJAX: generación manual de la guía desde el botón del pedido. */
+    public static function ajax_generate(): void {
+        check_ajax_referer( 'ccmck_guia_generate' );
+        if ( ! current_user_can( 'edit_shop_orders' ) ) {
+            wp_die( esc_html__( 'Sin permisos.', 'ccm-checkout' ) );
+        }
+        $order_id = isset( $_GET['order_id'] ) ? absint( $_GET['order_id'] ) : 0;
+        $order    = $order_id ? wc_get_order( $order_id ) : null;
+        if ( ! $order ) {
+            wp_die( esc_html__( 'Pedido no encontrado.', 'ccm-checkout' ) );
+        }
+
+        $check = self::should_generate( array(
+            'manual'        => true,
+            'usuario'       => (string) CCMCK_Settings::get( 'guias_usuario', '' ),
+            'clave'         => (string) CCMCK_Settings::get( 'guias_clave', '' ),
+            'existing_guia' => (string) $order->get_meta( self::META_GUIA ),
+            'has_lock'      => false !== get_transient( 'ccmck_guia_lock_' . $order_id ),
+        ) );
+        if ( ! $check['ok'] ) {
+            wp_die( esc_html( 'No se puede generar la guía: ' . $check['reason'] . '.' ), '', array( 'back_link' => true ) );
+        }
+        set_transient( 'ccmck_guia_lock_' . $order_id, 1, 60 );
+
+        $result = self::generate_for_order( $order );
+        if ( ! $result['ok'] ) {
+            delete_transient( 'ccmck_guia_lock_' . $order_id );
+            wp_die(
+                esc_html( 'No se pudo generar la guía: ' . $result['error'] . '. Corrige el dato en el pedido (ej. Población con su código DANE: MEDELLIN (ANT) (05001000)), guarda y vuelve a intentar.' ),
+                '',
+                array( 'back_link' => true )
+            );
+        }
+
+        wp_safe_redirect( $order->get_edit_order_url() );
+        exit;
     }
 
     /** AJAX: descarga el rótulo PDF al vuelo vía Guias.reimprimirGuia. */
@@ -464,6 +542,7 @@ final class CCMCK_Guias {
         add_action( 'woocommerce_order_status_processing', array( __CLASS__, 'on_processing' ), 20 );
         add_action( 'woocommerce_admin_order_data_after_billing_address', array( __CLASS__, 'render_admin' ) );
         add_action( 'wp_ajax_ccmck_guia_label', array( __CLASS__, 'ajax_label' ) );
+        add_action( 'wp_ajax_ccmck_guia_generate', array( __CLASS__, 'ajax_generate' ) );
         // Prio 10: corre antes de woocommerce_checkout_update_order_meta, donde
         // el plugin de ciudades recorta el DANE de la ciudad.
         add_action( 'woocommerce_checkout_create_order', array( __CLASS__, 'capture_checkout_dane' ), 10, 2 );

@@ -8,6 +8,14 @@ y el proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 ## [Sin publicar]
 
 ### Añadido
+- **Botón "Generar guía Coordinadora" en el pedido**: para pedidos **sin guía**
+  (recogidas marcadas por error que sí necesitan envío, o fallos de la automática ya
+  corregidos), el admin del pedido muestra un botón que genera la guía con el mismo
+  motor (mismas cajas, observaciones de Coordinadora, metas, notas y aviso WhatsApp).
+  El camino manual salta la exclusión de recogida local y el toggle (acción deliberada),
+  pero mantiene idempotencia, lock, credenciales y validaciones de medidas/DANE; los
+  errores se muestran en pantalla con guía de corrección. Refactor: núcleo compartido
+  `generate_for_order()` para el hook automático y el botón. Tests en `GuiasTest`.
 - **Generación automática de guías de Coordinadora**: al pasar un pedido a "Procesando"
   (pago aprobado), el módulo nuevo `CCMCK_Guias` genera la guía vía `Guias.generarGuia`
   con las **mismas cajas** que cotizó el checkout (`CCMCK_Coordinadora::pack`), cumpliendo

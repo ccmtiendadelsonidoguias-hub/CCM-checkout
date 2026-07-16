@@ -50,6 +50,9 @@ if ( ! function_exists( 'esc_attr' ) ) {
 if ( ! function_exists( 'esc_html' ) ) {
     function esc_html( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
 }
+if ( ! function_exists( 'esc_js' ) ) {
+    function esc_js( $s ) { return addslashes( (string) $s ); }
+}
 if ( ! function_exists( 'esc_html__' ) ) {
     function esc_html__( $s, $d = 'default' ) { return $s; }
 }
