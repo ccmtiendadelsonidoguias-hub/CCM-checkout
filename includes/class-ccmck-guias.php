@@ -395,8 +395,10 @@ final class CCMCK_Guias {
         if ( '' === $url ) {
             return null;
         }
+        // 15 s: el workflow n8n envía el WhatsApp (Chatwoot + WABA) ANTES de
+        // responder y puede superar los 5 s (visto en prod: cURL error 28).
         $response = wp_remote_post( $url, array(
-            'timeout' => 5,
+            'timeout' => 15,
             'headers' => array( 'Content-Type' => 'application/json' ),
             'body'    => wp_json_encode( $payload ),
         ) );
