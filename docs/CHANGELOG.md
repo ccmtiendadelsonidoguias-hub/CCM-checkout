@@ -8,6 +8,11 @@ y el proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 ## [Sin publicar]
 
 ### Añadido
+- **Endpoint REST del rótulo**: `GET /wp-json/ccmck/v1/rotulo?order_id=N` (mismo header
+  `X-CCMCK-Secret`) responde `{ok, guia, rotulo_b64}` reutilizando `fetch_label_b64`
+  — lo usa n8n para reenviar notificaciones completas (texto + PDF) cuando la plantilla
+  falló por el bloqueo de Meta y el cliente abre ventana después. 404 sin pedido/guía;
+  422 si Coordinadora no entrega el PDF.
 - **Flujo pickup→envío vía WhatsApp (integración n8n)**: (1) cuando un pedido pagado
   queda en recogida local, el plugin avisa (fire-and-forget, una sola vez por pedido,
   meta `_ccmck_pickup_ask_sent`) al webhook `guias_pickup_ask_url` con

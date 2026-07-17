@@ -658,6 +658,37 @@ final class CCMCK_Guias {
             'callback'            => array( __CLASS__, 'rest_generate' ),
             'permission_callback' => array( __CLASS__, 'rest_permission' ),
         ) );
+        register_rest_route( 'ccmck/v1', '/rotulo', array(
+            'methods'             => 'GET',
+            'callback'            => array( __CLASS__, 'rest_rotulo' ),
+            'permission_callback' => array( __CLASS__, 'rest_permission' ),
+        ) );
+    }
+
+    /**
+     * GET /wp-json/ccmck/v1/rotulo?order_id=N — rótulo en base64 para reenvíos
+     * de notificaciones desde n8n (mismo secreto). 404 sin pedido/guía; 422 si
+     * Coordinadora no entrega el PDF.
+     */
+    public static function rest_rotulo( $request ) {
+        $order_id = absint( $request['order_id'] ?? 0 );
+        $order    = $order_id ? wc_get_order( $order_id ) : null;
+        if ( ! $order ) {
+            return new WP_Error( 'ccmck_not_found', 'Pedido no encontrado.', array( 'status' => 404 ) );
+        }
+        $guia = (string) $order->get_meta( self::META_GUIA );
+        if ( '' === $guia ) {
+            return new WP_Error( 'ccmck_no_guia', 'El pedido no tiene guía.', array( 'status' => 404 ) );
+        }
+        $b64 = self::fetch_label_b64( $guia );
+        if ( '' === $b64 ) {
+            return new WP_Error( 'ccmck_no_rotulo', 'Rótulo no disponible en Coordinadora.', array( 'status' => 422 ) );
+        }
+        return rest_ensure_response( array(
+            'ok'         => true,
+            'guia'       => $guia,
+            'rotulo_b64' => $b64,
+        ) );
     }
 
     /** Auth del endpoint: header X-CCMCK-Secret vs ajuste (comparación de tiempo constante). */
