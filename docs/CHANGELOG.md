@@ -8,6 +8,16 @@ y el proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 ## [Sin publicar]
 
 ### Añadido
+- **Flujo pickup→envío vía WhatsApp (integración n8n)**: (1) cuando un pedido pagado
+  queda en recogida local, el plugin avisa (fire-and-forget, una sola vez por pedido,
+  meta `_ccmck_pickup_ask_sent`) al webhook `guias_pickup_ask_url` con
+  `{order_id, phone, customer_name, email, total}` — n8n le pregunta al cliente por
+  WhatsApp si prefiere envío; (2) endpoint REST `POST /wp-json/ccmck/v1/generar-guia`
+  (header `X-CCMCK-Secret` vs ajuste `guias_api_secret`, comparación de tiempo
+  constante; vacío = desactivado) que genera la guía con las mismas reglas del botón
+  manual (pickup → flete contra entrega) y anota "Cliente pidió cambio a envío con
+  Coordinadora vía WhatsApp". Respuestas: 200 `{ok, guia, tracking_url}` · 403/404/409/422.
+  Tests en `GuiasTest` y `SettingsTest`.
 - **Rescate de recogidas con flete CONTRA ENTREGA**: cuando el botón "Generar guía"
   se usa en un pedido de recogida local (marcada por error), la guía sale con el acuerdo
   de flete contra entrega (`guias_id_cliente_ce`, default 49445; `guias_cuenta_ce`,

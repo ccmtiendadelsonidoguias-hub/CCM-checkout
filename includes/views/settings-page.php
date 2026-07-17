@@ -778,6 +778,20 @@ $ccmck_cats = is_array( $ccmck_cats ) ? $ccmck_cats : array();
 		</td>
 	</tr>
 	<tr>
+		<th scope="row"><label for="ccmck_guias_ask"><?php esc_html_e( 'Webhook n8n (preguntar recogida→envío)', 'ccm-checkout' ); ?></label></th>
+		<td>
+			<input type="text" id="ccmck_guias_ask" class="regular-text ccmck-url-input" name="ccmck_settings[guias_pickup_ask_url]" value="<?php echo esc_attr( $s['guias_pickup_ask_url'] ); ?>" placeholder="https://">
+			<p class="description"><?php esc_html_e( 'Cuando un pedido pagado queda en recogida local, n8n le pregunta al cliente por WhatsApp si prefiere envío. Vacío = desactivado.', 'ccm-checkout' ); ?></p>
+		</td>
+	</tr>
+	<tr>
+		<th scope="row"><label for="ccmck_guias_sec"><?php esc_html_e( 'Secreto del endpoint REST', 'ccm-checkout' ); ?></label></th>
+		<td>
+			<input type="password" id="ccmck_guias_sec" class="regular-text" name="ccmck_settings[guias_api_secret]" value="<?php echo esc_attr( $s['guias_api_secret'] ); ?>" autocomplete="new-password">
+			<p class="description"><?php esc_html_e( 'Header X-CCMCK-Secret de POST /wp-json/ccmck/v1/generar-guia (lo usa n8n). Vacío = endpoint desactivado.', 'ccm-checkout' ); ?></p>
+		</td>
+	</tr>
+	<tr>
 		<th scope="row"><label for="ccmck_guias_wh"><?php esc_html_e( 'Webhook n8n (aviso WhatsApp)', 'ccm-checkout' ); ?></label></th>
 		<td>
 			<input type="text" id="ccmck_guias_wh" class="regular-text ccmck-url-input" name="ccmck_settings[guias_webhook_url]" value="<?php echo esc_attr( $s['guias_webhook_url'] ); ?>" placeholder="https://">

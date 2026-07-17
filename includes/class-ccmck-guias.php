@@ -17,6 +17,9 @@ final class CCMCK_Guias {
     // ciudades (wc-departamentos-y-ciudades-colombia, main.php:48-53) recorte
     // los últimos 11 caracteres de la ciudad al guardar el pedido.
     const META_DANE = '_ccmck_city_dane';
+    // Marca que ya se le preguntó al cliente (vía n8n/WhatsApp) si prefiere
+    // envío en vez de recogida — se pregunta UNA sola vez por pedido.
+    const META_PICKUP_ASK = '_ccmck_pickup_ask_sent';
 
     const ENDPOINT_PROD    = 'https://guias.coordinadora.com/ws/guias/1.6/server.php';
     const ENDPOINT_SANDBOX = 'https://sandbox.coordinadora.com/agw/ws/guias/1.6/server.php';
@@ -185,6 +188,21 @@ final class CCMCK_Guias {
         return $payload;
     }
 
+    /**
+     * Payload del aviso pickup-ask (n8n pregunta por WhatsApp si el cliente
+     * prefiere envío con Coordinadora). Contrato: campos planos, total como
+     * string en COP sin decimales. PURO.
+     */
+    public static function build_pickup_ask_payload( array $args ): array {
+        return array(
+            'order_id'      => (string) ( $args['order_id'] ?? '' ),
+            'phone'         => (string) ( $args['phone'] ?? '' ),
+            'customer_name' => (string) ( $args['name'] ?? '' ),
+            'email'         => (string) ( $args['email'] ?? '' ),
+            'total'         => (string) (int) round( (float) ( $args['total'] ?? 0 ) ),
+        );
+    }
+
     /** Log al canal de WooCommerce. */
     private static function log( string $msg ): void {
         if ( function_exists( 'wc_get_logger' ) ) {
@@ -280,7 +298,10 @@ final class CCMCK_Guias {
             'has_lock'      => false !== get_transient( 'ccmck_guia_lock_' . $order_id ),
         ) );
         if ( ! $check['ok'] ) {
-            // Silencioso para off/pickup/duplicado; son casos normales.
+            if ( 'pedido con recogida local' === $check['reason'] ) {
+                self::maybe_pickup_ask( $order );
+            }
+            // Silencioso para off/duplicado/etc.; son casos normales.
             return;
         }
         set_transient( 'ccmck_guia_lock_' . $order_id, 1, 60 );
@@ -596,11 +617,102 @@ final class CCMCK_Guias {
         exit;
     }
 
+    /**
+     * Pregunta al cliente (vía n8n → WhatsApp) si prefiere envío en vez de
+     * recogida. Fire-and-forget, UNA sola vez por pedido.
+     */
+    private static function maybe_pickup_ask( $order ): void {
+        $url = (string) CCMCK_Settings::get( 'guias_pickup_ask_url', '' );
+        if ( '' === $url || '' !== (string) $order->get_meta( self::META_PICKUP_ASK ) ) {
+            return;
+        }
+        $payload  = self::build_pickup_ask_payload( array(
+            'order_id' => (string) $order->get_order_number(),
+            'phone'    => (string) $order->get_billing_phone(),
+            'name'     => trim( $order->get_billing_first_name() . ' ' . $order->get_billing_last_name() ),
+            'email'    => (string) $order->get_billing_email(),
+            'total'    => (float) $order->get_total(),
+        ) );
+        $response = wp_remote_post( $url, array(
+            'timeout' => 5,
+            'headers' => array( 'Content-Type' => 'application/json' ),
+            'body'    => wp_json_encode( $payload ),
+        ) );
+        if ( is_wp_error( $response ) ) {
+            self::log( 'Pickup-ask falló (pedido #' . $payload['order_id'] . '): ' . $response->get_error_message() );
+            return; // sin marca: se reintenta en la próxima transición a Procesando.
+        }
+        $order->update_meta_data( self::META_PICKUP_ASK, '1' );
+        $order->save();
+        $order->add_order_note( 'Recogida local: se le preguntó al cliente por WhatsApp si prefiere envío con Coordinadora.' );
+    }
+
+    /** Registra la ruta REST para que n8n genere la guía cuando el cliente acepta. */
+    public static function register_rest_routes(): void {
+        register_rest_route( 'ccmck/v1', '/generar-guia', array(
+            'methods'             => 'POST',
+            'callback'            => array( __CLASS__, 'rest_generate' ),
+            'permission_callback' => array( __CLASS__, 'rest_permission' ),
+        ) );
+    }
+
+    /** Auth del endpoint: header X-CCMCK-Secret vs ajuste (comparación de tiempo constante). */
+    public static function rest_permission( $request ) {
+        $secret = (string) CCMCK_Settings::get( 'guias_api_secret', '' );
+        $given  = (string) $request->get_header( 'x-ccmck-secret' );
+        if ( '' === $secret || '' === $given || ! hash_equals( $secret, $given ) ) {
+            return new WP_Error( 'ccmck_forbidden', 'Secreto inválido.', array( 'status' => 403 ) );
+        }
+        return true;
+    }
+
+    /**
+     * POST /wp-json/ccmck/v1/generar-guia {order_id} — genera la guía con las
+     * mismas reglas del botón manual (pickup → flete contra entrega).
+     */
+    public static function rest_generate( $request ) {
+        $order_id = absint( $request['order_id'] ?? 0 );
+        $order    = $order_id ? wc_get_order( $order_id ) : null;
+        if ( ! $order ) {
+            return new WP_Error( 'ccmck_not_found', 'Pedido no encontrado.', array( 'status' => 404 ) );
+        }
+
+        $check = self::should_generate( array(
+            'manual'        => true,
+            'usuario'       => (string) CCMCK_Settings::get( 'guias_usuario', '' ),
+            'clave'         => (string) CCMCK_Settings::get( 'guias_clave', '' ),
+            'existing_guia' => (string) $order->get_meta( self::META_GUIA ),
+            'has_lock'      => false !== get_transient( 'ccmck_guia_lock_' . $order_id ),
+        ) );
+        if ( ! $check['ok'] ) {
+            $conflict = ( 'el pedido ya tiene guía' === $check['reason'] || 'generación en curso (lock)' === $check['reason'] );
+            return new WP_Error( 'ccmck_blocked', $check['reason'], array( 'status' => $conflict ? 409 : 422 ) );
+        }
+        set_transient( 'ccmck_guia_lock_' . $order_id, 1, 60 );
+
+        $order->add_order_note( 'Cliente pidió cambio a envío con Coordinadora vía WhatsApp.' );
+
+        $result = self::generate_for_order( $order, array(
+            'contra_entrega' => self::has_pickup( self::order_shipping_ids( $order ) ),
+        ) );
+        if ( ! $result['ok'] ) {
+            delete_transient( 'ccmck_guia_lock_' . $order_id );
+            return new WP_Error( 'ccmck_failed', $result['error'], array( 'status' => 422 ) );
+        }
+
+        return rest_ensure_response( array(
+            'ok'           => true,
+            'guia'         => (string) $order->get_meta( self::META_GUIA ),
+            'tracking_url' => (string) $order->get_meta( self::META_URL ),
+        ) );
+    }
+
     public static function init(): void {
         add_action( 'woocommerce_order_status_processing', array( __CLASS__, 'on_processing' ), 20 );
         add_action( 'woocommerce_admin_order_data_after_billing_address', array( __CLASS__, 'render_admin' ) );
         add_action( 'wp_ajax_ccmck_guia_label', array( __CLASS__, 'ajax_label' ) );
         add_action( 'wp_ajax_ccmck_guia_generate', array( __CLASS__, 'ajax_generate' ) );
+        add_action( 'rest_api_init', array( __CLASS__, 'register_rest_routes' ) );
         // Prio 10: corre antes de woocommerce_checkout_update_order_meta, donde
         // el plugin de ciudades recorta el DANE de la ciudad.
         add_action( 'woocommerce_checkout_create_order', array( __CLASS__, 'capture_checkout_dane' ), 10, 2 );

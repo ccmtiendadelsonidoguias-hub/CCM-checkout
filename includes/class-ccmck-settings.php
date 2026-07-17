@@ -72,6 +72,10 @@ final class CCMCK_Settings {
             // Coordinadora (3 = Flete Pago según doc).
             'guias_id_cliente_ce'       => 49445,
             'guias_cuenta_ce'           => 3,
+            // Integración n8n pickup→envío: webhook que pregunta al cliente por
+            // WhatsApp, y secreto del endpoint REST /ccmck/v1/generar-guia.
+            'guias_pickup_ask_url'      => '',
+            'guias_api_secret'          => '',
         );
     }
 
@@ -148,6 +152,8 @@ final class CCMCK_Settings {
         $out['guias_webhook_url']         = esc_url_raw( $input['guias_webhook_url'] ?? '' );
         $out['guias_id_cliente_ce']       = absint( $input['guias_id_cliente_ce'] ?? $d['guias_id_cliente_ce'] );
         $out['guias_cuenta_ce']           = absint( $input['guias_cuenta_ce'] ?? $d['guias_cuenta_ce'] );
+        $out['guias_pickup_ask_url']      = esc_url_raw( $input['guias_pickup_ask_url'] ?? '' );
+        $out['guias_api_secret']          = sanitize_text_field( $input['guias_api_secret'] ?? '' );
 
         return $out;
     }

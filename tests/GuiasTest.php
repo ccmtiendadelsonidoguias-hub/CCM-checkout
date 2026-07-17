@@ -228,4 +228,21 @@ final class GuiasTest extends TestCase {
         $normal = CCMCK_Guias::generate_button_markup( 'http://x/g', false );
         $this->assertStringNotContainsString( 'CONTRA ENTREGA', $normal );
     }
+
+    // --- aviso pickup-ask (n8n pregunta ¿recoges o te enviamos?) ---
+    public function test_build_pickup_ask_payload_shape(): void {
+        $p = CCMCK_Guias::build_pickup_ask_payload( array(
+            'order_id' => '1234', 'phone' => '3001234567', 'name' => 'Cliente P',
+            'email' => 'c@x.co', 'total' => 693290.0,
+        ) );
+        $this->assertSame(
+            array( 'order_id', 'phone', 'customer_name', 'email', 'total' ),
+            array_keys( $p )
+        );
+        $this->assertSame( '1234', $p['order_id'] );
+        $this->assertSame( '3001234567', $p['phone'] );
+        $this->assertSame( 'Cliente P', $p['customer_name'] );
+        $this->assertSame( 'c@x.co', $p['email'] );
+        $this->assertSame( '693290', $p['total'] ); // string, sin decimales de COP
+    }
 }
