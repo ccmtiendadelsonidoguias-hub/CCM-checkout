@@ -119,5 +119,7 @@ require_once dirname( __DIR__ ) . '/includes/class-ccmck-payments.php';
 require_once dirname( __DIR__ ) . '/includes/class-ccmck-thankyou.php';
 require_once dirname( __DIR__ ) . '/includes/class-ccmck-shipping.php';
 require_once dirname( __DIR__ ) . '/includes/class-ccmck-pickup.php';
+require_once dirname( __DIR__ ) . '/includes/class-ccmck-cities.php';
+require_once dirname( __DIR__ ) . '/includes/class-ccmck-whatsapp.php';
 require_once dirname( __DIR__ ) . '/includes/class-ccmck-dequeue.php';
 require_once dirname( __DIR__ ) . '/includes/class-ccmck-surcharge.php';
