@@ -633,6 +633,11 @@ final class CCMCK_Guias {
             'email'    => (string) $order->get_billing_email(),
             'total'    => (float) $order->get_total(),
         ) );
+        // AT-MOST-ONCE: se marca ANTES de enviar. Un timeout con el mensaje ya
+        // entregado duplicaría la pregunta al cliente (lección del pedido
+        // #33243 en n8n) — mejor fallar y avisar que preguntar dos veces.
+        $order->update_meta_data( self::META_PICKUP_ASK, '1' );
+        $order->save();
         $response = wp_remote_post( $url, array(
             'timeout' => 5,
             'headers' => array( 'Content-Type' => 'application/json' ),
@@ -640,10 +645,9 @@ final class CCMCK_Guias {
         ) );
         if ( is_wp_error( $response ) ) {
             self::log( 'Pickup-ask falló (pedido #' . $payload['order_id'] . '): ' . $response->get_error_message() );
-            return; // sin marca: se reintenta en la próxima transición a Procesando.
+            $order->add_order_note( 'Recogida local: NO se pudo preguntar al cliente por WhatsApp (fallo de conexión con n8n). Preguntarle manualmente si prefiere envío.' );
+            return;
         }
-        $order->update_meta_data( self::META_PICKUP_ASK, '1' );
-        $order->save();
         $order->add_order_note( 'Recogida local: se le preguntó al cliente por WhatsApp si prefiere envío con Coordinadora.' );
     }
 
