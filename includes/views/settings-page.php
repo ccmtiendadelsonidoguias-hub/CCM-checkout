@@ -26,6 +26,7 @@ defined( 'ABSPATH' ) || exit;
 	<a href="#contenido"   class="nav-tab" data-tab="contenido"><?php esc_html_e( 'Contenido', 'ccm-checkout' ); ?></a>
 	<a href="#postgeneral" class="nav-tab" data-tab="postgeneral"><?php esc_html_e( 'Post-compra y general', 'ccm-checkout' ); ?></a>
 	<a href="#pagos"       class="nav-tab" data-tab="pagos"><?php esc_html_e( 'Pagos', 'ccm-checkout' ); ?></a>
+	<a href="#coordinadora" class="nav-tab" data-tab="coordinadora"><?php esc_html_e( 'Coordinadora', 'ccm-checkout' ); ?></a>
 </h2>
 
 <?php /* ===== PESTAÑA: MARCA Y DISEÑO ===== */ ?>
@@ -620,3 +621,183 @@ $display_ids   = array_values( array_filter( $display_ids, function ( $id ) use 
 <?php endif; ?>
 
 </div><?php /* /panel pagos */ ?>
+
+<?php /* ===== PESTAÑA: COORDINADORA ===== */ ?>
+<div class="ccmck-tab-panel" data-tab="coordinadora">
+
+<h2><?php esc_html_e( 'Cotización de envío (Coordinadora)', 'ccm-checkout' ); ?></h2>
+<p class="description">
+	<?php esc_html_e( 'Cotiza el flete directo con tus credenciales agrupando el carrito en cajas. Con el interruptor apagado, el checkout sigue usando el método anterior.', 'ccm-checkout' ); ?>
+</p>
+
+<table class="form-table" role="presentation">
+	<tr>
+		<th scope="row"><?php esc_html_e( 'Activar', 'ccm-checkout' ); ?></th>
+		<td>
+			<label>
+				<input type="checkbox" name="ccmck_settings[coordinadora_enabled]" value="1" <?php checked( ! empty( $s['coordinadora_enabled'] ) ); ?>>
+				<?php esc_html_e( 'Cotizar el flete de Coordinadora desde este plugin', 'ccm-checkout' ); ?>
+			</label>
+		</td>
+	</tr>
+	<tr>
+		<th scope="row"><label for="ccmck_coord_apikey">API key</label></th>
+		<td><input type="text" id="ccmck_coord_apikey" class="regular-text" name="ccmck_settings[coordinadora_apikey]" value="<?php echo esc_attr( $s['coordinadora_apikey'] ); ?>" autocomplete="off"></td>
+	</tr>
+	<tr>
+		<th scope="row"><label for="ccmck_coord_clave"><?php esc_html_e( 'Clave', 'ccm-checkout' ); ?></label></th>
+		<td><input type="password" id="ccmck_coord_clave" class="regular-text" name="ccmck_settings[coordinadora_clave]" value="<?php echo esc_attr( $s['coordinadora_clave'] ); ?>" autocomplete="new-password"></td>
+	</tr>
+	<tr>
+		<th scope="row"><label for="ccmck_coord_nit">NIT</label></th>
+		<td><input type="text" id="ccmck_coord_nit" class="regular-text" name="ccmck_settings[coordinadora_nit]" value="<?php echo esc_attr( $s['coordinadora_nit'] ); ?>"></td>
+	</tr>
+	<tr>
+		<th scope="row"><label for="ccmck_coord_origin"><?php esc_html_e( 'Ciudad origen (DANE)', 'ccm-checkout' ); ?></label></th>
+		<td>
+			<input type="text" id="ccmck_coord_origin" class="regular-text" name="ccmck_settings[coordinadora_origin]" value="<?php echo esc_attr( $s['coordinadora_origin'] ); ?>">
+			<p class="description"><?php esc_html_e( 'Código DANE de 8 dígitos. Barranquilla = 08001000.', 'ccm-checkout' ); ?></p>
+		</td>
+	</tr>
+	<tr>
+		<th scope="row"><label for="ccmck_coord_thr"><?php esc_html_e( 'Umbral de peso (kg)', 'ccm-checkout' ); ?></label></th>
+		<td>
+			<input type="number" step="0.1" min="0" id="ccmck_coord_thr" name="ccmck_settings[coordinadora_weight_threshold]" value="<?php echo esc_attr( (string) $s['coordinadora_weight_threshold'] ); ?>">
+			<p class="description"><?php esc_html_e( 'Productos con peso ≥ este valor van en cajas separadas; por debajo se consolidan.', 'ccm-checkout' ); ?></p>
+		</td>
+	</tr>
+</table>
+
+<h3><?php esc_html_e( 'Reglas de caja por categoría', 'ccm-checkout' ); ?></h3>
+<p class="description"><?php esc_html_e( 'Cuántas unidades de una categoría caben por caja (ej.: Parlantes → 2). Las categorías sin regla se resuelven por peso.', 'ccm-checkout' ); ?></p>
+
+<?php
+$ccmck_cats = function_exists( 'get_terms' ) ? get_terms( array( 'taxonomy' => 'product_cat', 'hide_empty' => false ) ) : array();
+$ccmck_cats = is_array( $ccmck_cats ) ? $ccmck_cats : array();
+?>
+
+<div class="ccmck-repeater" data-field="coordinadora_box_rules" id="ccmck-repeater-coordinadora_box_rules">
+	<?php foreach ( (array) $s['coordinadora_box_rules'] as $i => $row ) : ?>
+	<div class="ccmck-row ccmck-row--rule" data-index="<?php echo esc_attr( (string) $i ); ?>">
+		<select name="ccmck_settings[coordinadora_box_rules][<?php echo esc_attr( (string) $i ); ?>][cat]">
+			<option value="0"><?php esc_html_e( '— Categoría —', 'ccm-checkout' ); ?></option>
+			<?php foreach ( $ccmck_cats as $cat ) : ?>
+				<option value="<?php echo esc_attr( (string) $cat->term_id ); ?>" <?php selected( (int) ( $row['cat'] ?? 0 ), (int) $cat->term_id ); ?>><?php echo esc_html( $cat->name ); ?></option>
+			<?php endforeach; ?>
+		</select>
+		<input type="number" min="1" step="1" placeholder="<?php esc_attr_e( 'N por caja', 'ccm-checkout' ); ?>"
+		       name="ccmck_settings[coordinadora_box_rules][<?php echo esc_attr( (string) $i ); ?>][n]"
+		       value="<?php echo esc_attr( (int) ( $row['n'] ?? 0 ) > 0 ? (string) (int) $row['n'] : '' ); ?>">
+		<button type="button" class="button ccmck-remove-row"><?php esc_html_e( 'Eliminar', 'ccm-checkout' ); ?></button>
+	</div>
+	<?php endforeach; ?>
+
+	<div class="ccmck-row-template ccmck-row ccmck-row--rule" style="display:none" data-index="__i__">
+		<select name="ccmck_settings[coordinadora_box_rules][__i__][cat]">
+			<option value="0"><?php esc_html_e( '— Categoría —', 'ccm-checkout' ); ?></option>
+			<?php foreach ( $ccmck_cats as $cat ) : ?>
+				<option value="<?php echo esc_attr( (string) $cat->term_id ); ?>"><?php echo esc_html( $cat->name ); ?></option>
+			<?php endforeach; ?>
+		</select>
+		<input type="number" min="1" step="1" placeholder="<?php esc_attr_e( 'N por caja', 'ccm-checkout' ); ?>"
+		       name="ccmck_settings[coordinadora_box_rules][__i__][n]" value="">
+		<button type="button" class="button ccmck-remove-row"><?php esc_html_e( 'Eliminar', 'ccm-checkout' ); ?></button>
+	</div>
+
+	<button type="button" class="button ccmck-add-row" data-repeater="ccmck-repeater-coordinadora_box_rules">
+		<?php esc_html_e( '+ Añadir regla', 'ccm-checkout' ); ?>
+	</button>
+</div>
+
+<h3><?php esc_html_e( 'Generación de guías', 'ccm-checkout' ); ?></h3>
+<p class="description">
+	<?php esc_html_e( 'Genera la guía automáticamente cuando el pedido pasa a "Procesando" (pago aprobado). Prueba primero en sandbox; Coordinadora debe revisar la liquidación de los primeros despachos en producción.', 'ccm-checkout' ); ?>
+</p>
+
+<table class="form-table" role="presentation">
+	<tr>
+		<th scope="row"><?php esc_html_e( 'Activar', 'ccm-checkout' ); ?></th>
+		<td>
+			<label>
+				<input type="checkbox" name="ccmck_settings[guias_enabled]" value="1" <?php checked( ! empty( $s['guias_enabled'] ) ); ?>>
+				<?php esc_html_e( 'Generar guías automáticamente', 'ccm-checkout' ); ?>
+			</label>
+		</td>
+	</tr>
+	<tr>
+		<th scope="row"><label for="ccmck_guias_env"><?php esc_html_e( 'Ambiente', 'ccm-checkout' ); ?></label></th>
+		<td>
+			<select id="ccmck_guias_env" name="ccmck_settings[guias_env]">
+				<option value="sandbox" <?php selected( $s['guias_env'], 'sandbox' ); ?>><?php esc_html_e( 'Sandbox (pruebas)', 'ccm-checkout' ); ?></option>
+				<option value="production" <?php selected( $s['guias_env'], 'production' ); ?>><?php esc_html_e( 'Producción', 'ccm-checkout' ); ?></option>
+			</select>
+		</td>
+	</tr>
+	<tr>
+		<th scope="row"><label for="ccmck_guias_usuario"><?php esc_html_e( 'Usuario WS guías', 'ccm-checkout' ); ?></label></th>
+		<td><input type="text" id="ccmck_guias_usuario" class="regular-text" name="ccmck_settings[guias_usuario]" value="<?php echo esc_attr( $s['guias_usuario'] ); ?>" autocomplete="off"></td>
+	</tr>
+	<tr>
+		<th scope="row"><label for="ccmck_guias_clave"><?php esc_html_e( 'Clave WS guías', 'ccm-checkout' ); ?></label></th>
+		<td>
+			<input type="password" id="ccmck_guias_clave" class="regular-text" name="ccmck_settings[guias_clave]" value="<?php echo esc_attr( $s['guias_clave'] ); ?>" autocomplete="new-password">
+			<p class="description"><?php esc_html_e( 'Se envía cifrada (SHA-256) al web service.', 'ccm-checkout' ); ?></p>
+		</td>
+	</tr>
+	<tr>
+		<th scope="row"><label for="ccmck_guias_idc"><?php esc_html_e( 'ID de cliente (acuerdo)', 'ccm-checkout' ); ?></label></th>
+		<td><input type="number" id="ccmck_guias_idc" name="ccmck_settings[guias_id_cliente]" value="<?php echo esc_attr( (string) $s['guias_id_cliente'] ); ?>"></td>
+	</tr>
+	<tr>
+		<th scope="row"><label for="ccmck_guias_rn"><?php esc_html_e( 'Remitente — razón social', 'ccm-checkout' ); ?></label></th>
+		<td><input type="text" id="ccmck_guias_rn" class="regular-text" name="ccmck_settings[guias_remitente_nombre]" value="<?php echo esc_attr( $s['guias_remitente_nombre'] ); ?>"></td>
+	</tr>
+	<tr>
+		<th scope="row"><label for="ccmck_guias_rd"><?php esc_html_e( 'Remitente — dirección', 'ccm-checkout' ); ?></label></th>
+		<td>
+			<input type="text" id="ccmck_guias_rd" class="regular-text" name="ccmck_settings[guias_remitente_direccion]" value="<?php echo esc_attr( $s['guias_remitente_direccion'] ); ?>">
+			<p class="description"><?php esc_html_e( 'Dirección física de donde Coordinadora recoge el despacho. La ciudad usa el mismo código DANE de origen de la cotización.', 'ccm-checkout' ); ?></p>
+		</td>
+	</tr>
+	<tr>
+		<th scope="row"><label for="ccmck_guias_rt"><?php esc_html_e( 'Remitente — teléfono', 'ccm-checkout' ); ?></label></th>
+		<td><input type="text" id="ccmck_guias_rt" class="regular-text" name="ccmck_settings[guias_remitente_telefono]" value="<?php echo esc_attr( $s['guias_remitente_telefono'] ); ?>"></td>
+	</tr>
+	<tr>
+		<th scope="row"><label for="ccmck_guias_idce"><?php esc_html_e( 'ID cliente contra entrega', 'ccm-checkout' ); ?></label></th>
+		<td>
+			<input type="number" id="ccmck_guias_idce" name="ccmck_settings[guias_id_cliente_ce]" value="<?php echo esc_attr( (string) $s['guias_id_cliente_ce'] ); ?>">
+			<p class="description"><?php esc_html_e( 'Acuerdo para rescates de recogida local: la guía sale con flete contra entrega (el cliente paga el flete al recibir).', 'ccm-checkout' ); ?></p>
+		</td>
+	</tr>
+	<tr>
+		<th scope="row"><label for="ccmck_guias_ctace"><?php esc_html_e( 'Código de cuenta contra entrega', 'ccm-checkout' ); ?></label></th>
+		<td>
+			<input type="number" id="ccmck_guias_ctace" name="ccmck_settings[guias_cuenta_ce]" value="<?php echo esc_attr( (string) $s['guias_cuenta_ce'] ); ?>">
+			<p class="description"><?php esc_html_e( '3 = Flete Pago (pendiente de confirmar con Coordinadora).', 'ccm-checkout' ); ?></p>
+		</td>
+	</tr>
+	<tr>
+		<th scope="row"><label for="ccmck_guias_ask"><?php esc_html_e( 'Webhook n8n (preguntar recogida→envío)', 'ccm-checkout' ); ?></label></th>
+		<td>
+			<input type="text" id="ccmck_guias_ask" class="regular-text ccmck-url-input" name="ccmck_settings[guias_pickup_ask_url]" value="<?php echo esc_attr( $s['guias_pickup_ask_url'] ); ?>" placeholder="https://">
+			<p class="description"><?php esc_html_e( 'Cuando un pedido pagado queda en recogida local, n8n le pregunta al cliente por WhatsApp si prefiere envío. Vacío = desactivado.', 'ccm-checkout' ); ?></p>
+		</td>
+	</tr>
+	<tr>
+		<th scope="row"><label for="ccmck_guias_sec"><?php esc_html_e( 'Secreto del endpoint REST', 'ccm-checkout' ); ?></label></th>
+		<td>
+			<input type="password" id="ccmck_guias_sec" class="regular-text" name="ccmck_settings[guias_api_secret]" value="<?php echo esc_attr( $s['guias_api_secret'] ); ?>" autocomplete="new-password">
+			<p class="description"><?php esc_html_e( 'Header X-CCMCK-Secret de POST /wp-json/ccmck/v1/generar-guia (lo usa n8n). Vacío = endpoint desactivado.', 'ccm-checkout' ); ?></p>
+		</td>
+	</tr>
+	<tr>
+		<th scope="row"><label for="ccmck_guias_wh"><?php esc_html_e( 'Webhook n8n (aviso WhatsApp)', 'ccm-checkout' ); ?></label></th>
+		<td>
+			<input type="text" id="ccmck_guias_wh" class="regular-text ccmck-url-input" name="ccmck_settings[guias_webhook_url]" value="<?php echo esc_attr( $s['guias_webhook_url'] ); ?>" placeholder="https://">
+			<p class="description"><?php esc_html_e( 'Opcional. Al generarse la guía se envía un POST con pedido, guía, rastreo y cliente. Vacío = no se envía.', 'ccm-checkout' ); ?></p>
+		</td>
+	</tr>
+</table>
+
+</div><?php /* /panel coordinadora */ ?>

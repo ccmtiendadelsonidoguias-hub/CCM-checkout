@@ -235,6 +235,6 @@ Añadir entrada en `docs/CHANGELOG.md` (sección *Añadido*) describiendo el res
 ## Notas de verificación
 
 - Sin tests JS/PHP unitarios para esto → verificación **en vivo por chrome-devtools MCP** con
-  viewport móvil sobre `dev.ccmtiendadelsonido.com/pago/`.
+  viewport móvil sobre `dev.dev.ccmtiendadelsonido.com/pago/`.
 - Riesgo principal: que `#payment` no se re-renderice en AJAX (totales obsoletos). Mitigado con
   la verificación explícita 2.4 y la contingencia del Step 3 de Task 4.

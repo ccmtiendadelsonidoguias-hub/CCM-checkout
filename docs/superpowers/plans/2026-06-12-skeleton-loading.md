@@ -18,7 +18,7 @@
 
 Contenedores objetivo (estables, definidos por las plantillas del plugin): `.checkout-main .form-row` (campos), `.ccmck-shipping-section` → `#ccmck_shipping_methods` (envío), `.ccmck-payment-section` → `#payment` (pago), `.checkout-sidebar .sidebar-inner` (resumen). Las reglas CSS son por selector, así que siguen aplicando aunque WC reemplace el contenido interno.
 
-No hay harness de tests JS → cada tarea se verifica por MCP en `https://dev.ccmtiendadelsonido.com/pago/`.
+No hay harness de tests JS → cada tarea se verifica por MCP en `https://dev.dev.ccmtiendadelsonido.com/pago/`.
 
 ---
 
@@ -357,7 +357,7 @@ Añadir entrada en `docs/CHANGELOG.md` (sección *Añadido*) describiendo el ske
 ## Notas de verificación
 
 - Sin tests JS en el repo → verificación **en vivo por chrome-devtools MCP** sobre
-  `dev.ccmtiendadelsonido.com/pago/`.
+  `dev.dev.ccmtiendadelsonido.com/pago/`.
 - Los `top`/`height` de los paneles skeleton (envío 44px, pago 84px, resumen 24/116px) son
   aproximados al layout actual; ajustar finos **en vivo por MCP** si algún panel queda
   desalineado respecto al encabezado de su sección.

@@ -17,7 +17,7 @@
   - Reemplazar el handler `$( document.body ).on( 'checkout_error', … )` (actualmente líneas ~321-331) por una llamada a `ccmckMapServerErrors`.
 - **Reusa sin cambios:** `ccmckSetRowError`, `ccmckClearRowError`, `ccmckFieldControl` (ya existen), y el CSS `.ccmck-invalid` / `.ccmck-field-error` / `.ccmck-notice-relocated`.
 
-No se crean archivos nuevos. No hay harness de tests JS → cada tarea se verifica inyectando errores reales por MCP en `https://dev.ccmtiendadelsonido.com/pago/`.
+No se crean archivos nuevos. No hay harness de tests JS → cada tarea se verifica inyectando errores reales por MCP en `https://dev.dev.ccmtiendadelsonido.com/pago/`.
 
 ---
 
@@ -329,7 +329,7 @@ Anotar en `docs/CHANGELOG.md` el cambio y, si procede, actualizar la nota de pro
 ## Notas de verificación
 
 - No hay harness de tests JS en el repo → la verificación es **inyección en vivo por
-  chrome-devtools MCP** sobre `dev.ccmtiendadelsonido.com/pago/`, consistente con cómo se
+  chrome-devtools MCP** sobre `dev.dev.ccmtiendadelsonido.com/pago/`, consistente con cómo se
   verificó todo el checkout hasta ahora.
 - El estilo inline (`.ccmck-field-error`, borde rojo) y el aviso (`.ccmck-notice-relocated`)
   **ya existen**: no se añade CSS. Si tras ver el resultado el usuario quiere igualar

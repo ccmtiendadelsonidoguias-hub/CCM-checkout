@@ -6,7 +6,7 @@
 
 ## Contexto
 
-El checkout de ccmck (`dev.ccmtiendadelsonido.com/pago/`) hoy renderiza el formulario en
+El checkout de ccmck (`dev.dev.ccmtiendadelsonido.com/pago/`) hoy renderiza el formulario en
 dos columnas internas (`col-1` billing | `col-2` shipping) **sin encabezados de sección**, y
 los **métodos de envío sólo aparecen en el sidebar** (dentro de la tabla de totales del
 order-review). El usuario quiere replicar el orden por secciones del checkout estilo Shopify

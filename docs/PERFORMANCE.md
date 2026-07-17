@@ -83,5 +83,5 @@ cachear la página completa. Por eso el TTFB depende de lo rápido que PHP gener
 
 ---
 
-*Mediciones tomadas en `dev.ccmtiendadelsonido.com/pago/`. En producción, validar con
+*Mediciones tomadas en `dev.dev.ccmtiendadelsonido.com/pago/`. En producción, validar con
 campo real (CrUX/RUM) además del lab.*

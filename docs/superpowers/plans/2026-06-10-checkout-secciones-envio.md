@@ -649,7 +649,7 @@ Luego **purgar OPcache** (los PHP no aplican sin esto). El CSS auto-busta por `?
 
 - [ ] **Step 6: Verificación en vivo (chrome-devtools MCP)**
 
-1. Navegar a `https://dev.ccmtiendadelsonido.com/pago/` con carrito; hard-reload.
+1. Navegar a `https://dev.dev.ccmtiendadelsonido.com/pago/` con carrito; hard-reload.
 2. `evaluate_script`: confirmar que existen 4 encabezados en orden:
    `[...document.querySelectorAll('.checkout-main h2')].map(h=>h.textContent.trim())`
    Expected: `["Contacto","Entrega","Métodos de envío","Pago"]`.

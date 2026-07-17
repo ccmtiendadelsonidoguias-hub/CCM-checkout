@@ -48,6 +48,34 @@ final class CCMCK_Settings {
             // IDs de términos de marca (taxonomía product_brand) a los que aplica el
             // recargo. Vacío = aplica a TODOS los productos.
             'surcharge_brands'       => array(),
+            // Coordinadora — cotización directa del flete (ver spec 2026-07-08).
+            'coordinadora_enabled'          => false,
+            'coordinadora_apikey'           => '',
+            'coordinadora_clave'            => '',
+            'coordinadora_nit'              => '901677789',
+            'coordinadora_origin'           => '08001000',
+            'coordinadora_weight_threshold' => 5.0,
+            'coordinadora_box_rules'        => array(),
+            // Generación de guías (ver spec 2026-07-15). Clave se guarda plana; se
+            // hashea SHA-256 al llamar el WS.
+            'guias_enabled'             => false,
+            'guias_env'                 => 'sandbox',
+            'guias_usuario'             => 'ccmtienda.ws',
+            'guias_clave'               => '',
+            'guias_id_cliente'          => 49444,
+            'guias_remitente_nombre'    => 'CCM Tienda del Sonido',
+            'guias_remitente_direccion' => '',
+            'guias_remitente_telefono'  => '',
+            'guias_webhook_url'         => '',
+            // Rescate de recogidas: acuerdo de flete contra entrega (el cliente
+            // paga el flete al recibir). Cuenta pendiente de confirmar con
+            // Coordinadora (3 = Flete Pago según doc).
+            'guias_id_cliente_ce'       => 49445,
+            'guias_cuenta_ce'           => 3,
+            // Integración n8n pickup→envío: webhook que pregunta al cliente por
+            // WhatsApp, y secreto del endpoint REST /ccmck/v1/generar-guia.
+            'guias_pickup_ask_url'      => '',
+            'guias_api_secret'          => '',
         );
     }
 
@@ -99,6 +127,34 @@ final class CCMCK_Settings {
         $brands = array_map( 'absint', (array) ( $input['surcharge_brands'] ?? array() ) );
         $out['surcharge_brands'] = array_values( array_unique( array_filter( $brands ) ) );
 
+        $out['coordinadora_enabled'] = ! empty( $input['coordinadora_enabled'] );
+        $out['coordinadora_apikey']  = sanitize_text_field( $input['coordinadora_apikey'] ?? '' );
+        $out['coordinadora_clave']   = sanitize_text_field( $input['coordinadora_clave'] ?? '' );
+        $out['coordinadora_nit']     = preg_replace( '/[^0-9]/', '', (string) ( $input['coordinadora_nit'] ?? '' ) );
+        $out['coordinadora_origin']  = preg_replace( '/[^0-9]/', '', (string) ( $input['coordinadora_origin'] ?? '' ) );
+
+        $thr = isset( $input['coordinadora_weight_threshold'] )
+            ? str_replace( ',', '.', (string) $input['coordinadora_weight_threshold'] )
+            : (string) $d['coordinadora_weight_threshold'];
+        $out['coordinadora_weight_threshold'] = max( 0.0, round( (float) $thr, 2 ) );
+
+        $out['coordinadora_box_rules'] = self::sanitize_box_rules( $input['coordinadora_box_rules'] ?? array() );
+
+        $out['guias_enabled'] = ! empty( $input['guias_enabled'] );
+        $env                  = (string) ( $input['guias_env'] ?? 'sandbox' );
+        $out['guias_env']     = in_array( $env, array( 'sandbox', 'production' ), true ) ? $env : 'sandbox';
+        $out['guias_usuario'] = sanitize_text_field( $input['guias_usuario'] ?? $d['guias_usuario'] );
+        $out['guias_clave']   = sanitize_text_field( $input['guias_clave'] ?? '' );
+        $out['guias_id_cliente'] = absint( $input['guias_id_cliente'] ?? $d['guias_id_cliente'] );
+        $out['guias_remitente_nombre']    = sanitize_text_field( $input['guias_remitente_nombre'] ?? $d['guias_remitente_nombre'] );
+        $out['guias_remitente_direccion'] = sanitize_text_field( $input['guias_remitente_direccion'] ?? '' );
+        $out['guias_remitente_telefono']  = preg_replace( '/[^0-9]/', '', (string) ( $input['guias_remitente_telefono'] ?? '' ) );
+        $out['guias_webhook_url']         = esc_url_raw( $input['guias_webhook_url'] ?? '' );
+        $out['guias_id_cliente_ce']       = absint( $input['guias_id_cliente_ce'] ?? $d['guias_id_cliente_ce'] );
+        $out['guias_cuenta_ce']           = absint( $input['guias_cuenta_ce'] ?? $d['guias_cuenta_ce'] );
+        $out['guias_pickup_ask_url']      = esc_url_raw( $input['guias_pickup_ask_url'] ?? '' );
+        $out['guias_api_secret']          = sanitize_text_field( $input['guias_api_secret'] ?? '' );
+
         return $out;
     }
 
@@ -125,6 +181,24 @@ final class CCMCK_Settings {
                     'a'          => $a,
                     'icon_image' => esc_url_raw( $row['icon_image'] ?? '' ),
                 );
+            }
+        }
+        return $clean;
+    }
+
+    /**
+     * Reglas de empaque: filas {cat, n}. Descarta cat<=0 o n<1 y deduplica por
+     * categoría (la primera fila de cada categoría gana). PURO.
+     */
+    private static function sanitize_box_rules( $rows ): array {
+        $clean = array();
+        $seen  = array();
+        foreach ( (array) $rows as $row ) {
+            $cat = absint( $row['cat'] ?? 0 );
+            $n   = absint( $row['n'] ?? 0 );
+            if ( $cat > 0 && $n > 0 && ! isset( $seen[ $cat ] ) ) {
+                $seen[ $cat ] = true;
+                $clean[]      = array( 'cat' => $cat, 'n' => $n );
             }
         }
         return $clean;

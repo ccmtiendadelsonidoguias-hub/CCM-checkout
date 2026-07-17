@@ -69,7 +69,7 @@ y el proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 ## [1.0.1] - 2026-06-05
 
 ### Cambiado
-- Activación en producción (`dev.ccmtiendadelsonido.com/pago/`): reemplazo de CheckoutWC por el mu-plugin propio.
+- Activación en producción (`dev.dev.ccmtiendadelsonido.com/pago/`): reemplazo de CheckoutWC por el mu-plugin propio.
 
 ## [1.0.0] - 2026-06-04
 

@@ -77,7 +77,7 @@ Los campos solo llevan skeleton en la carga inicial (no se recargan por AJAX).
 ## Verificación
 
 Sin tests JS en el repo → verificación **en vivo por chrome-devtools MCP** sobre
-`dev.ccmtiendadelsonido.com/pago/`:
+`dev.dev.ccmtiendadelsonido.com/pago/`:
 1. Carga inicial: recargar y comprobar que el skeleton se ve desde el inicio y se retira al
    estar listo (sin flash), con fade.
 2. AJAX cantidad: pulsar +/− y ver skeleton del resumen mientras recalcula.

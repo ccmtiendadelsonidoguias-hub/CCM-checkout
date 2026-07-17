@@ -75,7 +75,7 @@ Solo el toggle, delegado (sobrevive al re-render de `#payment`):
 ## Verificación
 
 Sin tests JS en el repo → verificación **en vivo por chrome-devtools MCP** (viewport móvil
-390×844) sobre `dev.ccmtiendadelsonido.com/pago/`:
+390×844) sobre `dev.dev.ccmtiendadelsonido.com/pago/`:
 1. El resumen aparece antes del botón "Realizar el pedido"; oculto en desktop (≥961px).
 2. Barra colapsada: miniatura real + "Total / N artículos" + total correcto (= sidebar).
 3. Toca → despliega ítems + subtotal/envío/total; vuelve a tocar → colapsa; chevron rota.
