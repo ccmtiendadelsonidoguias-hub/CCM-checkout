@@ -105,6 +105,42 @@ final class CCMCK_Shipping {
     }
 
     /**
+     * ¿Todas las tarifas reales presentes son pickup? (y hay al menos una).
+     * PURO. Se usa para detectar el caso "pickup como única elección" cuando
+     * la ciudad aún no permite cotizar un envío a domicilio.
+     *
+     * @param array $methods Salida de build_methods().
+     */
+    public static function is_pickup_only( array $methods ): bool {
+        $has_rate = false;
+        foreach ( $methods as $package ) {
+            foreach ( (array) ( $package['rates'] ?? array() ) as $rate ) {
+                $has_rate = true;
+                if ( ! CCMCK_Pickup::is_pickup_rate( (string) ( $rate['id'] ?? '' ) ) ) {
+                    return false;
+                }
+            }
+        }
+        return $has_rate;
+    }
+
+    /**
+     * Desmarca todas las tarifas. PURO. Con ninguna marcada, el radio no
+     * postea shipping_method y la validación de ciudad (CCMCK_Cities) aplica:
+     * pickup deja de ser una elección silenciosa.
+     *
+     * @param array $methods Salida de build_methods().
+     */
+    public static function unselect_all( array $methods ): array {
+        foreach ( $methods as $i => $package ) {
+            foreach ( (array) ( $package['rates'] ?? array() ) as $j => $rate ) {
+                $methods[ $i ]['rates'][ $j ]['checked'] = false;
+            }
+        }
+        return $methods;
+    }
+
+    /**
      * Lista fija de métodos a mostrar como placeholder cuando todavía no hay
      * una dirección que WooCommerce pueda cotizar. No se leen de las Zonas de
      * Envío porque Coordinadora se inyecta dinámicamente (no es un método de
@@ -202,11 +238,44 @@ final class CCMCK_Shipping {
 
         $missing = self::missing_placeholder_labels( $real_labels, self::placeholder_labels() );
 
-        $html  = $has_real ? self::render_cards( $methods ) : '';
+        // Caso William: la única tarifa real es pickup porque la ciudad no
+        // permite cotizar el envío. No se presenta pickup como elección hecha:
+        // se desmarca y se pide seleccionar la ciudad.
+        $hint = '';
+        if ( $has_real && self::is_pickup_only( $methods ) && ! self::destination_is_quotable() ) {
+            $methods = self::unselect_all( $methods );
+            $hint    = '<p class="ccmck-shipping-hint ccmck-shipping-hint--warn">'
+                . esc_html__( 'Selecciona tu ciudad y departamento para calcular el envío.', 'ccm-checkout' )
+                . '</p>';
+        }
+
+        $html  = $hint;
+        $html .= $has_real ? self::render_cards( $methods ) : '';
         $html .= self::render_placeholder_cards( $missing );
 
         // Sin nada que mostrar (ni reales ni placeholders): aviso fallback.
         return '' !== $html ? $html : self::render_cards( array() );
+    }
+
+    /**
+     * ¿La dirección actual del cliente permite cotizar envío a domicilio?
+     * Ciudad y departamento del cliente deben existir en el catálogo del
+     * plugin de ciudades. Si el catálogo no está disponible se asume que sí
+     * (fail-open, coherente con CCMCK_Cities).
+     */
+    private static function destination_is_quotable(): bool {
+        if ( ! function_exists( 'WC' ) || ! WC()->customer ) {
+            return false;
+        }
+        $catalog = class_exists( 'CCMCK_Cities' ) ? CCMCK_Cities::catalog() : array();
+        if ( ! $catalog ) {
+            return true;
+        }
+        $state = (string) WC()->customer->get_shipping_state();
+        $city  = (string) WC()->customer->get_shipping_city();
+        if ( '' === $state ) { $state = (string) WC()->customer->get_billing_state(); }
+        if ( '' === $city ) { $city = (string) WC()->customer->get_billing_city(); }
+        return '' === CCMCK_Cities::validate_destination( $catalog, $state, $city );
     }
 
     /**
