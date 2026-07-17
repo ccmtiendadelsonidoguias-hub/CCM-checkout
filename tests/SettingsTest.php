@@ -194,4 +194,17 @@ final class SettingsTest extends TestCase {
         $this->assertSame( 6, $out['guias_cuenta_ce'] );
         $this->assertSame( 3, CCMCK_Settings::sanitize( array() )['guias_cuenta_ce'] );
     }
+
+    public function test_defaults_and_sanitize_pickup_ask_and_api_secret(): void {
+        $d = CCMCK_Settings::defaults();
+        $this->assertSame( '', $d['guias_pickup_ask_url'] );
+        $this->assertSame( '', $d['guias_api_secret'] );
+        $out = CCMCK_Settings::sanitize( array(
+            'guias_pickup_ask_url' => 'https://n8n.x.co/webhook/ask?tok=abc',
+            'guias_api_secret'     => '  s3creto ',
+        ) );
+        $this->assertSame( 'https://n8n.x.co/webhook/ask?tok=abc', $out['guias_pickup_ask_url'] );
+        $this->assertSame( 's3creto', $out['guias_api_secret'] );
+        $this->assertSame( '', CCMCK_Settings::sanitize( array( 'guias_pickup_ask_url' => 'javascript:x' ) )['guias_pickup_ask_url'] );
+    }
 }
