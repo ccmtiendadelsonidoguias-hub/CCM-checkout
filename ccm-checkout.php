@@ -25,6 +25,7 @@ require_once CCMCK_DIR . 'includes/class-ccmck-whatsapp.php';
 require_once CCMCK_DIR . 'includes/class-ccmck-thankyou.php';
 require_once CCMCK_DIR . 'includes/class-ccmck-shipping.php';
 require_once CCMCK_DIR . 'includes/class-ccmck-pickup.php';
+require_once CCMCK_DIR . 'includes/class-ccmck-cities.php';
 require_once CCMCK_DIR . 'includes/class-ccmck-dequeue.php';
 require_once CCMCK_DIR . 'includes/class-ccmck-wompi.php';
 require_once CCMCK_DIR . 'includes/class-ccmck-newsletter.php';
@@ -55,6 +56,8 @@ function ccmck_boot(): void {
     CCMCK_Thankyou::init();
     CCMCK_Shipping::init();
     CCMCK_Pickup::init();
+    CCMCK_Cities::init();
+    CCMCK_Whatsapp::init();
     CCMCK_Dequeue::init();
     CCMCK_Wompi::init();
     CCMCK_Newsletter::init();

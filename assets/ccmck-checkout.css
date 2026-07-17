@@ -1184,6 +1184,68 @@
   color: #555;
 }
 
+/* Pop-up <dialog> de WhatsApp post-compra (fade-in, patrón ccm-reviews) */
+.ccmck-wa-dialog {
+  width: min(92vw, 380px);
+  padding: 34px 28px 28px;
+  border: none;
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  text-align: center;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+.ccmck-wa-dialog.is-open { opacity: 1; transform: translateY(0); }
+.ccmck-wa-dialog::backdrop { background: rgba(0, 0, 0, 0.45); }
+.ccmck-wa-dialog .ccmck-wa-close {
+  position: absolute;
+  top: 10px;
+  right: 14px;
+  border: none;
+  background: none;
+  font-size: 24px;
+  line-height: 1;
+  color: #888;
+  cursor: pointer;
+  padding: 4px;
+}
+.ccmck-wa-dialog .ccmck-wa-close:hover { color: #1a1a1a; }
+.ccmck-wa-dialog .ccmck-wa-icon {
+  width: 60px;
+  height: 60px;
+  margin: 0 auto 14px;
+  background: #25d366;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+}
+.ccmck-wa-dialog .ccmck-wa-title {
+  font-size: 17px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0 0 6px;
+}
+.ccmck-wa-dialog .ccmck-wa-subtitle {
+  font-size: 13px;
+  color: #555;
+  margin: 0 0 18px;
+}
+.ccmck-wa-dialog .ccmck-wa-btn {
+  display: inline-block;
+  background: #25d366;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 12px 26px;
+  border-radius: 8px;
+  text-decoration: none;
+  transition: background 0.15s;
+}
+.ccmck-wa-dialog .ccmck-wa-btn:hover { background: #1fb259; color: #fff; }
+
 /* ===== PAYMENT USED (THANKYOU SIDEBAR) ===== */
 .ccmck .payment-used {
   display: flex;
@@ -2027,6 +2089,15 @@ body.woocommerce-checkout .ccmck #payment div.form-row { padding: 0; }
 
 /* Estado deshabilitado: métodos visibles sin dirección cotizable (gris, no seleccionable). */
 .ccmck .checkout-main .ccmck-shipping-hint { font-size: 13px; color: #888; margin: 10px 0 10px; }
+/* Advertencia: pickup es la única tarifa porque la ciudad no permite cotizar. */
+.ccmck .checkout-main .ccmck-shipping-hint--warn {
+  color: #8a5b00;
+  background: #fff7e6;
+  border: 1px solid #f0d9a8;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-weight: 500;
+}
 .ccmck .checkout-main .ccmck-shipping-list--disabled { opacity: 0.55; pointer-events: none; }
 .ccmck .checkout-main .ccmck-shipping-method--disabled label {
   border-style: dashed;
