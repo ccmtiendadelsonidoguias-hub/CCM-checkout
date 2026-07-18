@@ -14,6 +14,17 @@ final class CitiesTest extends TestCase {
         $this->assertSame( '', CCMCK_Cities::validate_destination( $this->catalog(), 'Atlantico', '08001000' ) );
     }
 
+    public function test_valid_destination_real_dropdown_value(): void {
+        // place-select.js postea value = "NOMBRE (ABREV) (DANE)", no el DANE crudo.
+        $this->assertSame( '', CCMCK_Cities::validate_destination( $this->catalog(), 'Atlantico', 'BARRANQUILLA (ATL) (08001000)' ) );
+        $this->assertSame( '', CCMCK_Cities::validate_destination( $this->catalog(), 'Atlantico', 'SOLEDAD (ATL) (08758000)' ) );
+    }
+
+    public function test_real_dropdown_value_from_other_state_fails(): void {
+        // DANE de Bogotá dentro de Atlántico: debe rechazar aunque venga con nombre.
+        $this->assertSame( 'city', CCMCK_Cities::validate_destination( $this->catalog(), 'Atlantico', 'BOGOTA D.C. (11001000)' ) );
+    }
+
     public function test_state_case_insensitive(): void {
         $this->assertSame( '', CCMCK_Cities::validate_destination( $this->catalog(), 'ATLANTICO', '08758000' ) );
     }
