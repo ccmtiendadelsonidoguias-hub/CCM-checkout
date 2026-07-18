@@ -51,7 +51,8 @@ final class CCMCK_Cities {
      *
      * @param array  $catalog Departamento => (código DANE => ciudad).
      * @param string $state   billing_state posteado.
-     * @param string $city    billing_city posteado (código DANE del dropdown).
+     * @param string $city    billing_city posteado. place-select.js lo manda
+     *                        como "NOMBRE (ABREV) (DANE)", no el DANE crudo.
      * @return string '' si es válido; 'state' o 'city' según el campo que falla.
      */
     public static function validate_destination( array $catalog, string $state, string $city ): string {
@@ -75,7 +76,11 @@ final class CCMCK_Cities {
         if ( ! is_array( $dept ) ) {
             return 'state';
         }
-        if ( '' === $city || ! isset( $dept[ $city ] ) ) {
+        // El catálogo se indexa por DANE crudo; el dropdown postea el DANE
+        // dentro de "NOMBRE (ABREV) (DANE)". Extraemos con la misma lógica que
+        // dane_from_city() (fuente única, ya usada por la generación de guía).
+        $dane = CCMCK_Coordinadora::dane_from_city( $city );
+        if ( '' === $dane || ! isset( $dept[ $dane ] ) ) {
             return 'city';
         }
         return '';
