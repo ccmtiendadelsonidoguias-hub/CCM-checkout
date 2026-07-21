@@ -652,6 +652,44 @@ final class CCMCK_Guias {
     }
 
     /** Registra la ruta REST para que n8n genere la guía cuando el cliente acepta. */
+    /**
+     * ¿La URL de entrega de un webhook de WC apunta a nuestro n8n? PURO.
+     * Match estricto por host (n8n.*.hstgr.cloud) para no volver síncronos
+     * webhooks de terceros.
+     */
+    public static function is_n8n_delivery_url( string $url ): bool {
+        $host = (string) wp_parse_url( $url, PHP_URL_HOST );
+        return (bool) preg_match( '/^n8n\.[a-z0-9-]+\.hstgr\.cloud$/i', $host );
+    }
+
+    /**
+     * Entrega SÍNCRONA para los webhooks de WC hacia n8n (woo-processing).
+     *
+     * Por defecto WC encola la entrega en Action Scheduler, pero la cola de la
+     * tienda está saturada (720K acciones fallidas históricas, runner sin cron
+     * frecuente): las entregas salían con ~80-90 min de retraso, o al instante
+     * solo si un admin navegaba el panel (evidencia: logs de Scheduled Actions,
+     * 2026-07-21). Síncrono = sale en el mismo request del callback del pago.
+     * n8n responde de inmediato (responseMode onReceived), y el timeout corto
+     * de abajo evita colgar el callback del gateway si n8n no está.
+     */
+    public static function webhook_deliver_sync( $async, $webhook, $arg ) {
+        if ( is_object( $webhook ) && method_exists( $webhook, 'get_delivery_url' )
+            && self::is_n8n_delivery_url( (string) $webhook->get_delivery_url() ) ) {
+            return false;
+        }
+        return $async;
+    }
+
+    /** Timeout corto (8 s) solo para las entregas síncronas hacia n8n. */
+    public static function webhook_http_args( $args, $arg, $webhook_id ) {
+        $webhook = class_exists( 'WC_Webhook' ) ? new WC_Webhook( (int) $webhook_id ) : null;
+        if ( $webhook && self::is_n8n_delivery_url( (string) $webhook->get_delivery_url() ) ) {
+            $args['timeout'] = 8;
+        }
+        return $args;
+    }
+
     public static function register_rest_routes(): void {
         register_rest_route( 'ccmck/v1', '/generar-guia', array(
             'methods'             => 'POST',
@@ -751,5 +789,9 @@ final class CCMCK_Guias {
         // Prio 10: corre antes de woocommerce_checkout_update_order_meta, donde
         // el plugin de ciudades recorta el DANE de la ciudad.
         add_action( 'woocommerce_checkout_create_order', array( __CLASS__, 'capture_checkout_dane' ), 10, 2 );
+        // Webhooks WC hacia n8n: entrega síncrona (la cola de Action Scheduler
+        // los retrasaba ~80-90 min) con timeout corto.
+        add_filter( 'woocommerce_webhook_deliver_async', array( __CLASS__, 'webhook_deliver_sync' ), 10, 3 );
+        add_filter( 'woocommerce_webhook_http_args', array( __CLASS__, 'webhook_http_args' ), 10, 3 );
     }
 }

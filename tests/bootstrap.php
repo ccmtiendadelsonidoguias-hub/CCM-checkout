@@ -36,6 +36,9 @@ if ( ! function_exists( 'sanitize_hex_color' ) ) {
 if ( ! function_exists( 'absint' ) ) {
     function absint( $n ) { return abs( (int) $n ); }
 }
+if ( ! function_exists( 'wp_parse_url' ) ) {
+    function wp_parse_url( $url, $component = -1 ) { return parse_url( (string) $url, $component ); }
+}
 if ( ! function_exists( '__' ) ) {
     function __( $text, $domain = 'default' ) { return $text; }
 }
