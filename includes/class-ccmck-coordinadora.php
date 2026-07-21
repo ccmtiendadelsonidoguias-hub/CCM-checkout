@@ -222,8 +222,8 @@ final class CCMCK_Coordinadora {
         }
     }
 
-    /** Reglas de caja como mapa cat_id => N desde los ajustes. */
-    private static function rules_map(): array {
+    /** Reglas de caja como mapa cat_id => N desde los ajustes. Público: lo reúsa el endpoint /cotizar. */
+    public static function rules_map(): array {
         $rows = (array) CCMCK_Settings::get( 'coordinadora_box_rules', array() );
         $map  = array();
         foreach ( $rows as $row ) {

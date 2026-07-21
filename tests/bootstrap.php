@@ -136,3 +136,4 @@ require_once dirname( __DIR__ ) . '/includes/class-ccmck-dequeue.php';
 require_once dirname( __DIR__ ) . '/includes/class-ccmck-surcharge.php';
 require_once dirname( __DIR__ ) . '/includes/class-ccmck-coordinadora.php';
 require_once dirname( __DIR__ ) . '/includes/class-ccmck-guias.php';
+require_once dirname( __DIR__ ) . '/includes/class-ccmck-cotizar.php';
