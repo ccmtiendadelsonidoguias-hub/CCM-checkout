@@ -53,6 +53,11 @@ final class CCMCK_Document {
         add_action( 'woocommerce_after_checkout_validation', array( __CLASS__, 'strip_legacy_postcode_errors' ), PHP_INT_MAX, 2 );
         add_action( 'woocommerce_checkout_process', array( __CLASS__, 'strip_legacy_postcode_notices' ), PHP_INT_MAX );
         add_action( 'woocommerce_checkout_create_order', array( __CLASS__, 'save_meta' ), 10, 2 );
+        // Backfill de documento para flujos de pasarela que se saltan los campos
+        // del checkout (Sistecrédito, caso #33300): del POST al crear, y de las
+        // metas del pedido al pasar a processing (prio 1: antes de guía/factura).
+        add_action( 'woocommerce_checkout_create_order', array( __CLASS__, 'backfill_from_gateway_post' ), 20, 2 );
+        add_action( 'woocommerce_order_status_processing', array( __CLASS__, 'backfill_on_processing' ), 1 );
         add_action( 'woocommerce_admin_order_data_after_billing_address', array( __CLASS__, 'render_admin' ) );
         add_filter( 'woocommerce_email_order_meta_fields', array( __CLASS__, 'email_fields' ), 10, 3 );
     }
@@ -414,6 +419,128 @@ final class CCMCK_Document {
         $order->update_meta_data( self::TYPE_META, $type );
         $order->update_meta_data( self::LABEL_META, self::label_for( $type ) );
         $order->update_meta_data( self::NUMBER_META, $number );
+    }
+
+    /*
+     * ==== Backfill de documento desde pasarelas (caso #33300) ====
+     *
+     * Sistecrédito (gateway wcsistecredito) pinta SUS propios campos de
+     * documento y guarda el valor en un transient GLOBAL (no por pedido); si el
+     * flujo no postea billing_document_*, save_meta no guarda nada y la factura
+     * de Alegra (n8n) queda sin cédula. Dos redes de seguridad:
+     *   1) Al crear el pedido: copiar del POST los campos del gateway.
+     *   2) Al pasar a processing (antes de guía/factura): buscar la cédula en
+     *      las metas ya guardadas del pedido (Addi guarda _billing_cedula /
+     *      billing_id como campos de checkout).
+     * NUNCA leer el transient global de Sistecrédito: sin order_id, dos clientes
+     * concurrentes se cruzarían la cédula.
+     */
+
+    /**
+     * Mapea el tipo del gateway ('CC', 'CE', 'NIT'…) al código DIAN de
+     * document_types(). Un código numérico válido pasa tal cual; desconocido o
+     * vacío cae a '13' (CC, el caso real de estas pasarelas). PURO.
+     */
+    public static function type_code_from_gateway( string $type ): string {
+        $type = strtoupper( trim( $type ) );
+        if ( self::is_valid_type( $type ) ) {
+            return $type;
+        }
+        $code = array_search( $type, self::document_types(), true );
+        return false !== $code ? (string) $code : '13';
+    }
+
+    /**
+     * Extrae número y tipo de documento de los campos propios de Sistecrédito
+     * en el POST del checkout. number '' si no vienen. PURO.
+     *
+     * @param array $post $_POST ya unslashed.
+     * @return array{number:string, type:string}
+     */
+    public static function doc_from_post( array $post ): array {
+        $number = self::normalize_number( (string) ( $post['wcsistecredito-document-id'] ?? '' ) );
+        $type   = self::type_code_from_gateway( (string) ( $post['wcsistecredito-document-type'] ?? '' ) );
+        return array( 'number' => $number, 'type' => $type );
+    }
+
+    /**
+     * Busca un número de documento entre las metas del pedido. Candidatas: keys
+     * con cedula|document|dni|identificac o billing_id; se excluyen las de
+     * tipo/etiqueta. Válido = normalizado con al menos 5 dígitos. PURO.
+     *
+     * @param array<string,mixed> $meta key => value plano.
+     * @return array{number:string, source:string}
+     */
+    public static function find_document_in_meta( array $meta ): array {
+        foreach ( $meta as $key => $value ) {
+            $k = strtolower( (string) $key );
+            if ( preg_match( '/type|label|tipo/', $k ) ) {
+                continue;
+            }
+            if ( ! preg_match( '/cedula|document|dni|identificac/', $k ) && ! preg_match( '/^_?billing_id$/', $k ) ) {
+                continue;
+            }
+            if ( ! is_scalar( $value ) ) {
+                continue;
+            }
+            $number = self::normalize_number( (string) $value );
+            if ( strlen( preg_replace( '/\D/', '', $number ) ) >= 5 ) {
+                return array( 'number' => $number, 'source' => (string) $key );
+            }
+        }
+        return array( 'number' => '', 'source' => '' );
+    }
+
+    /** Escribe las metas de documento (formato del checkout + espejo sin guion para n8n). */
+    private static function write_document_meta( $order, string $number, string $type ): void {
+        $order->update_meta_data( self::TYPE_META, $type );
+        $order->update_meta_data( self::LABEL_META, self::label_for( $type ) );
+        $order->update_meta_data( self::NUMBER_META, $number );
+        // Espejo sin guion: es lo que leen los workflows de factura (mismo patrón
+        // que los pedidos del botón Venta de Chatwoot).
+        $order->update_meta_data( self::TYPE_KEY, $type );
+        $order->update_meta_data( self::NUMBER_KEY, $number );
+    }
+
+    /**
+     * Red 1 — woocommerce_checkout_create_order prio 20 (tras save_meta): si el
+     * pedido quedó sin documento pero el POST trae los campos del gateway de
+     * Sistecrédito, copiarlos.
+     */
+    public static function backfill_from_gateway_post( $order, array $data ): void {
+        if ( '' !== (string) $order->get_meta( self::NUMBER_META ) ) {
+            return;
+        }
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- mismo POST del checkout ya verificado por WC.
+        $doc = self::doc_from_post( wp_unslash( $_POST ) );
+        if ( '' === $doc['number'] ) {
+            return;
+        }
+        self::write_document_meta( $order, $doc['number'], $doc['type'] );
+    }
+
+    /**
+     * Red 2 — woocommerce_order_status_processing prio 1 (antes de la guía prio
+     * 10 y del webhook de factura): si el pedido no tiene documento, buscarlo en
+     * sus propias metas (Addi u otra pasarela pudo guardarlo bajo otra key).
+     */
+    public static function backfill_on_processing( $order_id ): void {
+        $order = function_exists( 'wc_get_order' ) ? wc_get_order( $order_id ) : null;
+        if ( ! $order || '' !== (string) $order->get_meta( self::NUMBER_META ) ) {
+            return;
+        }
+        $meta = array();
+        foreach ( $order->get_meta_data() as $m ) {
+            $d = $m->get_data();
+            $meta[ (string) $d['key'] ] = $d['value'];
+        }
+        $found = self::find_document_in_meta( $meta );
+        if ( '' === $found['number'] ) {
+            return;
+        }
+        self::write_document_meta( $order, $found['number'], '13' );
+        $order->save();
+        $order->add_order_note( 'Documento tomado de la meta "' . $found['source'] . '" de la pasarela (backfill; verificar tipo).' );
     }
 
     public static function render_admin( $order ): void {

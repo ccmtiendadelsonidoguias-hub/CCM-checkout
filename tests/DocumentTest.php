@@ -165,4 +165,62 @@ final class DocumentTest extends TestCase {
         CCMCK_Document::strip_legacy_postcode_errors( array(), $errors );
         $this->assertContains( 'Ingresa tu número de documento.', $errors->get_error_messages() );
     }
+
+    // --- backfill de documento desde pasarelas (caso #33300 Sistecrédito) ---
+
+    public function test_type_code_from_gateway_maps_labels(): void {
+        $this->assertSame( '13', CCMCK_Document::type_code_from_gateway( 'CC' ) );
+        $this->assertSame( '22', CCMCK_Document::type_code_from_gateway( 'ce' ) );
+        $this->assertSame( '31', CCMCK_Document::type_code_from_gateway( 'NIT' ) );
+        $this->assertSame( '41', CCMCK_Document::type_code_from_gateway( 'PP' ) );
+    }
+
+    public function test_type_code_from_gateway_accepts_numeric_and_defaults_cc(): void {
+        $this->assertSame( '22', CCMCK_Document::type_code_from_gateway( '22' ) );
+        $this->assertSame( '13', CCMCK_Document::type_code_from_gateway( '' ) );
+        $this->assertSame( '13', CCMCK_Document::type_code_from_gateway( 'XX' ) );
+    }
+
+    public function test_doc_from_post_extracts_sistecredito_fields(): void {
+        $r = CCMCK_Document::doc_from_post( array(
+            'wcsistecredito-document-type' => 'CC',
+            'wcsistecredito-document-id'   => ' 1.043.123-456 ',
+        ) );
+        $this->assertSame( '1043123456', $r['number'] );
+        $this->assertSame( '13', $r['type'] );
+    }
+
+    public function test_doc_from_post_empty_without_gateway_fields(): void {
+        $r = CCMCK_Document::doc_from_post( array( 'billing_email' => 'x@y.z' ) );
+        $this->assertSame( '', $r['number'] );
+    }
+
+    public function test_find_document_in_meta_candidates(): void {
+        // Addi guarda la cédula como campo billing (WC la persiste como meta).
+        $r = CCMCK_Document::find_document_in_meta( array( '_billing_cedula' => '1043123456', '_otro' => 'x' ) );
+        $this->assertSame( '1043123456', $r['number'] );
+        $this->assertSame( '_billing_cedula', $r['source'] );
+
+        $r2 = CCMCK_Document::find_document_in_meta( array( 'billing_id' => '79456123' ) );
+        $this->assertSame( '79456123', $r2['number'] );
+
+        $r3 = CCMCK_Document::find_document_in_meta( array( '_customer_document' => '900123456' ) );
+        $this->assertSame( '900123456', $r3['number'] );
+    }
+
+    public function test_find_document_in_meta_ignores_type_label_and_short_values(): void {
+        // Keys de tipo/etiqueta no son números de documento; valores cortos tampoco.
+        $r = CCMCK_Document::find_document_in_meta( array(
+            '_billing_document_type'       => '13',
+            '_billing_document_type_label' => 'CC',
+            'documento_tipo'               => 'CC',
+            '_billing_cedula'              => '123',
+        ) );
+        $this->assertSame( '', $r['number'] );
+    }
+
+    public function test_find_document_in_meta_empty(): void {
+        $this->assertSame( '', CCMCK_Document::find_document_in_meta( array() )['number'] );
+        $this->assertSame( '', CCMCK_Document::find_document_in_meta( array( '_ccm_origen' => 'chatwoot_venta' ) )['number'] );
+    }
 }
