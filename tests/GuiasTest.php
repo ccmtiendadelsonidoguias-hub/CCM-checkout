@@ -245,4 +245,14 @@ final class GuiasTest extends TestCase {
         $this->assertSame( 'c@x.co', $p['email'] );
         $this->assertSame( '693290', $p['total'] ); // string, sin decimales de COP
     }
+
+    // --- entrega síncrona de webhooks hacia n8n (Action Scheduler saturado) ---
+
+    public function test_is_n8n_delivery_url(): void {
+        $this->assertTrue( CCMCK_Guias::is_n8n_delivery_url( 'https://n8n.srv1590203.hstgr.cloud/webhook/woo-processing' ) );
+        $this->assertTrue( CCMCK_Guias::is_n8n_delivery_url( 'https://n8n.srv1590203.hstgr.cloud/webhook/cw-guia-resend-a265?tok=x' ) );
+        $this->assertFalse( CCMCK_Guias::is_n8n_delivery_url( 'https://hooks.zapier.com/hooks/catch/1/abc' ) );
+        $this->assertFalse( CCMCK_Guias::is_n8n_delivery_url( 'https://example.com/n8n-fake' ) );
+        $this->assertFalse( CCMCK_Guias::is_n8n_delivery_url( '' ) );
+    }
 }
