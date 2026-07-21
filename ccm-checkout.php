@@ -32,6 +32,7 @@ require_once CCMCK_DIR . 'includes/class-ccmck-newsletter.php';
 require_once CCMCK_DIR . 'includes/class-ccmck-surcharge.php';
 require_once CCMCK_DIR . 'includes/class-ccmck-coordinadora.php';
 require_once CCMCK_DIR . 'includes/class-ccmck-guias.php';
+require_once CCMCK_DIR . 'includes/class-ccmck-cotizar.php';
 
 add_action( 'plugins_loaded', 'ccmck_boot', 20 );
 function ccmck_boot(): void {
@@ -64,4 +65,5 @@ function ccmck_boot(): void {
     CCMCK_Surcharge::init();
     CCMCK_Coordinadora::init();
     CCMCK_Guias::init();
+    CCMCK_Cotizar::init();
 }
