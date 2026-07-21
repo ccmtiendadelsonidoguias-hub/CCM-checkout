@@ -246,6 +246,24 @@ final class GuiasTest extends TestCase {
         $this->assertSame( '693290', $p['total'] ); // string, sin decimales de COP
     }
 
+    // --- modalidad contra-entrega explícita en /generar-guia ---
+
+    public function test_ce_requested_by_modalidad(): void {
+        // El body pide CE explícito aunque el pedido no sea pickup.
+        $this->assertTrue( CCMCK_Guias::ce_requested( 'flete_contra_entrega', array( 'ccmck_coordinadora' ) ) );
+    }
+
+    public function test_ce_requested_by_pickup_without_modalidad(): void {
+        // Comportamiento actual intacto: pickup → CE aunque no venga modalidad.
+        $this->assertTrue( CCMCK_Guias::ce_requested( '', array( 'ccmck_local_pickup' ) ) );
+    }
+
+    public function test_ce_not_requested_default(): void {
+        $this->assertFalse( CCMCK_Guias::ce_requested( '', array( 'ccmck_coordinadora' ) ) );
+        $this->assertFalse( CCMCK_Guias::ce_requested( 'otra_cosa', array( 'ccmck_coordinadora' ) ) );
+        $this->assertFalse( CCMCK_Guias::ce_requested( '', array() ) );
+    }
+
     // --- entrega síncrona de webhooks hacia n8n (Action Scheduler saturado) ---
 
     public function test_is_n8n_delivery_url(): void {

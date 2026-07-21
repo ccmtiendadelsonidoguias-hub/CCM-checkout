@@ -416,7 +416,30 @@ final class CCMCK_Guias {
             $order->add_order_note( 'Aviso de guía enviado al cliente por WhatsApp' . ( '' !== $modo ? ' (' . $modo . ')' : '' ) . '.' );
         }
 
-        return array( 'ok' => true, 'error' => '' );
+        // Guía CE: cotizar (best-effort) lo que Coordinadora le cobrará al
+        // destinatario, con la MISMA cuenta del acuerdo CE. Verificado
+        // 2026-07-21: cuentas 2 y 3 tarifan igual (sin recargo), pero se cotiza
+        // con la 3 por si las tarifas divergen a futuro. Un fallo aquí no
+        // bloquea nada: la guía ya existe; flete_ce va null.
+        $flete_ce = null;
+        if ( $ce ) {
+            $q = CCMCK_Coordinadora::quote( array(
+                'nit'        => (string) CCMCK_Settings::get( 'coordinadora_nit', '' ),
+                'cuenta'     => 3,
+                'origen'     => (string) CCMCK_Settings::get( 'coordinadora_origin', '08001000' ),
+                'destino'    => $destino,
+                'valoracion' => (int) round( $total_lineas ),
+                'detalle'    => $detalle,
+                'apikey'     => (string) CCMCK_Settings::get( 'coordinadora_apikey', '' ),
+                'clave'      => (string) CCMCK_Settings::get( 'coordinadora_clave', '' ),
+            ) );
+            if ( ! empty( $q['ok'] ) ) {
+                $flete_ce = (int) $q['flete_total'];
+                $order->add_order_note( 'Flete contra entrega estimado (lo cobra Coordinadora al recibir): $' . number_format( $flete_ce, 0, ',', '.' ) . '.' );
+            }
+        }
+
+        return array( 'ok' => true, 'error' => '', 'flete_ce' => $flete_ce );
     }
 
     /**
@@ -653,6 +676,19 @@ final class CCMCK_Guias {
 
     /** Registra la ruta REST para que n8n genere la guía cuando el cliente acepta. */
     /**
+     * ¿La guía debe salir con flete contra entrega? PURO.
+     * CE si el body lo pide explícito (modalidad "flete_contra_entrega" — p.ej.
+     * el botón Venta de Chatwoot para pedidos con envío) o si el pedido es de
+     * recogida local (comportamiento histórico del rescate de pickups).
+     *
+     * @param string $modalidad    Valor de "modalidad" del request ('' si no vino).
+     * @param array  $shipping_ids Métodos de envío del pedido.
+     */
+    public static function ce_requested( string $modalidad, array $shipping_ids ): bool {
+        return 'flete_contra_entrega' === $modalidad || self::has_pickup( $shipping_ids );
+    }
+
+    /**
      * ¿La URL de entrega de un webhook de WC apunta a nuestro n8n? PURO.
      * Match estricto por host (n8n.*.hstgr.cloud) para no volver síncronos
      * webhooks de terceros.
@@ -763,11 +799,15 @@ final class CCMCK_Guias {
         }
         set_transient( 'ccmck_guia_lock_' . $order_id, 1, 60 );
 
-        $order->add_order_note( 'Cliente pidió cambio a envío con Coordinadora vía WhatsApp.' );
+        $ce = self::ce_requested(
+            sanitize_text_field( (string) ( $request['modalidad'] ?? '' ) ),
+            self::order_shipping_ids( $order )
+        );
+        $order->add_order_note( $ce && ! self::has_pickup( self::order_shipping_ids( $order ) )
+            ? 'Guía solicitada vía API con flete contra entrega (modalidad explícita).'
+            : 'Cliente pidió cambio a envío con Coordinadora vía WhatsApp.' );
 
-        $result = self::generate_for_order( $order, array(
-            'contra_entrega' => self::has_pickup( self::order_shipping_ids( $order ) ),
-        ) );
+        $result = self::generate_for_order( $order, array( 'contra_entrega' => $ce ) );
         if ( ! $result['ok'] ) {
             delete_transient( 'ccmck_guia_lock_' . $order_id );
             return new WP_Error( 'ccmck_failed', $result['error'], array( 'status' => 422 ) );
@@ -777,6 +817,8 @@ final class CCMCK_Guias {
             'ok'           => true,
             'guia'         => (string) $order->get_meta( self::META_GUIA ),
             'tracking_url' => (string) $order->get_meta( self::META_URL ),
+            'modalidad'    => $ce ? 'flete_contra_entrega' : 'prepago',
+            'flete_ce'     => $result['flete_ce'] ?? null,
         ) );
     }
 
