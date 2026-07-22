@@ -146,7 +146,7 @@ final class CCMCK_Coordinadora {
             'params'  => array(
                 'nit'            => (string) ( $args['nit'] ?? '' ),
                 'div'            => '01',
-                'cuenta'         => 2,
+                'cuenta'         => (int) ( $args['cuenta'] ?? 2 ),
                 'producto'       => 0,
                 'origen'         => (string) ( $args['origen'] ?? '' ),
                 'destino'        => (string) ( $args['destino'] ?? '' ),

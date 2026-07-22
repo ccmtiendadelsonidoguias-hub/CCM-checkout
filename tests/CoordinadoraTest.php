@@ -130,6 +130,14 @@ final class CoordinadoraTest extends TestCase {
         $this->assertCount( 1, $req['params']['detalle'] );
     }
 
+    public function test_build_request_cuenta_override(): void {
+        // Contra-entrega cotiza con cuenta 3 (verificado 2026-07-21: el WS SÍ
+        // procesa el campo — cuenta inválida falla; 2 y 3 tarifan igual hoy).
+        $req = CCMCK_Coordinadora::build_request( array( 'nit' => 'n', 'cuenta' => 3 ) );
+        $this->assertSame( 3, $req['params']['cuenta'] );
+        $this->assertSame( 2, CCMCK_Coordinadora::build_request( array( 'nit' => 'n' ) )['params']['cuenta'] );
+    }
+
     // --- parse_response ---
     public function test_parse_response_success(): void {
         $body = '{"jsonrpc":"2.0","id":0,"error":null,"result":{"flete_total":15700,"dias_entrega":"2"}}';
