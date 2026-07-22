@@ -363,7 +363,7 @@ final class CCMCK_Guias {
             'id_cliente'   => $ce
                 ? (int) CCMCK_Settings::get( 'guias_id_cliente_ce', 49445 )
                 : (int) CCMCK_Settings::get( 'guias_id_cliente', 49444 ),
-            'codigo_cuenta' => $ce ? (int) CCMCK_Settings::get( 'guias_cuenta_ce', 3 ) : 2,
+            'codigo_cuenta' => $ce ? (int) CCMCK_Settings::get( 'guias_cuenta_ce', 6 ) : 2,
             'remitente'    => array(
                 'nombre'    => (string) CCMCK_Settings::get( 'guias_remitente_nombre', '' ),
                 'direccion' => (string) CCMCK_Settings::get( 'guias_remitente_direccion', '' ),
@@ -421,15 +421,15 @@ final class CCMCK_Guias {
         }
 
         // Guía CE: cotizar (best-effort) lo que Coordinadora le cobrará al
-        // destinatario, con la MISMA cuenta del acuerdo CE. Verificado
-        // 2026-07-21: cuentas 2 y 3 tarifan igual (sin recargo), pero se cotiza
-        // con la 3 por si las tarifas divergen a futuro. Un fallo aquí no
-        // bloquea nada: la guía ya existe; flete_ce va null.
+        // destinatario, con la MISMA cuenta del acuerdo CE (6 = FCE). Verificado
+        // 2026-07-22: cuentas 2 y 6 tarifan igual (sin recargo), pero se cotiza
+        // con la del acuerdo por si las tarifas divergen a futuro. Un fallo aquí
+        // no bloquea nada: la guía ya existe; flete_ce va null.
         $flete_ce = null;
         if ( $ce ) {
             $q = CCMCK_Coordinadora::quote( array(
                 'nit'        => (string) CCMCK_Settings::get( 'coordinadora_nit', '' ),
-                'cuenta'     => 3,
+                'cuenta'     => (int) CCMCK_Settings::get( 'guias_cuenta_ce', 6 ),
                 'origen'     => (string) CCMCK_Settings::get( 'coordinadora_origin', '08001000' ),
                 'destino'    => $destino,
                 'valoracion' => (int) round( $total_lineas ),
