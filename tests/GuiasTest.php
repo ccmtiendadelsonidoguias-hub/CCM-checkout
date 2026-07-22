@@ -264,6 +264,14 @@ final class GuiasTest extends TestCase {
         $this->assertFalse( CCMCK_Guias::ce_requested( '', array() ) );
     }
 
+    public function test_ce_requested_by_order_meta(): void {
+        // Pedido del botón Venta con envío Coordinadora + meta _ccm_flete_modalidad:
+        // la auto-guía al confirmar pago debe salir CE sin intervención.
+        $this->assertTrue( CCMCK_Guias::ce_requested( '', array( 'ccmck_coordinadora' ), 'contra_entrega' ) );
+        $this->assertFalse( CCMCK_Guias::ce_requested( '', array( 'ccmck_coordinadora' ), 'prepago' ) );
+        $this->assertFalse( CCMCK_Guias::ce_requested( '', array( 'ccmck_coordinadora' ), '' ) );
+    }
+
     // --- entrega síncrona de webhooks hacia n8n (Action Scheduler saturado) ---
 
     public function test_is_n8n_delivery_url(): void {

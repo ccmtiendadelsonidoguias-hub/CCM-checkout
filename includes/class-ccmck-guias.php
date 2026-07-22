@@ -20,6 +20,8 @@ final class CCMCK_Guias {
     // Marca que ya se le preguntó al cliente (vía n8n/WhatsApp) si prefiere
     // envío en vez de recogida — se pregunta UNA sola vez por pedido.
     const META_PICKUP_ASK = '_ccmck_pickup_ask_sent';
+    /** Meta escrita al crear el pedido (botón Venta n8n): 'contra_entrega' → la guía sale CE. */
+    const META_MODALIDAD  = '_ccm_flete_modalidad';
 
     const ENDPOINT_PROD    = 'https://guias.coordinadora.com/ws/guias/1.6/server.php';
     const ENDPOINT_SANDBOX = 'https://sandbox.coordinadora.com/agw/ws/guias/1.6/server.php';
@@ -306,7 +308,9 @@ final class CCMCK_Guias {
         }
         set_transient( 'ccmck_guia_lock_' . $order_id, 1, 60 );
 
-        $result = self::generate_for_order( $order );
+        $result = self::generate_for_order( $order, array(
+            'contra_entrega' => self::ce_requested( '', $shipping_ids, (string) $order->get_meta( self::META_MODALIDAD ) ),
+        ) );
         if ( ! $result['ok'] ) {
             $order->add_order_note( 'Guía Coordinadora NO generada: ' . $result['error'] . '. Generar manualmente.' );
             delete_transient( 'ccmck_guia_lock_' . $order_id );
@@ -575,7 +579,7 @@ final class CCMCK_Guias {
         set_transient( 'ccmck_guia_lock_' . $order_id, 1, 60 );
 
         $result = self::generate_for_order( $order, array(
-            'contra_entrega' => self::has_pickup( self::order_shipping_ids( $order ) ),
+            'contra_entrega' => self::ce_requested( '', self::order_shipping_ids( $order ), (string) $order->get_meta( self::META_MODALIDAD ) ),
         ) );
         if ( ! $result['ok'] ) {
             delete_transient( 'ccmck_guia_lock_' . $order_id );
@@ -677,15 +681,20 @@ final class CCMCK_Guias {
     /** Registra la ruta REST para que n8n genere la guía cuando el cliente acepta. */
     /**
      * ¿La guía debe salir con flete contra entrega? PURO.
-     * CE si el body lo pide explícito (modalidad "flete_contra_entrega" — p.ej.
-     * el botón Venta de Chatwoot para pedidos con envío) o si el pedido es de
-     * recogida local (comportamiento histórico del rescate de pickups).
+     * CE si el body lo pide explícito (modalidad "flete_contra_entrega"), si el
+     * pedido es de recogida local (comportamiento histórico del rescate de
+     * pickups), o si el pedido nació marcado con la meta _ccm_flete_modalidad =
+     * "contra_entrega" (botón Venta de Chatwoot: envío Coordinadora sin flete
+     * cobrado — el cliente paga el flete al mensajero).
      *
-     * @param string $modalidad    Valor de "modalidad" del request ('' si no vino).
-     * @param array  $shipping_ids Métodos de envío del pedido.
+     * @param string $modalidad      Valor de "modalidad" del request ('' si no vino).
+     * @param array  $shipping_ids   Métodos de envío del pedido.
+     * @param string $meta_modalidad Valor de la meta _ccm_flete_modalidad ('' si no existe).
      */
-    public static function ce_requested( string $modalidad, array $shipping_ids ): bool {
-        return 'flete_contra_entrega' === $modalidad || self::has_pickup( $shipping_ids );
+    public static function ce_requested( string $modalidad, array $shipping_ids, string $meta_modalidad = '' ): bool {
+        return 'flete_contra_entrega' === $modalidad
+            || 'contra_entrega' === $meta_modalidad
+            || self::has_pickup( $shipping_ids );
     }
 
     /**
@@ -801,7 +810,8 @@ final class CCMCK_Guias {
 
         $ce = self::ce_requested(
             sanitize_text_field( (string) ( $request['modalidad'] ?? '' ) ),
-            self::order_shipping_ids( $order )
+            self::order_shipping_ids( $order ),
+            (string) $order->get_meta( self::META_MODALIDAD )
         );
         $order->add_order_note( $ce && ! self::has_pickup( self::order_shipping_ids( $order ) )
             ? 'Guía solicitada vía API con flete contra entrega (modalidad explícita).'
