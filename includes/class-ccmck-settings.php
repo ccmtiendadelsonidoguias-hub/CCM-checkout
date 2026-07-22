@@ -68,10 +68,12 @@ final class CCMCK_Settings {
             'guias_remitente_telefono'  => '',
             'guias_webhook_url'         => '',
             // Rescate de recogidas: acuerdo de flete contra entrega (el cliente
-            // paga el flete al recibir). Cuenta pendiente de confirmar con
-            // Coordinadora (3 = Flete Pago según doc).
+            // paga el flete al recibir). Cuenta 6 = FCE, CONFIRMADA por
+            // Coordinadora 2026-07-22 y verificada en el PDF (Tipo Flete FCE,
+            // guía 33042500382). Ojo: 3 = "Flete Pago" (FP, lo paga CCM) — con
+            // 3 el mensajero NO cobra.
             'guias_id_cliente_ce'       => 49445,
-            'guias_cuenta_ce'           => 3,
+            'guias_cuenta_ce'           => 6,
             // Integración n8n pickup→envío: webhook que pregunta al cliente por
             // WhatsApp, y secreto del endpoint REST /ccmck/v1/generar-guia.
             'guias_pickup_ask_url'      => '',

@@ -188,11 +188,11 @@ final class SettingsTest extends TestCase {
     public function test_defaults_and_sanitize_guias_contra_entrega(): void {
         $d = CCMCK_Settings::defaults();
         $this->assertSame( 49445, $d['guias_id_cliente_ce'] );
-        $this->assertSame( 3, $d['guias_cuenta_ce'] );
+        $this->assertSame( 6, $d['guias_cuenta_ce'] ); // cuenta FCE real (confirmada por Coordinadora 2026-07-22)
         $out = CCMCK_Settings::sanitize( array( 'guias_id_cliente_ce' => '49445x', 'guias_cuenta_ce' => '6' ) );
         $this->assertSame( 49445, $out['guias_id_cliente_ce'] );
         $this->assertSame( 6, $out['guias_cuenta_ce'] );
-        $this->assertSame( 3, CCMCK_Settings::sanitize( array() )['guias_cuenta_ce'] );
+        $this->assertSame( 6, CCMCK_Settings::sanitize( array() )['guias_cuenta_ce'] );
     }
 
     public function test_defaults_and_sanitize_pickup_ask_and_api_secret(): void {
