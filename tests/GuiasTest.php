@@ -74,6 +74,31 @@ final class GuiasTest extends TestCase {
         $r2 = CCMCK_Guias::should_generate( $this->ctx( array( 'shipping_ids' => array( 'ccmck_local_pickup' ) ) ) );
         $this->assertFalse( $r2['ok'] );
     }
+    public function test_should_generate_blocks_other_carrier(): void {
+        // Botón "Venta" del bot con otra transportadora: no debe salir rótulo Coordinadora.
+        $r = CCMCK_Guias::should_generate( $this->ctx( array( 'shipping_ids' => array( 'other_carrier' ) ) ) );
+        $this->assertFalse( $r['ok'] );
+        $this->assertStringContainsString( 'transportadora', strtolower( $r['reason'] ) );
+
+        // Sin línea de envío tampoco: no hay despacho que rotular.
+        $this->assertFalse( CCMCK_Guias::should_generate( $this->ctx( array( 'shipping_ids' => array() ) ) )['ok'] );
+
+        // El legado 'coordinadora' sí genera.
+        $this->assertTrue( CCMCK_Guias::should_generate( $this->ctx( array( 'shipping_ids' => array( 'coordinadora' ) ) ) )['ok'] );
+
+        // El manual puede forzar (cliente que cambia a Coordinadora por WhatsApp).
+        $this->assertTrue( CCMCK_Guias::should_generate( $this->ctx( array(
+            'manual'       => true,
+            'shipping_ids' => array( 'other_carrier' ),
+        ) ) )['ok'] );
+    }
+    public function test_is_coordinadora(): void {
+        $this->assertTrue( CCMCK_Guias::is_coordinadora( array( 'ccmck_coordinadora' ) ) );
+        $this->assertTrue( CCMCK_Guias::is_coordinadora( array( 'coordinadora' ) ) );
+        $this->assertFalse( CCMCK_Guias::is_coordinadora( array( 'other_carrier' ) ) );
+        $this->assertFalse( CCMCK_Guias::is_coordinadora( array( 'local_pickup' ) ) );
+        $this->assertFalse( CCMCK_Guias::is_coordinadora( array() ) );
+    }
     public function test_should_generate_blocks_existing_guia(): void {
         $this->assertFalse( CCMCK_Guias::should_generate( $this->ctx( array( 'existing_guia' => '33042000009' ) ) )['ok'] );
     }

@@ -73,6 +73,47 @@ final class CotizarTest extends TestCase {
         $this->assertSame( '11001000', CCMCK_Cotizar::resolve_dane( $this->catalog(), '', 'Bogota D.C.', 'Cundinamarca' ) );
     }
 
+    /** Catálogo de Sucre: los dos "Tolú" del incidente del pedido #33418. */
+    private function catalog_sucre(): array {
+        return array(
+            'SUCRE' => array(
+                '70820000' => 'TOLU (SUCRE)',
+                '70823000' => 'TOLU VIEJO (SUCRE)',
+                '70001000' => 'SINCELEJO (SUCRE)',
+                '70717000' => 'SAN PEDRO (SUCRE)',
+            ),
+        );
+    }
+
+    public function test_resolve_dane_acepta_nombre_oficial_largo(): void {
+        // #33418: el asesor escribió el nombre oficial y no hubo match -> sin DANE,
+        // sin cotización, flete $0 y sin guía. El catálogo guarda sólo "TOLU".
+        $cat = $this->catalog_sucre();
+        $this->assertSame( '70820000', CCMCK_Cotizar::resolve_dane( $cat, '', 'Santiago de Tolú', 'SUCRE' ) );
+        $this->assertSame( '70820000', CCMCK_Cotizar::resolve_dane( $cat, '', 'santiago de tolu', 'SUCRE' ) );
+        $this->assertSame( '70820000', CCMCK_Cotizar::resolve_dane( $cat, '', 'Tolú', 'SUCRE' ) );
+    }
+
+    public function test_resolve_dane_no_confunde_tolu_con_tolu_viejo(): void {
+        // Municipios distintos: jamás comparar por prefijo ("TOLU VIEJO" empieza por "TOLU").
+        $cat = $this->catalog_sucre();
+        $this->assertSame( '70823000', CCMCK_Cotizar::resolve_dane( $cat, '', 'Tolú Viejo', 'SUCRE' ) );
+        $this->assertSame( '70823000', CCMCK_Cotizar::resolve_dane( $cat, '', 'TOLU VIEJO', 'SUCRE' ) );
+        // Sin equivalente en el catálogo: preferimos '' a adivinar un destino.
+        $this->assertSame( '', CCMCK_Cotizar::resolve_dane( $cat, '', 'Toluviejo', 'SUCRE' ) );
+        // Un prefijo "SAN PEDRO DE" no debe canibalizar al municipio "SAN PEDRO".
+        $this->assertSame( '70717000', CCMCK_Cotizar::resolve_dane( $cat, '', 'San Pedro', 'SUCRE' ) );
+    }
+
+    public function test_normalize_city_y_candidatos(): void {
+        $this->assertSame( 'TOLU', CCMCK_Cotizar::normalize_city( 'Tolú' ) );
+        $this->assertSame( 'TOLU', CCMCK_Cotizar::normalize_city( 'TOLU (SUCRE)' ) );
+        $this->assertSame( 'BOGOTA D C', CCMCK_Cotizar::normalize_city( 'Bogotá D.C.' ) );
+        $this->assertSame( array( 'SANTIAGO DE TOLU', 'TOLU' ), CCMCK_Cotizar::city_candidates( 'Santiago de Tolú' ) );
+        $this->assertSame( array( 'TOLU VIEJO' ), CCMCK_Cotizar::city_candidates( 'Tolú Viejo' ) );
+        $this->assertSame( array(), CCMCK_Cotizar::city_candidates( '  ' ) );
+    }
+
     public function test_resolve_dane_name_without_state_fails(): void {
         // Sin depto no hay lookup por nombre (nombres se repiten entre deptos).
         $this->assertSame( '', CCMCK_Cotizar::resolve_dane( $this->catalog(), '', 'Barranquilla', '' ) );
