@@ -52,6 +52,41 @@ final class CCMCK_Cotizar {
     }
 
     /**
+     * Normaliza un nombre de municipio para comparar: quita el sufijo "(ABREV)",
+     * los acentos, la puntuación, pasa a mayúsculas y colapsa espacios. PURO.
+     */
+    public static function normalize_city( string $s ): string {
+        $s    = (string) preg_replace( '/\s*\([^)]*\)\s*$/', '', trim( $s ) );
+        $from = array( 'Á', 'À', 'Ä', 'Â', 'á', 'à', 'ä', 'â', 'É', 'È', 'Ë', 'Ê', 'é', 'è', 'ë', 'ê', 'Í', 'Ì', 'Ï', 'Î', 'í', 'ì', 'ï', 'î', 'Ó', 'Ò', 'Ö', 'Ô', 'ó', 'ò', 'ö', 'ô', 'Ú', 'Ù', 'Ü', 'Û', 'ú', 'ù', 'ü', 'û', 'Ñ', 'ñ' );
+        $to   = array( 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'E', 'E', 'E', 'E', 'E', 'E', 'E', 'E', 'I', 'I', 'I', 'I', 'I', 'I', 'I', 'I', 'O', 'O', 'O', 'O', 'O', 'O', 'O', 'O', 'U', 'U', 'U', 'U', 'U', 'U', 'U', 'U', 'N', 'N' );
+        $s    = str_replace( $from, $to, $s );
+        $s    = function_exists( 'mb_strtoupper' ) ? mb_strtoupper( $s, 'UTF-8' ) : strtoupper( $s );
+        $s    = (string) preg_replace( '/[^A-Z0-9 ]+/', ' ', $s );
+        return trim( (string) preg_replace( '/\s+/', ' ', $s ) );
+    }
+
+    /**
+     * Formas comparables de un municipio: el nombre normalizado y, si arranca con
+     * un prefijo del tipo "SANTIAGO DE …", también el nombre sin ese prefijo — el
+     * catálogo de Coordinadora guarda "TOLU" y el asesor escribe el nombre oficial
+     * "Santiago de Tolú". Se recortan sólo prefijos "X DE " (no "EL"/"LA", que
+     * generarían colisiones); el llamador exige coincidencia única. PURO.
+     *
+     * @return string[]
+     */
+    public static function city_candidates( string $s ): array {
+        $n = self::normalize_city( $s );
+        if ( '' === $n ) {
+            return array();
+        }
+        $out = array( $n );
+        if ( preg_match( '/^(?:SANTIAGO|SAN JOSE|SAN JUAN|SAN PEDRO|SANTA CRUZ|VILLA|CIUDAD) DE (.+)$/', $n, $m ) ) {
+            $out[] = trim( $m[1] );
+        }
+        return array_values( array_unique( $out ) );
+    }
+
+    /**
      * Resuelve el código DANE destino. Precedencia: dane explícito (8 dígitos)
      * > DANE embebido en city ("NOMBRE (ABREV) (DANE)") > lookup por nombre
      * dentro del departamento (el popup de Venta manda el nombre a secas).
@@ -86,12 +121,29 @@ final class CCMCK_Cotizar {
         if ( null === $dept ) {
             return '';
         }
+        // Match en dos pasadas, siempre EXACTO sobre nombres normalizados. Nunca por
+        // prefijo/substring: "TOLU VIEJO" empieza por "TOLU" y son municipios distintos
+        // (70823000 vs 70820000). Si hay más de un candidato, se devuelve '' antes que
+        // adivinar un destino equivocado.
+        $n_city = self::normalize_city( $city );
+        $want   = self::city_candidates( $city );
+        $exact  = array();
+        $loose  = array();
         foreach ( $dept as $code => $label ) {
-            $label = (string) $label;
-            $name  = trim( (string) preg_replace( '/\s*\([^)]*\)\s*$/', '', $label ) );
-            if ( 0 === strcasecmp( $city, $label ) || 0 === strcasecmp( $city, $name ) ) {
-                return (string) $code;
+            $n_label = self::normalize_city( (string) $label );
+            if ( '' !== $n_city && $n_city === $n_label ) {
+                $exact[] = (string) $code;
+                continue;
             }
+            if ( array_intersect( $want, self::city_candidates( (string) $label ) ) ) {
+                $loose[] = (string) $code;
+            }
+        }
+        if ( 1 === count( $exact ) ) {
+            return $exact[0];
+        }
+        if ( ! $exact && 1 === count( $loose ) ) {
+            return $loose[0];
         }
         return '';
     }

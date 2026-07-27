@@ -43,6 +43,14 @@ final class CCMCK_Guias {
         if ( ! $manual && self::has_pickup( (array) ( $ctx['shipping_ids'] ?? array() ) ) ) {
             return array( 'ok' => false, 'reason' => 'pedido con recogida local' );
         }
+        // El envío debe ser Coordinadora. El botón "Venta" del bot permite elegir otra
+        // transportadora (method_id 'other_carrier'), y sin este guard el hook automático
+        // igual sacaba rótulo de Coordinadora por un envío que no despachamos nosotros.
+        // Sólo aplica al automático: el botón manual y /generar-guia siguen pudiendo
+        // convertir un pedido a Coordinadora (el cliente cambia de opinión por WhatsApp).
+        if ( ! $manual && ! self::is_coordinadora( (array) ( $ctx['shipping_ids'] ?? array() ) ) ) {
+            return array( 'ok' => false, 'reason' => 'envío con otra transportadora' );
+        }
         if ( '' !== (string) ( $ctx['existing_guia'] ?? '' ) ) {
             return array( 'ok' => false, 'reason' => 'el pedido ya tiene guía' );
         }
@@ -50,6 +58,21 @@ final class CCMCK_Guias {
             return array( 'ok' => false, 'reason' => 'generación en curso (lock)' );
         }
         return array( 'ok' => true, 'reason' => '' );
+    }
+
+    /**
+     * ¿El envío es con Coordinadora? PURO. Cubre las dos variantes que existen en
+     * pedidos reales ('ccmck_coordinadora' y el legado 'coordinadora'). Un pedido sin
+     * línea de envío devuelve false: sin método no hay despacho que rotular, y el
+     * botón manual queda para el caso excepcional.
+     */
+    public static function is_coordinadora( array $shipping_ids ): bool {
+        foreach ( $shipping_ids as $id ) {
+            if ( false !== stripos( (string) $id, 'coordinadora' ) ) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** ¿Alguno de los métodos de envío es recogida local? PURO. */
