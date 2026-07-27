@@ -746,6 +746,11 @@ final class CCMCK_Guias {
             'callback'            => array( __CLASS__, 'rest_rotulo' ),
             'permission_callback' => array( __CLASS__, 'rest_permission' ),
         ) );
+        register_rest_route( 'ccmck/v1', '/factura-claim', array(
+            'methods'             => 'POST',
+            'callback'            => array( __CLASS__, 'rest_factura_claim' ),
+            'permission_callback' => array( __CLASS__, 'rest_permission' ),
+        ) );
     }
 
     /**
@@ -782,6 +787,59 @@ final class CCMCK_Guias {
             return new WP_Error( 'ccmck_forbidden', 'Secreto inválido.', array( 'status' => 403 ) );
         }
         return true;
+    }
+
+    /**
+     * POST /wp-json/ccmck/v1/factura-claim {order_id} — candado atómico anti-duplicado
+     * de facturación. El webhook de WooCommerce dispara varias veces por pedido y las
+     * ventas del botón de Chatwoot añaden un segundo disparo, así que "factura copy"
+     * corre en paralelo en n8n. Su dedup por staticData NO es atómico entre ejecuciones
+     * concurrentes (carga el snapshot al iniciar, lo guarda al terminar), de modo que
+     * dos corridas solapadas crean dos facturas. Aquí el índice UNIQUE de option_name
+     * garantiza que sólo el primer INSERT gana el claim; el resto recibe claimed:false
+     * y salta. El claim caduca a los 3 min para permitir reintentos si la facturación
+     * falló a mitad de camino (la idempotencia durable la da el meta _ccm_alegra_invoice_id).
+     *
+     * Respuesta: { ok:true, claimed:bool }. claimed:true → esta corrida factura; false → otra la tomó.
+     * Nota: acumula una fila (autoload 'no') por pedido facturado; purgar _ccmck_fclaim_* viejos si crece.
+     */
+    public static function rest_factura_claim( $request ) {
+        $order_id = absint( $request['order_id'] ?? 0 );
+        if ( ! $order_id ) {
+            return new WP_Error( 'ccmck_bad_request', 'order_id requerido.', array( 'status' => 400 ) );
+        }
+        global $wpdb;
+        $name = '_ccmck_fclaim_' . $order_id;
+        $now  = time();
+        // INSERT IGNORE: el UNIQUE de option_name hace atómico el claim entre peticiones
+        // concurrentes. Devuelve 1 si insertó (ganó el claim), 0 si la fila ya existía.
+        $ins = $wpdb->query( $wpdb->prepare(
+            "INSERT IGNORE INTO {$wpdb->options} (option_name, option_value, autoload) VALUES (%s, %s, 'no')",
+            $name,
+            (string) $now
+        ) );
+        if ( 1 === (int) $ins ) {
+            return rest_ensure_response( array( 'ok' => true, 'claimed' => true ) );
+        }
+        // Ya existía: sólo tomar el relevo si el claim está vencido (>3 min). El UPDATE
+        // condicionado a option_value = $ts (compare-and-swap) mantiene la atomicidad:
+        // si dos reintentos concurrentes leen el mismo $ts, sólo uno cambia la fila.
+        $ts = (int) $wpdb->get_var( $wpdb->prepare(
+            "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s",
+            $name
+        ) );
+        if ( $now - $ts > 180 ) {
+            $swapped = $wpdb->query( $wpdb->prepare(
+                "UPDATE {$wpdb->options} SET option_value = %s WHERE option_name = %s AND option_value = %s",
+                (string) $now,
+                $name,
+                (string) $ts
+            ) );
+            if ( 1 === (int) $swapped ) {
+                return rest_ensure_response( array( 'ok' => true, 'claimed' => true, 'stale_reclaim' => true ) );
+            }
+        }
+        return rest_ensure_response( array( 'ok' => true, 'claimed' => false ) );
     }
 
     /**
