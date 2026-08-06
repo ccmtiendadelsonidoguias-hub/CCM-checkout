@@ -211,6 +211,30 @@ defined( 'ABSPATH' ) || exit;
                    value="<?php echo esc_attr( $s['whatsapp_subtitle'] ); ?>" class="large-text">
         </td>
     </tr>
+    <tr>
+        <th scope="row"><?php esc_html_e( 'Aviso de compra grande', 'ccm-checkout' ); ?></th>
+        <td>
+            <label>
+                <input type="checkbox" name="ccmck_settings[highvalue_enabled]" value="1"
+                       <?php checked( ! empty( $s['highvalue_enabled'] ) ); ?>>
+                <?php esc_html_e( 'Ofrecer coordinar el pago por WhatsApp en carritos grandes', 'ccm-checkout' ); ?>
+            </label>
+            <p class="description">
+                <?php esc_html_e( 'En el checkout, si el carrito supera el monto de abajo, se muestra un aviso con enlace a WhatsApp. No bloquea el pago en línea.', 'ccm-checkout' ); ?>
+            </p>
+        </td>
+    </tr>
+    <tr>
+        <th scope="row"><label for="ccmck-highvalue-threshold"><?php esc_html_e( 'Mostrarlo desde (COP)', 'ccm-checkout' ); ?></label></th>
+        <td>
+            <input type="number" min="0" step="1000" id="ccmck-highvalue-threshold"
+                   name="ccmck_settings[highvalue_threshold]"
+                   value="<?php echo esc_attr( (string) ( $s['highvalue_threshold'] ?? 4500000 ) ); ?>" class="regular-text">
+            <p class="description">
+                <?php esc_html_e( 'Medido en pedidos reales (may–jul 2026): entre $3M y $5M falla el 92% de los pagos y por encima de $5M el 100%. El pago más grande que ha entrado son $5.375.473. 0 desactiva el aviso.', 'ccm-checkout' ); ?>
+            </p>
+        </td>
+    </tr>
 </table>
 
 <?php /* ============================================================
