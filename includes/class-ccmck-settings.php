@@ -25,6 +25,10 @@ final class CCMCK_Settings {
             'whatsapp_number'   => '573178119077',
             'whatsapp_title'    => '¿Necesitas ayuda con tu pedido?',
             'whatsapp_subtitle' => 'Escríbenos por WhatsApp',
+            // Aviso de compra grande: por encima de este monto la pasarela rechaza
+            // casi siempre, así que se ofrece coordinar el pago por WhatsApp. 0 = off.
+            'highvalue_enabled'   => true,
+            'highvalue_threshold' => 4500000,
             'faq_enabled'       => true,
             'faq_items'         => array(),
             'shipping_cards'    => array(),
@@ -99,6 +103,9 @@ final class CCMCK_Settings {
         $out['whatsapp_number']   = preg_replace( '/[^0-9]/', '', (string) ( $input['whatsapp_number'] ?? '' ) );
         $out['whatsapp_title']    = sanitize_text_field( $input['whatsapp_title'] ?? '' );
         $out['whatsapp_subtitle'] = sanitize_text_field( $input['whatsapp_subtitle'] ?? '' );
+
+        $out['highvalue_enabled']   = ! empty( $input['highvalue_enabled'] );
+        $out['highvalue_threshold'] = absint( $input['highvalue_threshold'] ?? $d['highvalue_threshold'] );
 
         $out['faq_enabled'] = ! empty( $input['faq_enabled'] );
         $out['faq_items']   = self::sanitize_faq( $input['faq_items'] ?? array() );
