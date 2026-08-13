@@ -844,7 +844,14 @@ final class CCMCK_Guias {
     public static function ajax_customer_label(): void {
         $order_id = isset( $_GET['order_id'] ) ? absint( $_GET['order_id'] ) : 0;
 
-        check_ajax_referer( 'ccmck_rotulo_cliente_' . $order_id );
+        // `false, false`: sin morir. Con el corte por defecto, un nonce caducado
+        // —cosa que pasa a las 24-48 h, al reabrir un enlace viejo— acaba en el
+        // `wp_die(-1)` de WordPress: una pantalla en blanco con un "-1". Aquí se
+        // trata como cualquier otro fallo y el cliente vuelve a Descargas con un
+        // aviso.
+        if ( ! check_ajax_referer( 'ccmck_rotulo_cliente_' . $order_id, false, false ) ) {
+            self::back_to_downloads( __( 'Ese envío no está disponible.', 'ccm-checkout' ) );
+        }
 
         $order = $order_id ? wc_get_order( $order_id ) : null;
 
