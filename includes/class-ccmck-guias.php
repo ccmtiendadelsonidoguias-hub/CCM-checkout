@@ -85,6 +85,37 @@ final class CCMCK_Guias {
         return false;
     }
 
+    /**
+     * ¿Puede este cliente bajar este rótulo? PURA.
+     *
+     * Misma forma que `should_generate()`, que ya está en esta clase.
+     *
+     * @param array $ctx {logged_in, user_id, order_found, order_customer_id, guia}
+     * @return array{ok:bool, reason:string}
+     */
+    public static function customer_label_check( array $ctx ): array {
+        if ( empty( $ctx['logged_in'] ) ) {
+            return array( 'ok' => false, 'reason' => 'sesion requerida' );
+        }
+
+        $usuario = (int) ( $ctx['user_id'] ?? 0 );
+        $dueno   = (int) ( $ctx['order_customer_id'] ?? 0 );
+
+        // Un mismo motivo para "no existe" y "no es tuyo": si difirieran, un
+        // cliente podría averiguar qué pedidos existen probando números.
+        // El 0 (pedido de invitado) nunca coincide con nadie: un usuario con
+        // sesión tiene id > 0.
+        if ( empty( $ctx['order_found'] ) || $usuario < 1 || $dueno !== $usuario ) {
+            return array( 'ok' => false, 'reason' => 'pedido no disponible' );
+        }
+
+        if ( ! self::has_guide( (string) ( $ctx['guia'] ?? '' ) ) ) {
+            return array( 'ok' => false, 'reason' => 'el pedido no tiene guia' );
+        }
+
+        return array( 'ok' => true, 'reason' => '' );
+    }
+
     /** ¿Este pedido tiene guía y por tanto envío que enseñar? PURO. */
     public static function has_guide( string $guia ): bool {
         return '' !== trim( $guia );

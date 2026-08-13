@@ -116,4 +116,58 @@ final class GuiasClienteTest extends TestCase {
 
 		$this->assertSame( 'QkJC', CCMCK_Guias::label_from_cache_or( '330421', static fn() => 'QkJC' ) );
 	}
+
+	// --- Quién puede bajar un rótulo ---
+
+	private function ctx( array $cambios = array() ): array {
+		return array_merge( array(
+			'logged_in'         => true,
+			'user_id'           => 7,
+			'order_found'       => true,
+			'order_customer_id' => 7,
+			'guia'              => '33042000392',
+		), $cambios );
+	}
+
+	public function test_the_owner_can_download_their_label(): void {
+		$r = CCMCK_Guias::customer_label_check( $this->ctx() );
+
+		$this->assertTrue( $r['ok'] );
+		$this->assertSame( '', $r['reason'] );
+	}
+
+	public function test_an_anonymous_visitor_cannot(): void {
+		$r = CCMCK_Guias::customer_label_check( $this->ctx( array( 'logged_in' => false, 'user_id' => 0 ) ) );
+
+		$this->assertFalse( $r['ok'] );
+	}
+
+	public function test_a_customer_cannot_download_someone_elses_label(): void {
+		$r = CCMCK_Guias::customer_label_check( $this->ctx( array( 'order_customer_id' => 99 ) ) );
+
+		$this->assertFalse( $r['ok'] );
+	}
+
+	public function test_a_guest_order_belongs_to_nobody(): void {
+		// customer_id 0 es un pedido de invitado. Un cliente con sesion no
+		// puede reclamarlo solo porque su propio id tampoco sea 0.
+		$r = CCMCK_Guias::customer_label_check( $this->ctx( array( 'order_customer_id' => 0 ) ) );
+
+		$this->assertFalse( $r['ok'] );
+	}
+
+	public function test_an_order_without_a_guide_has_nothing_to_download(): void {
+		$r = CCMCK_Guias::customer_label_check( $this->ctx( array( 'guia' => '' ) ) );
+
+		$this->assertFalse( $r['ok'] );
+	}
+
+	public function test_missing_and_not_yours_are_indistinguishable(): void {
+		// Si los motivos difieren, un cliente puede averiguar que pedidos
+		// existen probando numeros.
+		$ajeno       = CCMCK_Guias::customer_label_check( $this->ctx( array( 'order_customer_id' => 99 ) ) );
+		$inexistente = CCMCK_Guias::customer_label_check( $this->ctx( array( 'order_found' => false ) ) );
+
+		$this->assertSame( $ajeno['reason'], $inexistente['reason'] );
+	}
 }
