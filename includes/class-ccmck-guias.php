@@ -115,6 +115,55 @@ final class CCMCK_Guias {
         return 'ccmck_rotulo_' . md5( $guia );
     }
 
+    // Segundos literales y no `HOUR_IN_SECONDS`: una constante de clase se
+    // evalúa al incluir el archivo, y en el banco de pruebas eso pasa antes de
+    // que el bootstrap defina las constantes de WordPress. Con la constante de
+    // WP aquí, las pruebas revientan con "undefined constant".
+
+    /** Cuánto se guarda un rótulo que sí llegó: 12 horas. */
+    const LABEL_TTL = 43200;
+
+    /** Cuánto se guarda un fallo, para no martillear a Coordinadora: 5 minutos. */
+    const LABEL_FAIL_TTL = 300;
+
+    /** Marca de "esto falló". No es base64 válido a propósito. */
+    const LABEL_FAIL = '!fallo';
+
+    /**
+     * Rótulo desde la caché, y si no está, del `$fetcher`.
+     *
+     * El `$fetcher` se inyecta para poder probar la caché sin llamar a
+     * Coordinadora. En producción es siempre `fetch_label_b64()`.
+     *
+     * Se cachea también el fallo: sin eso, un cliente que pulse "Descargar"
+     * veinte veces son veinte llamadas SOAP.
+     *
+     * @return string base64 del PDF, o '' si no hay rótulo.
+     */
+    public static function label_from_cache_or( string $guia, callable $fetcher ): string {
+        $clave    = self::label_cache_key( $guia );
+        $guardado = get_transient( $clave );
+
+        if ( self::LABEL_FAIL === $guardado ) {
+            return '';
+        }
+
+        if ( is_string( $guardado ) && '' !== $guardado ) {
+            return $guardado;
+        }
+
+        $b64 = (string) $fetcher( $guia );
+
+        if ( '' === $b64 ) {
+            set_transient( $clave, self::LABEL_FAIL, self::LABEL_FAIL_TTL );
+            return '';
+        }
+
+        set_transient( $clave, $b64, self::LABEL_TTL );
+
+        return $b64;
+    }
+
     /**
      * Params completos de Guias.generarGuia. Incorpora las observaciones de
      * Coordinadora: fecha vacía, nit_remitente vacío, razón social y DANE real

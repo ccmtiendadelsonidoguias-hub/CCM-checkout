@@ -53,4 +53,67 @@ final class GuiasClienteTest extends TestCase {
 		$this->assertLessThanOrEqual( 172, strlen( $clave ) );
 		$this->assertStringStartsWith( 'ccmck_rotulo_', $clave );
 	}
+
+	protected function setUp(): void {
+		// Otra prueba de esta misma clase pudo dejar transients puestos.
+		$GLOBALS['ccmck_test_transients'] = array();
+	}
+
+	// --- Caché del rótulo ---
+
+	public function test_the_first_click_asks_coordinadora_and_stores_the_label(): void {
+		$llamadas = 0;
+		$fetcher  = function () use ( &$llamadas ) {
+			$llamadas++;
+			return 'UERGLWZha2U=';
+		};
+
+		$this->assertSame( 'UERGLWZha2U=', CCMCK_Guias::label_from_cache_or( '330420', $fetcher ) );
+		$this->assertSame( 1, $llamadas );
+	}
+
+	public function test_the_second_click_does_not_ask_coordinadora_again(): void {
+		$llamadas = 0;
+		$fetcher  = function () use ( &$llamadas ) {
+			$llamadas++;
+			return 'UERGLWZha2U=';
+		};
+
+		CCMCK_Guias::label_from_cache_or( '330420', $fetcher );
+		$segundo = CCMCK_Guias::label_from_cache_or( '330420', $fetcher );
+
+		$this->assertSame( 'UERGLWZha2U=', $segundo );
+		$this->assertSame( 1, $llamadas, 'la segunda descarga volvio a llamar a Coordinadora' );
+	}
+
+	public function test_a_failure_is_cached_so_an_insistent_customer_is_not_a_hammer(): void {
+		// Sin esto, un cliente que pulse "Descargar" veinte veces son veinte
+		// llamadas SOAP contra la API de Coordinadora.
+		$llamadas = 0;
+		$fetcher  = function () use ( &$llamadas ) {
+			$llamadas++;
+			return '';
+		};
+
+		$this->assertSame( '', CCMCK_Guias::label_from_cache_or( '330420', $fetcher ) );
+		$this->assertSame( '', CCMCK_Guias::label_from_cache_or( '330420', $fetcher ) );
+		$this->assertSame( '', CCMCK_Guias::label_from_cache_or( '330420', $fetcher ) );
+
+		$this->assertSame( 1, $llamadas, 'el fallo no se cacheo' );
+	}
+
+	public function test_the_failure_sentinel_never_comes_back_as_a_pdf(): void {
+		// El centinela del fallo se guarda en el mismo sitio que el rotulo. Si
+		// se devolviera tal cual, el cliente se bajaria un archivo con la
+		// palabra centinela dentro y extension .pdf.
+		CCMCK_Guias::label_from_cache_or( '330420', static fn() => '' );
+
+		$this->assertSame( '', CCMCK_Guias::label_from_cache_or( '330420', static fn() => 'UERGLWZha2U=' ) );
+	}
+
+	public function test_each_guide_has_its_own_cache(): void {
+		CCMCK_Guias::label_from_cache_or( '330420', static fn() => 'QUFB' );
+
+		$this->assertSame( 'QkJC', CCMCK_Guias::label_from_cache_or( '330421', static fn() => 'QkJC' ) );
+	}
 }
