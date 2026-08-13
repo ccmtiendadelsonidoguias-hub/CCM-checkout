@@ -170,4 +170,14 @@ final class GuiasClienteTest extends TestCase {
 
 		$this->assertSame( $ajeno['reason'], $inexistente['reason'] );
 	}
+
+	// --- customer_shipments: lista de envios del cliente ---
+
+	public function test_there_are_no_shipments_without_a_user(): void {
+		// Sin sesion no hay nada que listar, y no se debe llegar a consultar
+		// pedidos: wc_get_orders( customer => 0 ) devolveria pedidos de
+		// invitados que no son de nadie.
+		$this->assertSame( array(), CCMCK_Guias::customer_shipments( 0 ) );
+		$this->assertSame( array(), CCMCK_Guias::customer_shipments( -3 ) );
+	}
 }

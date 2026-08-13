@@ -122,6 +122,64 @@ final class CCMCK_Guias {
     }
 
     /**
+     * Envíos de un cliente: un pedido suyo por cada guía.
+     *
+     * Se filtra en PHP y no con una consulta por meta a propósito. Una
+     * `meta_query` funciona con el almacenamiento clásico pero no con HPOS, y
+     * esta tienda usa el clásico **hoy**; filtrar aquí sirve para los dos y no
+     * hay que acordarse de nada el día que migre.
+     *
+     * @return array Lista ordenada de la más reciente a la más antigua.
+     */
+    public static function customer_shipments( int $user_id ): array {
+        if ( $user_id < 1 ) {
+            return array();
+        }
+
+        $pedidos = wc_get_orders( array(
+            'customer' => $user_id,
+            'limit'    => -1,
+            'orderby'  => 'date',
+            'order'    => 'DESC',
+        ) );
+
+        $envios = array();
+
+        foreach ( $pedidos as $order ) {
+            $guia = (string) $order->get_meta( self::META_GUIA );
+
+            if ( ! self::has_guide( $guia ) ) {
+                continue;
+            }
+
+            $envios[] = array(
+                'order_id'     => $order->get_id(),
+                'order_number' => (string) $order->get_order_number(),
+                'date'         => $order->get_date_created(),
+                'status'       => (string) $order->get_status(),
+                'guia'         => $guia,
+                'tracking_url' => (string) $order->get_meta( self::META_URL ),
+                'label_url'    => self::customer_label_url( $order->get_id() ),
+            );
+        }
+
+        return $envios;
+    }
+
+    /** URL firmada para que el cliente baje el rótulo de un pedido suyo. */
+    public static function customer_label_url( int $order_id ): string {
+        $url = add_query_arg(
+            array(
+                'action'   => 'ccmck_rotulo_cliente',
+                'order_id' => $order_id,
+            ),
+            admin_url( 'admin-ajax.php' )
+        );
+
+        return wp_nonce_url( $url, 'ccmck_rotulo_cliente_' . $order_id );
+    }
+
+    /**
      * Nombre del archivo del rótulo. PURO.
      *
      * Va dentro de `Content-Disposition`, que es una cabecera HTTP: un salto de
@@ -778,6 +836,68 @@ final class CCMCK_Guias {
     }
 
     /**
+     * Sirve el rótulo al cliente dueño del pedido.
+     *
+     * Registrada solo en `wp_ajax_` y nunca en `wp_ajax_nopriv_`: un anónimo
+     * no llega ni al handler.
+     */
+    public static function ajax_customer_label(): void {
+        $order_id = isset( $_GET['order_id'] ) ? absint( $_GET['order_id'] ) : 0;
+
+        check_ajax_referer( 'ccmck_rotulo_cliente_' . $order_id );
+
+        $order = $order_id ? wc_get_order( $order_id ) : null;
+
+        $check = self::customer_label_check( array(
+            'logged_in'         => is_user_logged_in(),
+            'user_id'           => get_current_user_id(),
+            'order_found'       => (bool) $order,
+            'order_customer_id' => $order ? (int) $order->get_customer_id() : 0,
+            'guia'              => $order ? (string) $order->get_meta( self::META_GUIA ) : '',
+        ) );
+
+        if ( ! $check['ok'] ) {
+            self::back_to_downloads( __( 'Ese envío no está disponible.', 'ccm-checkout' ) );
+        }
+
+        $guia = (string) $order->get_meta( self::META_GUIA );
+        $b64  = self::label_from_cache_or( $guia, static function ( $g ) {
+            return self::fetch_label_b64( (string) $g );
+        } );
+
+        $pdf = '' !== $b64 ? base64_decode( $b64 ) : '';
+
+        if ( '' === $pdf || '%PDF' !== substr( $pdf, 0, 4 ) ) {
+            self::back_to_downloads( __( 'El rótulo no está disponible ahora mismo. Inténtalo más tarde.', 'ccm-checkout' ) );
+        }
+
+        nocache_headers();
+        header( 'Cache-Control: private, no-store, max-age=0' );
+        header( 'Content-Type: application/pdf' );
+        header( 'Content-Disposition: attachment; filename="' . self::label_filename( $guia ) . '"' );
+        header( 'Content-Length: ' . strlen( $pdf ) );
+        echo $pdf; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- binario PDF.
+        exit;
+    }
+
+    /**
+     * Devuelve al cliente a Descargas con un aviso, en vez de dejarlo en una
+     * pantalla en blanco de admin-ajax.
+     *
+     * El permalink va explícito: `wc_get_endpoint_url()` llama por dentro a
+     * `get_permalink()`, que necesita una página consultada, y en
+     * `admin-ajax.php` no hay ninguna — sin esto la URL sale sin el `/account/`.
+     */
+    private static function back_to_downloads( string $mensaje ): void {
+        if ( function_exists( 'wc_add_notice' ) ) {
+            wc_add_notice( $mensaje, 'error' );
+        }
+
+        wp_safe_redirect( wc_get_endpoint_url( 'downloads', '', wc_get_page_permalink( 'myaccount' ) ) );
+        exit;
+    }
+
+    /**
      * Pregunta al cliente (vía n8n → WhatsApp) si prefiere envío en vez de
      * recogida. Fire-and-forget, UNA sola vez por pedido.
      */
@@ -1028,6 +1148,7 @@ final class CCMCK_Guias {
         add_action( 'woocommerce_admin_order_data_after_billing_address', array( __CLASS__, 'render_admin' ) );
         add_action( 'wp_ajax_ccmck_guia_label', array( __CLASS__, 'ajax_label' ) );
         add_action( 'wp_ajax_ccmck_guia_generate', array( __CLASS__, 'ajax_generate' ) );
+        add_action( 'wp_ajax_ccmck_rotulo_cliente', array( __CLASS__, 'ajax_customer_label' ) );
         add_action( 'rest_api_init', array( __CLASS__, 'register_rest_routes' ) );
         // Prio 10: corre antes de woocommerce_checkout_update_order_meta, donde
         // el plugin de ciudades recorta el DANE de la ciudad.
