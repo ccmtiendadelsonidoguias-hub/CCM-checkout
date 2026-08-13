@@ -85,6 +85,36 @@ final class CCMCK_Guias {
         return false;
     }
 
+    /** ¿Este pedido tiene guía y por tanto envío que enseñar? PURO. */
+    public static function has_guide( string $guia ): bool {
+        return '' !== trim( $guia );
+    }
+
+    /**
+     * Nombre del archivo del rótulo. PURO.
+     *
+     * Va dentro de `Content-Disposition`, que es una cabecera HTTP: un salto de
+     * línea o unas comillas ahí no son un nombre feo, son inyección de
+     * cabeceras. Por eso se filtra a alfanuméricos y guiones en vez de escapar.
+     */
+    public static function label_filename( string $guia ): string {
+        $limpio = preg_replace( '/[^A-Za-z0-9\-]/', '', $guia );
+
+        return '' === $limpio ? 'rotulo.pdf' : 'guia-' . $limpio . '.pdf';
+    }
+
+    /**
+     * Clave del transient donde se guarda el rótulo. PURA.
+     *
+     * Por md5 y no por el número en crudo: una clave de transient con
+     * expiración no puede pasar de 172 caracteres, porque WordPress le antepone
+     * `_transient_timeout_` y `option_name` tiene 191. Un número de guía raro no
+     * puede reventar la caché.
+     */
+    public static function label_cache_key( string $guia ): string {
+        return 'ccmck_rotulo_' . md5( $guia );
+    }
+
     /**
      * Params completos de Guias.generarGuia. Incorpora las observaciones de
      * Coordinadora: fecha vacía, nit_remitente vacío, razón social y DANE real
