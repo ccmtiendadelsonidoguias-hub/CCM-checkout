@@ -141,3 +141,21 @@ require_once dirname( __DIR__ ) . '/includes/class-ccmck-coordinadora.php';
 require_once dirname( __DIR__ ) . '/includes/class-ccmck-guias.php';
 require_once dirname( __DIR__ ) . '/includes/class-ccmck-cotizar.php';
 require_once dirname( __DIR__ ) . '/includes/class-ccmck-reports.php';
+
+// Transients en memoria. `$GLOBALS['ccmck_test_transients']` guarda
+// ['valor' => mixed, 'expira' => int] y las pruebas lo vacían en setUp().
+if ( ! function_exists( 'get_transient' ) ) {
+    function get_transient( $key ) {
+        $store = $GLOBALS['ccmck_test_transients'] ?? array();
+        if ( ! isset( $store[ $key ] ) ) {
+            return false;
+        }
+        return $store[ $key ]['valor'];
+    }
+}
+if ( ! function_exists( 'set_transient' ) ) {
+    function set_transient( $key, $value, $expiration = 0 ) {
+        $GLOBALS['ccmck_test_transients'][ $key ] = array( 'valor' => $value, 'expira' => (int) $expiration );
+        return true;
+    }
+}
