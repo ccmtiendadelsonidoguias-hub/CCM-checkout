@@ -83,12 +83,33 @@ curl -sI https://dev.ccmtiendadelsonido.com/carrito/ | grep -i "x-litespeed-cach
 
 Esperado: `1` en el primero. En el segundo, **no** debe aparecer `x-litespeed-cache: hit`.
 
-- [ ] **Paso 6: Anotar en el ROADMAP del repo y commit**
+- [ ] **Paso 6: Anotar en `docs/CHANGELOG.md` y commit**
 
-No hay cambios de código, pero sí una decisión que hay que poder rastrear: qué había en la página y por qué se sustituyó.
+No hay cambios de código, pero sí una decisión que hay que poder rastrear: qué había en la página y por qué se sustituyó. **Sin esto el commit saldría vacío y git lo rechazaría.**
+
+Añadir al principio de `docs/CHANGELOG.md`:
+
+```markdown
+## Carrito — la página 26011 vuelve a ser un carrito (dev, 2026-08-15)
+
+La página tenía un `<form>` de HTML estático pegado donde debía ir
+`[woocommerce_cart]`, así que `/carrito/` no era un carrito: era una tabla
+muerta. Se sustituye por el shortcode.
+
+Copia de lo que había, antes de tirarlo: `/tmp/carrito-26011-original.html` en
+el servidor (pesaba <BYTES> bytes). **Nadie sabe todavía quién lo puso ahí ni
+por qué**; conviene averiguarlo antes de repetir esto en producción.
+
+Se excluye además `/carrito/` de la caché de LiteSpeed: hasta hoy se servía
+pública y cacheada, y un carrito cacheado enseña el de otro cliente.
+
+Hecho **solo en dev**.
+```
+
+Sustituir `<BYTES>` por el tamaño real que dio el paso 1.
 
 ```bash
-git add docs/
+git add docs/CHANGELOG.md
 git commit -m "docs: la pagina 26011 vuelve a ser un carrito (dev)"
 ```
 
@@ -101,7 +122,8 @@ git commit -m "docs: la pagina 26011 vuelve a ser un carrito (dev)"
 - Modificar: `includes/class-ccmck-assets.php`
 - Crear: `templates/cart/cart.php`, `templates/cart/cart-totals.php`, `templates/cart/cart-empty.php`
 - Crear: `assets/ccmck-cart.css`, `assets/ccmck-cart.js`
-- Modificar: `tests/TemplatesTest.php` (si no existe, crear)
+- **Crear**: `tests/TemplatesTest.php` (no existe hoy)
+- Modificar: `tests/bootstrap.php`
 
 **Interfaces:**
 - Consume: `CCMCK_Templates::OVERRIDES` (lista blanca ya existente), `CCMCK_Assets::asset_version()`.
@@ -109,11 +131,62 @@ git commit -m "docs: la pagina 26011 vuelve a ser un carrito (dev)"
 
 **El truco de esta tarea:** las tres plantillas se crean como **copias literales** de las de WooCommerce. La página tiene que verse **exactamente igual** al terminar. Así se prueba que el desvío funciona antes de cambiar ni un píxel — y si algo se rompe después, se sabe que fue el diseño y no el mecanismo.
 
-- [ ] **Paso 1: Escribir las pruebas que fallan**
+- [ ] **Paso 1: Preparar el banco de pruebas**
 
-Añadir a `tests/TemplatesTest.php`:
+`tests/TemplatesTest.php` **no existe** y `tests/bootstrap.php` **no carga** ni `CCMCK_Templates` ni `CCMCK_Assets`, así que sin esto las pruebas del paso siguiente fallarían por clase indefinida y no por lo que quieren probar.
+
+Añadir al final de `tests/bootstrap.php`, **antes** de cualquier `require_once` de clases que ya haya:
 
 ```php
+// Stubs que necesitan CCMCK_Templates y CCMCK_Assets. Ninguno hace nada: las
+// pruebas solo ejercitan las funciones PURAS de esas clases (la lista blanca y
+// la decisión de encolar), no el encolado de verdad, que es de WordPress.
+if ( ! function_exists( 'is_cart' ) ) {
+    function is_cart() { return false; }
+}
+if ( ! function_exists( 'is_checkout' ) ) {
+    function is_checkout() { return false; }
+}
+if ( ! function_exists( 'wp_enqueue_style' ) ) {
+    function wp_enqueue_style( ...$a ) { return null; }
+}
+if ( ! function_exists( 'wp_enqueue_script' ) ) {
+    function wp_enqueue_script( ...$a ) { return null; }
+}
+if ( ! function_exists( 'wp_localize_script' ) ) {
+    function wp_localize_script( ...$a ) { return true; }
+}
+if ( ! function_exists( 'admin_url' ) ) {
+    function admin_url( $path = '' ) { return 'https://ejemplo.test/wp-admin/' . ltrim( (string) $path, '/' ); }
+}
+if ( ! function_exists( 'wp_create_nonce' ) ) {
+    function wp_create_nonce( $action = -1 ) { return 'nonce-de-prueba'; }
+}
+if ( ! defined( 'CCMCK_DIR' ) ) {
+    define( 'CCMCK_DIR', dirname( __DIR__ ) . '/' );
+}
+if ( ! defined( 'CCMCK_URL' ) ) {
+    define( 'CCMCK_URL', 'https://ejemplo.test/wp-content/mu-plugins/ccm-checkout/' );
+}
+```
+
+Y los dos `require_once`, al final del archivo junto a los que ya hay:
+
+```php
+require_once dirname( __DIR__ ) . '/includes/class-ccmck-templates.php';
+require_once dirname( __DIR__ ) . '/includes/class-ccmck-assets.php';
+```
+
+- [ ] **Paso 2: Escribir las pruebas que fallan**
+
+Crear `tests/TemplatesTest.php`:
+
+```php
+<?php
+use PHPUnit\Framework\TestCase;
+
+final class TemplatesTest extends TestCase {
+```
 	public function test_the_cart_templates_are_whitelisted(): void {
 		$r = new ReflectionClass( 'CCMCK_Templates' );
 		$overrides = $r->getConstant( 'OVERRIDES' );
@@ -142,9 +215,10 @@ Añadir a `tests/TemplatesTest.php`:
 		$this->assertTrue( CCMCK_Assets::loads_cart( true ) );
 		$this->assertFalse( CCMCK_Assets::loads_cart( false ) );
 	}
+}
 ```
 
-- [ ] **Paso 2: Ejecutarlas y ver que fallan**
+- [ ] **Paso 3: Ejecutarlas y ver que fallan**
 
 Subir los archivos a dev (ver "Restricciones globales" para el guardián de hashes y el LF) y:
 
@@ -154,7 +228,7 @@ ssh -p 65002 u164047049@195.35.13.136 'cd domains/ccmtiendadelsonido.com/public_
 
 Esperado: fallo en `cart/cart.php` no está en la lista, y `Call to undefined method CCMCK_Assets::loads_cart()`.
 
-- [ ] **Paso 3: Ampliar la lista blanca**
+- [ ] **Paso 4: Ampliar la lista blanca**
 
 En `includes/class-ccmck-templates.php`, dentro de `OVERRIDES`:
 
@@ -174,7 +248,7 @@ En `includes/class-ccmck-templates.php`, dentro de `OVERRIDES`:
     );
 ```
 
-- [ ] **Paso 4: Encolar los assets del carrito**
+- [ ] **Paso 5: Encolar los assets del carrito**
 
 En `includes/class-ccmck-assets.php`, añadir el método y la llamada:
 
@@ -205,7 +279,7 @@ Y dentro de `enqueue()`, **antes** del `if ( ! is_checkout() ) { return; }` que 
         }
 ```
 
-- [ ] **Paso 5: Crear las tres plantillas como copias literales**
+- [ ] **Paso 6: Crear las tres plantillas como copias literales**
 
 Traerlas de WooCommerce tal cual, y añadir solo la cabecera que documenta el origen:
 
@@ -242,7 +316,7 @@ Crear también los dos assets, vacíos salvo un comentario:
 /* Cantidades del carrito. Se rellena en la tarea 4. */
 ```
 
-- [ ] **Paso 6: Ejecutar la suite completa**
+- [ ] **Paso 7: Ejecutar la suite completa**
 
 ```bash
 ssh -p 65002 u164047049@195.35.13.136 'cd domains/ccmtiendadelsonido.com/public_html/dev/wp-content/mu-plugins/ccm-checkout && ../ccm-account/vendor/bin/phpunit --no-coverage'
@@ -250,7 +324,7 @@ ssh -p 65002 u164047049@195.35.13.136 'cd domains/ccmtiendadelsonido.com/public_
 
 Esperado: **252 pruebas** en verde (249 + 3).
 
-- [ ] **Paso 7: Verificar que la página se ve IGUAL y viene de nosotros**
+- [ ] **Paso 8: Verificar que la página se ve IGUAL y viene de nosotros**
 
 ```bash
 ssh -p 65002 u164047049@195.35.13.136 'cd domains/ccmtiendadelsonido.com/public_html/dev && wp eval "echo wc_locate_template( \"cart/cart.php\" );"'
@@ -266,7 +340,7 @@ curl -s https://dev.ccmtiendadelsonido.com/carrito/ | grep -c "ccmck-cart.css"
 
 Esperado: `1`.
 
-- [ ] **Paso 8: Commit**
+- [ ] **Paso 9: Commit**
 
 ```bash
 git add includes/class-ccmck-templates.php includes/class-ccmck-assets.php templates/cart assets/ccmck-cart.css assets/ccmck-cart.js tests/TemplatesTest.php
@@ -1058,10 +1132,28 @@ Quitar todo y comprobar que sale el mensaje y el botón a la tienda, sin restos 
 
 El cambio más arriesgado de este plan es haber activado los cupones, que aparecen **también** en el checkout. Recorrer `/finalizar-compra/` y comprobar que el resumen, el envío de Coordinadora y los métodos de pago siguen como estaban.
 
-- [ ] **Paso 7: Anotar el resultado y commit**
+- [ ] **Paso 7: Anotar el resultado en `docs/CHANGELOG.md` y commit**
+
+**Sin esto el commit saldría vacío y git lo rechazaría.** Añadir al principio del archivo, con las cifras REALES que hayan salido, no las esperadas:
+
+```markdown
+## Carrito — página verificada en dev (2026-08-15)
+
+Escritorio a 1280px: <COLUMNAS>, <N> artículos, resumen `sticky`, foto de
+<TAMAÑO>, desborde horizontal <D>. Móvil a 375px: una columna, foto 56x56,
+desborde <D>.
+
+El más y el menos: la cantidad sube, la página se refresca y **el total
+cambia** — comprobado con los ojos, no medido. Bajando a 0 la línea
+desaparece.
+
+Carrito vacío: mensaje y botón a la tienda, sin restos de la lista.
+
+Checkout recorrido entero tras activar los cupones: <QUÉ SE VIO>.
+```
 
 ```bash
-git add docs/
+git add docs/CHANGELOG.md
 git commit -m "docs(carrito): pagina verificada en dev"
 ```
 
