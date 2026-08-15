@@ -38,79 +38,217 @@ Este plan **no** toca el cajón ni las sugerencias. La página queda sin bloque 
 
 ---
 
-### Tarea 1: Que la página vuelva a ser un carrito
+### Tarea 1: Cerrar el enredo de las dos páginas de carrito
 
-**Archivos:** ninguno. Es configuración de dev y verificación.
+**Archivos:**
+- Crear: `includes/class-ccmck-cart-redirect.php`
+- Modificar: `ccm-checkout.php`
+- Crear: `tests/CartRedirectTest.php`
+- Modificar: `docs/CHANGELOG.md`
 
-**Por qué es la primera:** la página 26011 tiene un `<form>` de HTML estático pegado donde debería ir el shortcode. Sin arreglar eso no hay nada que rediseñar — y además es uno de los tres bloqueadores del despliegue de la Etapa 1.
+**Interfaces:**
+- Produce: `CCMCK_Cart_Redirect::should_redirect( int $current_id, int $cart_id, int $orphan_id ): bool`
 
-- [ ] **Paso 1: Ver qué hay ahora, y guardarlo**
+**La situación real, comprobada el 2026-08-15.** Esta tienda tiene **dos** páginas de carrito, y el plan original las confundió:
 
-```bash
-ssh -p 65002 u164047049@195.35.13.136 'cd domains/ccmtiendadelsonido.com/public_html/dev && wp post get 26011 --field=post_content > /tmp/carrito-26011-original.html && wc -c /tmp/carrito-26011-original.html && head -c 300 /tmp/carrito-26011-original.html'
+| | Página 26011 | Página 28 |
+|---|---|---|
+| Título | "Mi carrito" | "Carrito" |
+| URL | `/mi-carrito/` | `/carrito/` |
+| ¿La usa WooCommerce? | **Sí**, es `woocommerce_cart_page_id` | No |
+| Contenido | tenía 46.581 bytes de HTML pegado a mano | **1 byte, vacía desde el 13-abr-2026** |
+
+`wc_get_cart_url()` devuelve `/mi-carrito/`. La página 28 es huérfana, pero ocupa el slug corto que la gente teclea y que probablemente esté en enlaces viejos y en Google.
+
+**Ya hecho en dev** por un intento anterior de esta misma tarea: la 26011 tiene su `[woocommerce_cart]` y `/mi-carrito/` responde con el formulario. La copia de lo que había está en el servidor, en `/tmp/carrito-26011-original.html`.
+
+**Lo que falta, y es lo que hace esta tarea:**
+
+1. **La exclusión de caché está en la URL equivocada.** Se puso `/carrito/`, que es la página vacía; el carrito de verdad sigue cacheable. Un carrito cacheado enseña el de otro cliente.
+2. **`/carrito/` no lleva a ninguna parte.** Decisión del dueño: redirección permanente a `/mi-carrito/`.
+
+- [ ] **Paso 1: Escribir la prueba que falla**
+
+Crear `tests/CartRedirectTest.php`:
+
+```php
+<?php
+use PHPUnit\Framework\TestCase;
+
+final class CartRedirectTest extends TestCase {
+
+	public function test_the_orphan_page_redirects_to_the_real_cart(): void {
+		// 28 es "Carrito", vacia desde abril. 26011 es "Mi carrito", la que
+		// WooCommerce usa de verdad.
+		$this->assertTrue( CCMCK_Cart_Redirect::should_redirect( 28, 26011, 28 ) );
+	}
+
+	public function test_the_real_cart_never_redirects_to_itself(): void {
+		// Un bucle de redireccion aqui deja el carrito inaccesible para todos.
+		$this->assertFalse( CCMCK_Cart_Redirect::should_redirect( 26011, 26011, 28 ) );
+	}
+
+	public function test_no_other_page_is_touched(): void {
+		foreach ( array( 1, 844, 18962, 16972 ) as $otra ) {
+			$this->assertFalse( CCMCK_Cart_Redirect::should_redirect( $otra, 26011, 28 ), "toco la pagina $otra" );
+		}
+	}
+
+	public function test_a_misconfigured_store_redirects_nothing(): void {
+		// Si algun dia las dos opciones apuntan al mismo sitio, o alguna falta,
+		// no se redirige: mejor una pagina huerfana que un bucle.
+		$this->assertFalse( CCMCK_Cart_Redirect::should_redirect( 28, 28, 28 ) );
+		$this->assertFalse( CCMCK_Cart_Redirect::should_redirect( 28, 0, 28 ) );
+		$this->assertFalse( CCMCK_Cart_Redirect::should_redirect( 28, 26011, 0 ) );
+	}
+}
 ```
 
-Guarda ese archivo antes de tocar nada. **Es la única copia de lo que alguien puso ahí a mano**, y la spec deja anotado que conviene entender por qué está antes de tirarlo.
+- [ ] **Paso 2: Ejecutarla y ver que falla**
 
-- [ ] **Paso 2: Comprobar que hoy la página no es un carrito**
-
-```bash
-curl -s https://dev.ccmtiendadelsonido.com/carrito/ | grep -c "woocommerce-cart-form"
-```
-
-Esperado: `0`. Si sale 1, la página ya funciona y hay que entender por qué antes de seguir.
-
-- [ ] **Paso 3: Poner el shortcode**
+Subir a dev y ejecutar (ver "Restricciones globales" para el guardián de hashes y el LF):
 
 ```bash
-ssh -p 65002 u164047049@195.35.13.136 'cd domains/ccmtiendadelsonido.com/public_html/dev && wp post update 26011 --post_content="[woocommerce_cart]"'
+ssh -p 65002 u164047049@195.35.13.136 'cd domains/ccmtiendadelsonido.com/public_html/dev/wp-content/mu-plugins/ccm-checkout && ../ccm-account/vendor/bin/phpunit --no-coverage --filter CartRedirectTest'
 ```
 
-- [ ] **Paso 4: Excluir `/carrito/` de la caché**
+Esperado: `Class "CCMCK_Cart_Redirect" not found`.
 
-Un carrito cacheado enseña el de otro cliente. Hoy `cache-exc` está vacío.
+- [ ] **Paso 3: Implementar**
+
+Crear `includes/class-ccmck-cart-redirect.php`:
+
+```php
+<?php
+/**
+ * La página huérfana de carrito lleva a la buena.
+ *
+ * Esta tienda tiene dos: "Mi carrito" (26011, `/mi-carrito/`), que es la que
+ * WooCommerce usa, y "Carrito" (28, `/carrito/`), vacía desde abril de 2026
+ * pero dueña del slug corto — el que la gente teclea y el que está en los
+ * enlaces viejos.
+ *
+ * Se redirige de forma permanente para que Google traslade el valor de esa URL
+ * a la que funciona.
+ *
+ * @package CCM_Checkout
+ */
+
+defined( 'ABSPATH' ) || exit;
+
+final class CCMCK_Cart_Redirect {
+
+	/** La página huérfana. */
+	const ORPHAN_ID = 28;
+
+	public static function init(): void {
+		add_action( 'template_redirect', array( __CLASS__, 'maybe_redirect' ) );
+	}
+
+	/**
+	 * ¿Hay que redirigir? PURA.
+	 *
+	 * Devuelve false ante cualquier configuración rara —ids a cero, las dos
+	 * opciones apuntando al mismo sitio— porque una página huérfana molesta,
+	 * pero un bucle de redirección deja el carrito inaccesible para todos.
+	 */
+	public static function should_redirect( int $current_id, int $cart_id, int $orphan_id ): bool {
+		if ( $current_id < 1 || $cart_id < 1 || $orphan_id < 1 ) {
+			return false;
+		}
+
+		if ( $cart_id === $orphan_id ) {
+			return false;
+		}
+
+		return $current_id === $orphan_id;
+	}
+
+	/** Redirige, si toca. */
+	public static function maybe_redirect(): void {
+		if ( ! function_exists( 'wc_get_page_id' ) || ! is_page() ) {
+			return;
+		}
+
+		$actual = (int) get_queried_object_id();
+		$cart   = (int) wc_get_page_id( 'cart' );
+
+		if ( ! self::should_redirect( $actual, $cart, self::ORPHAN_ID ) ) {
+			return;
+		}
+
+		wp_safe_redirect( wc_get_cart_url(), 301 );
+		exit;
+	}
+}
+```
+
+En `ccm-checkout.php`, junto a los otros `require_once` y su `::init()`:
+
+```php
+require_once CCMCK_DIR . 'includes/class-ccmck-cart-redirect.php';
+```
+
+```php
+    CCMCK_Cart_Redirect::init();
+```
+
+- [ ] **Paso 4: Ejecutar la suite completa**
 
 ```bash
-ssh -p 65002 u164047049@195.35.13.136 'cd domains/ccmtiendadelsonido.com/public_html/dev && wp litespeed-option set cache-exc "/carrito/" && wp litespeed-purge all'
+ssh -p 65002 u164047049@195.35.13.136 'cd domains/ccmtiendadelsonido.com/public_html/dev/wp-content/mu-plugins/ccm-checkout && ../ccm-account/vendor/bin/phpunit --no-coverage'
 ```
 
-- [ ] **Paso 5: Verificar que ahora sí es un carrito**
+Esperado: **255 pruebas** en verde (249 de base + 6).
+
+- [ ] **Paso 5: Arreglar la exclusión de caché**
+
+Está puesta en `/carrito/`, que es la página vacía. El carrito de verdad sigue cacheable:
 
 ```bash
-curl -s https://dev.ccmtiendadelsonido.com/carrito/ | grep -c "woocommerce-cart-form"
-curl -sI https://dev.ccmtiendadelsonido.com/carrito/ | grep -i "x-litespeed-cache\|cache-control"
+ssh -p 65002 u164047049@195.35.13.136 'cd domains/ccmtiendadelsonido.com/public_html/dev && wp litespeed-option set cache-exc "/mi-carrito/" && wp litespeed-purge all && wp litespeed-option get cache-exc'
 ```
 
-Esperado: `1` en el primero. En el segundo, **no** debe aparecer `x-litespeed-cache: hit`.
+Esperado: `/mi-carrito/`.
 
-- [ ] **Paso 6: Anotar en `docs/CHANGELOG.md` y commit**
+- [ ] **Paso 6: Verificar las dos URLs**
 
-No hay cambios de código, pero sí una decisión que hay que poder rastrear: qué había en la página y por qué se sustituyó. **Sin esto el commit saldría vacío y git lo rechazaría.**
+```bash
+curl -s -o /dev/null -w "  /carrito/  %{http_code} -> %{redirect_url}\n" https://dev.ccmtiendadelsonido.com/carrito/
+curl -s https://dev.ccmtiendadelsonido.com/mi-carrito/ | grep -c "woocommerce-cart-form"
+curl -sI https://dev.ccmtiendadelsonido.com/mi-carrito/ | grep -i "x-litespeed-cache" || echo "  sin cabecera de cache: bien"
+```
 
-Añadir al principio de `docs/CHANGELOG.md`:
+Esperado: **301** hacia `/mi-carrito/`; `1` o más en el segundo; y en el tercero **no** debe aparecer `hit`.
+
+- [ ] **Paso 7: Anotar en `docs/CHANGELOG.md` y commit**
+
+Añadir al principio del archivo:
 
 ```markdown
-## Carrito — la página 26011 vuelve a ser un carrito (dev, 2026-08-15)
+## Carrito — las dos páginas, aclaradas (dev, 2026-08-15)
 
-La página tenía un `<form>` de HTML estático pegado donde debía ir
-`[woocommerce_cart]`, así que `/carrito/` no era un carrito: era una tabla
-muerta. Se sustituye por el shortcode.
+La tienda tenía **dos** páginas de carrito y llevaban meses así:
 
-Copia de lo que había, antes de tirarlo: `/tmp/carrito-26011-original.html` en
-el servidor (pesaba <BYTES> bytes). **Nadie sabe todavía quién lo puso ahí ni
-por qué**; conviene averiguarlo antes de repetir esto en producción.
+- **26011 "Mi carrito"** (`/mi-carrito/`) es la que WooCommerce usa. Tenía
+  **46.581 bytes de HTML pegado a mano** donde debía ir `[woocommerce_cart]`,
+  así que el carrito no funcionaba. Copia de lo que había, antes de tirarlo:
+  `/tmp/carrito-26011-original.html` en el servidor. **Nadie sabe quién lo puso
+  ni por qué**; conviene averiguarlo antes de repetir esto en producción.
+- **28 "Carrito"** (`/carrito/`) está vacía desde el 13-abr-2026, pero es dueña
+  del slug corto que la gente teclea. Ahora redirige con **301** a la buena,
+  para que Google traslade el valor de esa URL.
 
-Se excluye además `/carrito/` de la caché de LiteSpeed: hasta hoy se servía
-pública y cacheada, y un carrito cacheado enseña el de otro cliente.
+La exclusión de caché se había puesto en `/carrito/` — la página vacía — así
+que el carrito de verdad seguía cacheable. Corregida a `/mi-carrito/`. Un
+carrito cacheado enseña el de otro cliente.
 
 Hecho **solo en dev**.
 ```
 
-Sustituir `<BYTES>` por el tamaño real que dio el paso 1.
-
 ```bash
-git add docs/CHANGELOG.md
-git commit -m "docs: la pagina 26011 vuelve a ser un carrito (dev)"
+git add includes/class-ccmck-cart-redirect.php ccm-checkout.php tests/CartRedirectTest.php docs/CHANGELOG.md
+git commit -m "feat(carrito): la pagina huerfana redirige a la de verdad"
 ```
 
 ---
