@@ -141,6 +141,7 @@ require_once dirname( __DIR__ ) . '/includes/class-ccmck-coordinadora.php';
 require_once dirname( __DIR__ ) . '/includes/class-ccmck-guias.php';
 require_once dirname( __DIR__ ) . '/includes/class-ccmck-cotizar.php';
 require_once dirname( __DIR__ ) . '/includes/class-ccmck-reports.php';
+require_once dirname( __DIR__ ) . '/includes/class-ccmck-cart-redirect.php';
 
 // Transients en memoria. `$GLOBALS['ccmck_test_transients']` guarda
 // ['valor' => mixed, 'expira' => int] y las pruebas lo vacían en setUp().

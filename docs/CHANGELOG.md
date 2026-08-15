@@ -5,6 +5,25 @@ Todos los cambios notables de **CCM Checkout** se documentan en este archivo.
 El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 y el proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 
+## Carrito — las dos páginas, aclaradas (dev, 2026-08-15)
+
+La tienda tenía **dos** páginas de carrito y llevaban meses así:
+
+- **26011 "Mi carrito"** (`/mi-carrito/`) es la que WooCommerce usa. Tenía
+  **46.581 bytes de HTML pegado a mano** donde debía ir `[woocommerce_cart]`,
+  así que el carrito no funcionaba. Copia de lo que había, antes de tirarlo:
+  `/tmp/carrito-26011-original.html` en el servidor. **Nadie sabe quién lo puso
+  ni por qué**; conviene averiguarlo antes de repetir esto en producción.
+- **28 "Carrito"** (`/carrito/`) está vacía desde el 13-abr-2026, pero es dueña
+  del slug corto que la gente teclea. Ahora redirige con **301** a la buena,
+  para que Google traslade el valor de esa URL.
+
+La exclusión de caché se había puesto en `/carrito/` — la página vacía — así
+que el carrito de verdad seguía cacheable. Corregida a `/mi-carrito/`. Un
+carrito cacheado enseña el de otro cliente.
+
+Hecho **solo en dev**.
+
 ## [Sin publicar]
 
 ### Añadido
