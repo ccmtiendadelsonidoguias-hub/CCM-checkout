@@ -26,7 +26,28 @@ final class CCMCK_Assets {
         );
     }
 
+    /**
+     * ¿Toca cargar los assets del carrito? PURO.
+     *
+     * Se separa del `enqueue()` para poder probarlo: `is_cart()` necesita
+     * WordPress entero y el banco de pruebas no lo carga.
+     */
+    public static function loads_cart( bool $is_cart ): bool {
+        return $is_cart;
+    }
+
     public static function enqueue(): void {
+        if ( self::loads_cart( is_cart() ) ) {
+            wp_enqueue_style( 'ccmck-cart', CCMCK_URL . 'assets/ccmck-cart.css', array(), self::asset_version( 'assets/ccmck-cart.css' ) );
+            wp_enqueue_script( 'ccmck-cart', CCMCK_URL . 'assets/ccmck-cart.js', array(), self::asset_version( 'assets/ccmck-cart.js' ), true );
+
+            // El endpoint y el nonce que ya usa CCMCK_Cart_Ajax.
+            wp_localize_script( 'ccmck-cart', 'ccmckCart', array(
+                'ajaxUrl' => admin_url( 'admin-ajax.php' ),
+                'nonce'   => wp_create_nonce( 'ccmck_cart' ),
+            ) );
+        }
+
         if ( ! is_checkout() ) {
             return;
         }

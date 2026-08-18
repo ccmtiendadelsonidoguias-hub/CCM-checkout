@@ -125,6 +125,37 @@ if ( ! class_exists( 'WC_Shipping_Rate' ) ) {
     }
 }
 
+// Stubs que necesitan CCMCK_Templates y CCMCK_Assets. Ninguno hace nada: las
+// pruebas solo ejercitan las funciones PURAS de esas clases (la lista blanca y
+// la decisión de encolar), no el encolado de verdad, que es de WordPress.
+if ( ! function_exists( 'is_cart' ) ) {
+    function is_cart() { return false; }
+}
+if ( ! function_exists( 'is_checkout' ) ) {
+    function is_checkout() { return false; }
+}
+if ( ! function_exists( 'wp_enqueue_style' ) ) {
+    function wp_enqueue_style( ...$a ) { return null; }
+}
+if ( ! function_exists( 'wp_enqueue_script' ) ) {
+    function wp_enqueue_script( ...$a ) { return null; }
+}
+if ( ! function_exists( 'wp_localize_script' ) ) {
+    function wp_localize_script( ...$a ) { return true; }
+}
+if ( ! function_exists( 'admin_url' ) ) {
+    function admin_url( $path = '' ) { return 'https://ejemplo.test/wp-admin/' . ltrim( (string) $path, '/' ); }
+}
+if ( ! function_exists( 'wp_create_nonce' ) ) {
+    function wp_create_nonce( $action = -1 ) { return 'nonce-de-prueba'; }
+}
+if ( ! defined( 'CCMCK_DIR' ) ) {
+    define( 'CCMCK_DIR', dirname( __DIR__ ) . '/' );
+}
+if ( ! defined( 'CCMCK_URL' ) ) {
+    define( 'CCMCK_URL', 'https://ejemplo.test/wp-content/mu-plugins/ccm-checkout/' );
+}
+
 require_once dirname( __DIR__ ) . '/includes/class-ccmck-settings.php';
 require_once dirname( __DIR__ ) . '/includes/class-ccmck-info-cards.php';
 require_once dirname( __DIR__ ) . '/includes/class-ccmck-faq.php';
@@ -142,6 +173,8 @@ require_once dirname( __DIR__ ) . '/includes/class-ccmck-guias.php';
 require_once dirname( __DIR__ ) . '/includes/class-ccmck-cotizar.php';
 require_once dirname( __DIR__ ) . '/includes/class-ccmck-reports.php';
 require_once dirname( __DIR__ ) . '/includes/class-ccmck-cart-redirect.php';
+require_once dirname( __DIR__ ) . '/includes/class-ccmck-templates.php';
+require_once dirname( __DIR__ ) . '/includes/class-ccmck-assets.php';
 
 // Transients en memoria. `$GLOBALS['ccmck_test_transients']` guarda
 // ['valor' => mixed, 'expira' => int] y las pruebas lo vacían en setUp().

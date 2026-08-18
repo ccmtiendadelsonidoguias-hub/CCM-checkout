@@ -8,6 +8,12 @@ final class CCMCK_Templates {
         'checkout/review-order.php',
         'checkout/payment.php',
         'checkout/thankyou.php',
+        // Carrito. Se sustituyen aquí y no en un plugin aparte porque el
+        // carrito y el checkout comparten el cotizador de Coordinadora, las
+        // ciudades con DANE y los recargos.
+        'cart/cart.php',
+        'cart/cart-totals.php',
+        'cart/cart-empty.php',
     );
 
     public static function init(): void {
