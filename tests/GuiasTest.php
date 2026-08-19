@@ -134,6 +134,45 @@ final class GuiasTest extends TestCase {
         $this->assertFalse( CCMCK_Guias::parse_guia_response( '{"jsonrpc":2,"result":{"codigo_remision":""}}', 200 )['ok'] );
     }
 
+    /**
+     * La conversación donde nació la venta viaja en el payload.
+     *
+     * Sin esto, n8n sólo sabe el teléfono que el asesor escribió en el botón
+     * Venta y resuelve el destino buscando ese número en Chatwoot: si el chat
+     * venía de Instagram/Facebook (contactos de Meta no traen número) o el
+     * comprador dictó el teléfono de quien recibe, el aviso de guía cae en un
+     * hilo distinto al de la venta y el asesor no lo ve nunca.
+     * Casos reales: #34112 (chat +573102924612 -> aviso a 3107941349) y
+     * #34116 (chat +573227892135 -> aviso a 3006048008).
+     */
+    public function test_webhook_payload_lleva_la_conversacion_de_origen(): void {
+        $base = array(
+            'order_id' => '34116', 'guia' => '33042500429',
+            'tracking_url' => 'http://x.co/t', 'name' => 'Cliente Prueba',
+            'phone' => '3006048008',
+        );
+
+        // Venta del botón de Chatwoot: la conversación va en el payload.
+        $con = CCMCK_Guias::build_webhook_payload( $base + array( 'conversation' => '46951' ) );
+        $this->assertSame( '46951', $con['conversation'] );
+
+        // Pedido web (sin conversación): el contrato no cambia ni un campo.
+        $sin = CCMCK_Guias::build_webhook_payload( $base );
+        $this->assertArrayNotHasKey( 'conversation', $sin );
+        $this->assertSame(
+            array( 'order_id', 'phone', 'guia', 'tracking_url', 'customer_name' ),
+            array_keys( $sin )
+        );
+
+        // Vacía o ausente se tratan igual: opcional, como email y rotulo_b64.
+        $vacia = CCMCK_Guias::build_webhook_payload( $base + array( 'conversation' => '' ) );
+        $this->assertArrayNotHasKey( 'conversation', $vacia );
+
+        // Siempre string: n8n compara con !== '' y un 0 numérico rompería el guard.
+        $num = CCMCK_Guias::build_webhook_payload( $base + array( 'conversation' => 46951 ) );
+        $this->assertSame( '46951', $num['conversation'] );
+    }
+
     // --- build_webhook_payload (contrato del endpoint cwGuiaWa01 en n8n) ---
     public function test_webhook_payload_matches_n8n_contract(): void {
         $p = CCMCK_Guias::build_webhook_payload( array(

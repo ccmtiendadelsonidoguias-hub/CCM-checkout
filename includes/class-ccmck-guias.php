@@ -22,6 +22,8 @@ final class CCMCK_Guias {
     const META_PICKUP_ASK = '_ccmck_pickup_ask_sent';
     /** Meta escrita al crear el pedido (botón Venta n8n): 'contra_entrega' → la guía sale CE. */
     const META_MODALIDAD  = '_ccm_flete_modalidad';
+    /** Conversación de Chatwoot que originó la venta (la pone el botón Venta). */
+    const META_CONVERSACION = '_ccm_conversation';
 
     const ENDPOINT_PROD    = 'https://guias.coordinadora.com/ws/guias/1.6/server.php';
     const ENDPOINT_SANDBOX = 'https://sandbox.coordinadora.com/agw/ws/guias/1.6/server.php';
@@ -357,7 +359,8 @@ final class CCMCK_Guias {
     /**
      * Payload del webhook a n8n (aviso WhatsApp). Contrato EXACTO del workflow
      * cwGuiaWa01 (n8n de Chatwoot): campos planos {order_id, phone, guia,
-     * tracking_url, customer_name}; order_id y guia obligatorios; el endpoint
+     * tracking_url, customer_name}; opcionales email, rotulo_b64 y conversation;
+     * order_id y guia obligatorios; el endpoint
      * normaliza el teléfono (10 dígitos CO, 57… o +57…). Llamar UNA sola vez
      * por guía (el endpoint no deduplica; nuestro guard de idempotencia lo
      * garantiza). PURO.
@@ -377,6 +380,14 @@ final class CCMCK_Guias {
         }
         if ( '' !== (string) ( $args['rotulo_b64'] ?? '' ) ) {
             $payload['rotulo_b64'] = (string) $args['rotulo_b64'];
+        }
+        // v3: conversación de Chatwoot donde nació la venta. Si viene, n8n responde
+        // EN ESE hilo en vez de resolver el destino buscando el teléfono: los
+        // contactos de Instagram/Facebook no traen número, y en el botón Venta el
+        // comprador suele dictar el teléfono de quien recibe — en ambos casos el
+        // aviso caía en un hilo paralelo que el asesor nunca veía.
+        if ( '' !== (string) ( $args['conversation'] ?? '' ) ) {
+            $payload['conversation'] = (string) $args['conversation'];
         }
         return $payload;
     }
@@ -605,6 +616,7 @@ final class CCMCK_Guias {
             'phone'        => (string) $order->get_billing_phone(),
             'email'        => (string) $order->get_billing_email(),
             'rotulo_b64'   => $rotulo,
+            'conversation' => (string) $order->get_meta( self::META_CONVERSACION ),
         ) ) );
         if ( is_array( $wa ) && ! empty( $wa['ok'] ) ) {
             $modo = (string) ( $wa['mode_used'] ?? '' );
