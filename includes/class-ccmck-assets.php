@@ -37,6 +37,17 @@ final class CCMCK_Assets {
     }
 
     public static function enqueue(): void {
+        // Este sitio tiene un optimizador (LiteSpeed descartado; probable snippet/tema que
+        // engancha style_loader_src/script_loader_src) que ELIMINA el ?ver= de TODOS los
+        // assets. Con max-age de 1 año del hosting, eso deja la caché del navegador clavada.
+        // Re-aplicamos la versión SOLO a los assets de ccmck con prioridad máxima y registro
+        // tardío (estamos en wp_enqueue_scripts) para ejecutarnos DESPUÉS del stripper.
+        // Van aquí arriba, antes de cualquier return: registrados al final del método (como
+        // estaban antes) no llegaban a ejecutarse en el carrito, porque is_checkout() es
+        // falso ahí y la función retornaba antes de llegar a estas dos líneas.
+        add_filter( 'style_loader_src',  array( __CLASS__, 'force_version' ), PHP_INT_MAX, 2 );
+        add_filter( 'script_loader_src', array( __CLASS__, 'force_version' ), PHP_INT_MAX, 2 );
+
         if ( self::loads_cart( is_cart() ) ) {
             wp_enqueue_style( 'ccmck-cart', CCMCK_URL . 'assets/ccmck-cart.css', array(), self::asset_version( 'assets/ccmck-cart.css' ) );
             wp_enqueue_script( 'ccmck-cart', CCMCK_URL . 'assets/ccmck-cart.js', array(), self::asset_version( 'assets/ccmck-cart.js' ), true );
@@ -75,34 +86,50 @@ final class CCMCK_Assets {
             'ajaxUrl' => admin_url( 'admin-ajax.php' ),
             'nonce'   => wp_create_nonce( 'ccmck_cart' ),
         ) );
+    }
 
-        // Este sitio tiene un optimizador (LiteSpeed descartado; probable snippet/tema que
-        // engancha style_loader_src/script_loader_src) que ELIMINA el ?ver= de TODOS los
-        // assets. Con max-age de 1 año del hosting, eso deja la caché del navegador clavada.
-        // Re-aplicamos la versión SOLO a los assets de ccmck con prioridad máxima y registro
-        // tardío (estamos en wp_enqueue_scripts) para ejecutarnos DESPUÉS del stripper.
-        add_filter( 'style_loader_src',  array( __CLASS__, 'force_version' ), PHP_INT_MAX, 2 );
-        add_filter( 'script_loader_src', array( __CLASS__, 'force_version' ), PHP_INT_MAX, 2 );
+    /**
+     * Ruta relativa del asset de ccmck al que corresponde un handle. PURA.
+     *
+     * Cada módulo registra su CSS y su JS con el MISMO handle, así que el
+     * archivo se distingue por la extensión. Se mira la ruta SIN la cadena de
+     * consulta: un `?x=.js` colgando de un `.css` no debe confundirla.
+     *
+     * @return string Ruta relativa, o cadena vacía si el handle no es nuestro.
+     */
+    public static function asset_relative( string $handle, string $src ): string {
+        $modulos = array(
+            'ccmck-checkout' => 'assets/ccmck-checkout',
+            'ccmck-cart'     => 'assets/ccmck-cart',
+            'ccmck-cart-city' => 'assets/ccmck-cart-city',
+        );
+
+        if ( ! isset( $modulos[ $handle ] ) ) {
+            return '';
+        }
+
+        $ruta = (string) strtok( $src, '?' );
+
+        return $modulos[ $handle ] . ( '.js' === substr( $ruta, -3 ) ? '.js' : '.css' );
     }
 
     /**
      * Reañade ?ver=<filemtime> a los assets de ccmck si un filtro global lo quitó.
      *
-     * Ambos assets comparten el handle 'ccmck-checkout' (uno como style, otro como
-     * script), así que distinguimos el archivo por la extensión presente en $src.
+     * Ya no hay un único módulo: checkout y carrito tienen cada uno su propio
+     * handle, y asset_relative() resuelve a qué archivo (y con qué extensión)
+     * corresponde cada uno. Si el handle no es nuestro, devuelve $src intacto.
      *
      * @param string $src    URL del asset (posiblemente ya sin query string).
      * @param string $handle Handle registrado del asset.
      * @return string
      */
     public static function force_version( string $src, string $handle ): string {
-        if ( 'ccmck-checkout' !== $handle ) {
+        $relative = self::asset_relative( $handle, $src );
+
+        if ( '' === $relative ) {
             return $src;
         }
-
-        $relative = ( false !== strpos( $src, '.js' ) )
-            ? 'assets/ccmck-checkout.js'
-            : 'assets/ccmck-checkout.css';
 
         $src = remove_query_arg( 'ver', $src );
 
