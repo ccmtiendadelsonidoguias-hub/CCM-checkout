@@ -144,4 +144,30 @@ final class CartShippingTest extends TestCase {
 			'el encolado de ccmck-cart-city debe ir ANTES del return de is_checkout(), o nunca se ejecuta en el carrito'
 		);
 	}
+
+	public function test_sin_ciudad_invita_a_elegirla(): void {
+		$e = CCMCK_Cart_Shipping::estado( false, array() );
+		$this->assertSame( 'sin_ciudad', $e['clave'] );
+		$this->assertStringContainsString( 'ciudad', $e['texto'] );
+	}
+
+	public function test_un_producto_sin_medidas_se_nombra(): void {
+		// El motor se rinde a proposito cuando falta peso o dimensiones. Hoy eso
+		// se ve como "solo Recogida local" y nadie sabe por que.
+		$e = CCMCK_Cart_Shipping::estado( true, array( 'Cabina X' ) );
+		$this->assertSame( 'sin_medidas', $e['clave'] );
+		$this->assertStringContainsString( 'Cabina X', $e['texto'] );
+	}
+
+	public function test_con_ciudad_y_medidas_no_hay_mensaje(): void {
+		$e = CCMCK_Cart_Shipping::estado( true, array() );
+		$this->assertSame( 'ok', $e['clave'] );
+		$this->assertSame( '', $e['texto'] );
+	}
+
+	public function test_varios_productos_sin_medidas_se_listan(): void {
+		$e = CCMCK_Cart_Shipping::estado( true, array( 'Cabina X', 'Trípode Y' ) );
+		$this->assertStringContainsString( 'Cabina X', $e['texto'] );
+		$this->assertStringContainsString( 'Trípode Y', $e['texto'] );
+	}
 }

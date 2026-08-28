@@ -121,8 +121,73 @@ final class CCMCK_Cart_Shipping {
 		) );
 	}
 
+	/**
+	 * Qué avisar en la línea de Envío. PURO.
+	 *
+	 * @param bool  $tiene_dane   ¿La ciudad en sesión trae DANE?
+	 * @param array $sin_medidas  Nombres de productos sin peso o dimensiones.
+	 */
+	public static function estado( bool $tiene_dane, array $sin_medidas ): array {
+		if ( ! $tiene_dane ) {
+			return array(
+				'clave' => 'sin_ciudad',
+				'texto' => __( 'Elige tu ciudad para ver el envío.', 'ccm-checkout' ),
+			);
+		}
+		if ( $sin_medidas ) {
+			return array(
+				'clave' => 'sin_medidas',
+				'texto' => sprintf(
+					/* translators: %s: lista de productos */
+					__( 'No podemos calcular aquí el envío de %s. Escríbenos y te lo cotizamos.', 'ccm-checkout' ),
+					implode( ', ', $sin_medidas )
+				),
+			);
+		}
+		return array( 'clave' => 'ok', 'texto' => '' );
+	}
+
+	/** Productos del carrito sin peso o dimensiones. */
+	public static function items_sin_medidas(): array {
+		$falta = array();
+		if ( ! function_exists( 'WC' ) || ! WC()->cart ) {
+			return $falta;
+		}
+		foreach ( WC()->cart->get_cart() as $item ) {
+			$p = $item['data'] ?? null;
+			if ( ! $p || ! $p->needs_shipping() ) {
+				continue;
+			}
+			if ( ! $p->get_weight() || ! $p->get_length() || ! $p->get_width() || ! $p->get_height() ) {
+				$falta[] = $p->get_name();
+			}
+		}
+		return array_values( array_unique( $falta ) );
+	}
+
+	/** Pinta el aviso encima de la línea de Envío. */
+	public static function print_notice(): void {
+		$ciudad = '';
+		if ( function_exists( 'WC' ) && WC()->customer ) {
+			$ciudad = (string) WC()->customer->get_shipping_city();
+		}
+		$estado = self::estado( '' !== CCMCK_Coordinadora::dane_from_city( $ciudad ), self::items_sin_medidas() );
+		if ( 'ok' === $estado['clave'] ) {
+			return;
+		}
+		if ( 'sin_medidas' === $estado['clave'] ) {
+			error_log( '[ccmck] ' . $estado['texto'] );
+		}
+		printf(
+			'<tr class="ccmck-cart-aviso ccmck-cart-aviso--%1$s"><td colspan="2">%2$s</td></tr>',
+			esc_attr( $estado['clave'] ),
+			esc_html( $estado['texto'] )
+		);
+	}
+
 	public static function init(): void {
 		add_filter( 'woocommerce_form_field_args', array( __CLASS__, 'filter_field' ), 20, 3 );
 		add_action( 'rest_api_init', array( __CLASS__, 'register_rest_routes' ) );
+		add_action( 'woocommerce_cart_totals_before_shipping', array( __CLASS__, 'print_notice' ) );
 	}
 }
