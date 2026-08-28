@@ -269,8 +269,41 @@ final class CCMCK_Coordinadora {
         return (int) round( $total );
     }
 
+    /**
+     * Clave de caché de una cotización. PURA.
+     *
+     * Solo destino, origen, valoración y contenido: dos clientes con el mismo
+     * envío comparten respuesta. Las credenciales quedan FUERA a propósito —
+     * esta clave se guarda en la base de datos.
+     */
+    public static function cache_key( array $args ): string {
+        $material = array(
+            'origen'     => (string) ( $args['origen'] ?? '' ),
+            'destino'    => (string) ( $args['destino'] ?? '' ),
+            'valoracion' => (int) ( $args['valoracion'] ?? 0 ),
+            'detalle'    => $args['detalle'] ?? array(),
+        );
+        return 'ccmck_cot_' . md5( (string) wp_json_encode( $material ) );
+    }
+
+    /** Borra las cotizaciones cacheadas. Cambiar tarifas o credenciales las invalida. */
+    public static function purge_cache(): void {
+        global $wpdb;
+        $wpdb->query(
+            "DELETE FROM {$wpdb->options}
+             WHERE option_name LIKE '_transient_ccmck_cot_%'
+                OR option_name LIKE '_transient_timeout_ccmck_cot_%'"
+        );
+    }
+
     /** Llama a Cotizador.cotizar (timeout 5 s). Devuelve la forma de parse_response. */
     public static function quote( array $args ): array {
+        $key = self::cache_key( $args );
+        $hit = get_transient( $key );
+        if ( is_array( $hit ) ) {
+            return $hit;
+        }
+
         $body     = wp_json_encode( self::build_request( $args ) );
         $response = wp_remote_post( 'https://ws.coordinadora.com/ags/1.5/server.php', array(
             'timeout' => 5,
@@ -288,6 +321,10 @@ final class CCMCK_Coordinadora {
         if ( ! $parsed['ok'] ) {
             self::log( 'API: ' . $parsed['error'] );
         }
+
+        // Los fallos caducan en minutos: cachear un error de la API medio día
+        // es clavarlo.
+        set_transient( $key, $parsed, $parsed['ok'] ? 12 * HOUR_IN_SECONDS : 5 * MINUTE_IN_SECONDS );
         return $parsed;
     }
 
@@ -339,5 +376,6 @@ final class CCMCK_Coordinadora {
 
     public static function init(): void {
         add_filter( 'woocommerce_package_rates', array( __CLASS__, 'rates' ), 20, 2 );
+        add_action( 'update_option_' . CCMCK_Settings::OPTION, array( __CLASS__, 'purge_cache' ) );
     }
 }

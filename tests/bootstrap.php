@@ -76,6 +76,11 @@ if ( ! function_exists( 'wp_unslash' ) ) {
         return is_array( $value ) ? array_map( 'wp_unslash', $value ) : stripslashes( (string) $value );
     }
 }
+if ( ! function_exists( 'wp_json_encode' ) ) {
+    function wp_json_encode( $data, $options = 0, $depth = 512 ) {
+        return json_encode( $data, $options, $depth );
+    }
+}
 
 if ( ! function_exists( 'get_option' ) ) {
     function get_option( $name, $default = false ) { return $default; }
@@ -193,5 +198,8 @@ if ( ! function_exists( 'set_transient' ) ) {
         return true;
     }
 }
+
+defined( 'HOUR_IN_SECONDS' )   || define( 'HOUR_IN_SECONDS', 3600 );
+defined( 'MINUTE_IN_SECONDS' ) || define( 'MINUTE_IN_SECONDS', 60 );
 
 require_once dirname( __DIR__ ) . '/includes/class-ccmck-cart-shipping.php';
