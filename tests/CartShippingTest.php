@@ -79,7 +79,7 @@ final class CartShippingTest extends TestCase {
 		$args = CCMCK_Cart_Shipping::city_field_args( array( 'type' => 'text' ), array(), '' );
 		$this->assertSame( 'select', $args['type'] );
 		$this->assertTrue( isset( $args['custom_attributes']['disabled'] ) );
-		$this->assertStringContainsString( 'departamento', reset( $args['options'] ) );
+		$this->assertStringContainsString( 'Elige primero', reset( $args['options'] ) );
 	}
 
 	public function test_con_departamento_el_campo_trae_sus_ciudades(): void {
@@ -97,5 +97,6 @@ final class CartShippingTest extends TestCase {
 		// desplegable de una sola opcion vacia que parece roto.
 		$args = CCMCK_Cart_Shipping::city_field_args( array( 'type' => 'text' ), array(), 'Cundinamarca' );
 		$this->assertTrue( isset( $args['custom_attributes']['disabled'] ) );
+		$this->assertStringContainsString( 'No hay ciudades', reset( $args['options'] ) );
 	}
 }
