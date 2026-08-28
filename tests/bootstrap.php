@@ -77,6 +77,16 @@ if ( ! function_exists( 'wp_unslash' ) ) {
     }
 }
 if ( ! function_exists( 'wp_json_encode' ) ) {
+    // OJO: el wp_json_encode() real sanea UTF-8 inválido antes de codificar
+    // (reintenta con datos "limpiados" si json_encode() falla); este stub NO
+    // lo hace. Si algún día entra texto libre de cliente al material de una
+    // clave de caché (p. ej. CCMCK_Coordinadora::cache_key()) y ese texto trae
+    // bytes UTF-8 inválidos, json_encode() puede devolver false aquí donde WP
+    // habría devuelto una cadena saneada — y md5(false) === md5('') colapsa
+    // TODOS esos carritos en la misma clave. Ahora mismo el material de esa
+    // clave es solo origen/destino/valoración/detalle (nunca texto libre), así
+    // que no muerde; pero si eso cambia, este stub deja de ser fiel al WP real
+    // justo en el caso que importaría.
     function wp_json_encode( $data, $options = 0, $depth = 512 ) {
         return json_encode( $data, $options, $depth );
     }

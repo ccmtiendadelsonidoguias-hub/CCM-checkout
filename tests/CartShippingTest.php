@@ -93,11 +93,56 @@ final class CartShippingTest extends TestCase {
 	}
 
 	public function test_un_departamento_sin_ciudades_no_finge_que_las_tiene(): void {
-		// Catalogo vacio (plugin de ciudades caido): mejor deshabilitado que un
-		// desplegable de una sola opcion vacia que parece roto.
+		// Catalogo DISPONIBLE (parametro por defecto true) pero SIN ciudades
+		// para este departamento puntual: un hueco real de datos, no el
+		// plugin caido. Aqui si tiene sentido deshabilitar: no hay nada que
+		// perder porque nunca hubo una ciudad valida que ofrecer.
 		$args = CCMCK_Cart_Shipping::city_field_args( array( 'type' => 'text' ), array(), 'Cundinamarca' );
 		$this->assertTrue( isset( $args['custom_attributes']['disabled'] ) );
 		$this->assertStringContainsString( 'No hay ciudades', reset( $args['options'] ) );
+	}
+
+	public function test_catalogo_no_disponible_no_deshabilita_el_campo(): void {
+		// Fail-open, alineado con CCMCK_Cities::validate_destination(): si el
+		// plugin de ciudades esta desactivado (catalogo entero vacio),
+		// deshabilitar el <select> lo saca del serialize() de jQuery y el
+		// proximo envio de la calculadora borraria la ciudad ya guardada en
+		// la sesion del cliente. Aqui NUNCA debe quedar disabled, pase lo que
+		// pase con $options o $state.
+		$args = CCMCK_Cart_Shipping::city_field_args( array( 'type' => 'text' ), array(), 'Cundinamarca', false );
+		$this->assertSame( 'select', $args['type'] );
+		$this->assertFalse( isset( $args['custom_attributes']['disabled'] ), 'el campo NO debe quedar disabled sin catalogo' );
+		$this->assertStringContainsString( 'no disponible', reset( $args['options'] ) );
+	}
+
+	public function test_catalogo_no_disponible_gana_incluso_sin_departamento_elegido(): void {
+		// Mismo fail-open aunque tampoco haya departamento en sesion: no debe
+		// colarse el mensaje "Elige primero el departamento" (que si implica
+		// que el catalogo funciona) cuando en realidad no hay catalogo.
+		$args = CCMCK_Cart_Shipping::city_field_args( array( 'type' => 'text' ), array(), '', false );
+		$this->assertFalse( isset( $args['custom_attributes']['disabled'] ) );
+		$this->assertStringContainsString( 'no disponible', reset( $args['options'] ) );
+	}
+
+	public function test_texto_departamento_sin_ciudades_es_una_sola_fuente(): void {
+		// El JS (repoblado por AJAX) y el servidor (render inicial) deben
+		// mostrar el MISMO texto para "este departamento no tiene ciudades".
+		// Antes eran dos literales copiados por coincidencia; ahora los dos
+		// deben leer de CCMCK_Cart_Shipping::texto_departamento_sin_ciudades().
+		$opts = CCMCK_Cart_Shipping::city_field_args( array( 'type' => 'text' ), array(), 'Cundinamarca' );
+		$this->assertSame( CCMCK_Cart_Shipping::texto_departamento_sin_ciudades(), reset( $opts['options'] ) );
+
+		// Y el localize del JS debe leer del MISMO metodo, no de un literal
+		// propio: se verifica en el CODIGO FUENTE (wp_localize_script()
+		// necesita WordPress entero y no corre bajo PHPUnit).
+		$ruta   = dirname( __DIR__ ) . '/includes/class-ccmck-assets.php';
+		$fuente = file_get_contents( $ruta );
+		$this->assertNotFalse( $fuente, "no pude leer $ruta" );
+		$this->assertStringContainsString(
+			"'vacio'    => CCMCK_Cart_Shipping::texto_departamento_sin_ciudades()",
+			$fuente,
+			'el localize del JS debe usar texto_departamento_sin_ciudades(), no un literal propio que pueda desincronizarse'
+		);
 	}
 
 	public function test_la_respuesta_rest_devuelve_valor_y_etiqueta(): void {
@@ -178,6 +223,58 @@ final class CartShippingTest extends TestCase {
 		$this->assertStringContainsString( 'ciudad', $e['texto'] );
 	}
 
+	// --- estado(): las 3 salidas de rates() que antes no se distinguian de
+	// "no hay envio" (toggle apagado, credenciales vacias, cotizacion
+	// fallida). Antes de este fix, las 3 caian silenciosamente en el mismo
+	// "solo Recogida local" que un destino sin cobertura real. ---
+
+	public function test_toggle_apagado_lo_dice(): void {
+		$e = CCMCK_Cart_Shipping::estado( true, array(), false, true, false );
+		$this->assertSame( 'toggle_apagado', $e['clave'] );
+		$this->assertNotSame( '', $e['texto'] );
+	}
+
+	public function test_credenciales_incompletas_lo_dice(): void {
+		$e = CCMCK_Cart_Shipping::estado( true, array(), true, false, false );
+		$this->assertSame( 'sin_credenciales', $e['clave'] );
+		$this->assertNotSame( '', $e['texto'] );
+	}
+
+	public function test_cotizacion_fallida_lo_dice(): void {
+		$e = CCMCK_Cart_Shipping::estado( true, array(), true, true, true );
+		$this->assertSame( 'cotizacion_fallida', $e['clave'] );
+		$this->assertNotSame( '', $e['texto'] );
+	}
+
+	public function test_todo_en_orden_y_sin_fallo_sigue_dando_ok(): void {
+		// Los parametros nuevos tienen default (true, true, false) para no
+		// romper las llamadas existentes de estado(tiene_dane, sin_medidas):
+		// deben comportarse identico a como se comportaban antes de este fix.
+		$e = CCMCK_Cart_Shipping::estado( true, array() );
+		$this->assertSame( 'ok', $e['clave'] );
+	}
+
+	public function test_toggle_apagado_manda_sobre_todo_lo_demas(): void {
+		// Toggle apagado es un bloqueo de configuracion, no algo que el
+		// cliente resuelva eligiendo ciudad o completando medidas: gana
+		// incluso si TAMBIEN faltan ciudad y medidas.
+		$e = CCMCK_Cart_Shipping::estado( false, array( 'Cabina X' ), false, false, true );
+		$this->assertSame( 'toggle_apagado', $e['clave'] );
+	}
+
+	public function test_credenciales_incompletas_manda_sobre_ciudad_y_medidas(): void {
+		$e = CCMCK_Cart_Shipping::estado( false, array( 'Cabina X' ), true, false, true );
+		$this->assertSame( 'sin_credenciales', $e['clave'] );
+	}
+
+	public function test_cotizacion_fallida_solo_se_ve_si_todo_lo_demas_esta_en_orden(): void {
+		// Si ademas de fallar la cotizacion falta la ciudad, sin_ciudad sigue
+		// ganando (mismo precedente que sin_ciudad vs sin_medidas): la
+		// cotizacion fallida solo es visible una vez que todo lo demas paso.
+		$e = CCMCK_Cart_Shipping::estado( false, array(), true, true, true );
+		$this->assertSame( 'sin_ciudad', $e['clave'] );
+	}
+
 	public function test_falta_medida_castea_a_float_como_rates(): void {
 		// rates() hace (float) $it['weight'] <= 0. Aqui debe ser igual.
 		// Casos que rompen si se usa lógica booleana cruda (! $peso):
@@ -191,5 +288,85 @@ final class CartShippingTest extends TestCase {
 		$this->assertFalse( CCMCK_Cart_Shipping::falta_medida( '10.50' ), 'string "10.50" no debe contar como falta' );
 		$this->assertFalse( CCMCK_Cart_Shipping::falta_medida( 10 ), 'número 10 no debe contar como falta' );
 		$this->assertFalse( CCMCK_Cart_Shipping::falta_medida( 0.01 ), 'float 0.01 no debe contar como falta' );
+	}
+
+	// --- lines_sin_medidas(): el log NO debe subestimar cuantos productos
+	// distintos faltan solo porque comparten nombre. ---
+
+	private function linea( string $name, int $id, string $sku, float $weight = 0.0 ): array {
+		return array(
+			'name'           => $name,
+			'id'             => $id,
+			'sku'            => $sku,
+			'needs_shipping' => true,
+			'weight'         => $weight,
+			'length'         => 10,
+			'width'          => 10,
+			'height'         => 10,
+		);
+	}
+
+	public function test_lines_sin_medidas_no_deduplica(): void {
+		// Dos productos DISTINTOS (id/sku distintos) con el MISMO nombre,
+		// ambos sin peso: deben salir DOS filas, no una.
+		$lineas = array(
+			$this->linea( 'Bafle 15"', 101, 'BAF-15-A' ),
+			$this->linea( 'Bafle 15"', 202, 'BAF-15-B' ),
+		);
+		$falta = CCMCK_Cart_Shipping::lines_sin_medidas( $lineas );
+		$this->assertCount( 2, $falta, 'dos productos distintos con el mismo nombre no deben colapsar en una fila' );
+		$this->assertSame( 'BAF-15-A', $falta[0]['log'] );
+		$this->assertSame( 'BAF-15-B', $falta[1]['log'] );
+	}
+
+	public function test_lines_sin_medidas_usa_id_si_no_hay_sku(): void {
+		$falta = CCMCK_Cart_Shipping::lines_sin_medidas( array( $this->linea( 'Genérico', 555, '' ) ) );
+		$this->assertSame( '#555', $falta[0]['log'] );
+	}
+
+	public function test_lines_sin_medidas_ignora_lo_que_no_necesita_envio(): void {
+		$linea                    = $this->linea( 'Descargable', 9, 'DESC-9' );
+		$linea['needs_shipping'] = false;
+		$this->assertSame( array(), CCMCK_Cart_Shipping::lines_sin_medidas( array( $linea ) ) );
+	}
+
+	public function test_lines_sin_medidas_respeta_falta_medida_como_rates(): void {
+		// Con TODAS las medidas presentes, no debe salir en la lista.
+		$linea = $this->linea( 'Cabina OK', 7, 'CAB-7', 5.0 );
+		$this->assertSame( array(), CCMCK_Cart_Shipping::lines_sin_medidas( array( $linea ) ) );
+	}
+
+	public function test_items_sin_medidas_log_no_deduplica_items_sin_medidas_si(): void {
+		// El mensaje al CLIENTE (items_sin_medidas, nombres) SÍ deduplica: no
+		// tiene sentido repetir el mismo nombre dos veces en una frase. El
+		// LOG interno (items_sin_medidas_log, ids/skus) NO debe deduplicar:
+		// son productos distintos de verdad. Sin WC() disponible bajo
+		// PHPUnit ambos devuelven listas vacías; esta prueba fija el
+		// contrato de lines_sin_medidas() (de donde salen los dos) para que
+        // quien lo intente "simplificar" con un array_unique() global no
+        // vuelva a colar el bug.
+		$lineas = array(
+			$this->linea( 'Bafle 15"', 101, 'BAF-15-A' ),
+			$this->linea( 'Bafle 15"', 202, 'BAF-15-B' ),
+		);
+		$falta   = CCMCK_Cart_Shipping::lines_sin_medidas( $lineas );
+		$nombres = array_values( array_unique( array_column( $falta, 'name' ) ) );
+		$logs    = array_column( $falta, 'log' );
+
+		$this->assertCount( 1, $nombres, 'el texto al cliente sí deduplica por nombre' );
+		$this->assertCount( 2, $logs, 'el log NO debe deduplicar: son dos productos distintos' );
+	}
+
+	public function test_print_notice_usa_el_logger_de_woocommerce_no_error_log(): void {
+		// error_log() escribia el TEXTO TRADUCIDO de cara al cliente en cada
+		// render del carrito y cada refresco AJAX, fuera del canal del
+		// proyecto (wc_get_logger()). Se verifica en el CODIGO FUENTE: esta
+		// clase no llama a wc_get_logger() bajo PHPUnit (WC() no existe en el
+		// bootstrap), asi que no se puede probar por comportamiento.
+		$ruta   = dirname( __DIR__ ) . '/includes/class-ccmck-cart-shipping.php';
+		$fuente = file_get_contents( $ruta );
+		$this->assertNotFalse( $fuente, "no pude leer $ruta" );
+		$this->assertStringNotContainsString( 'error_log(', $fuente, 'no debe quedar ningun error_log() en esta clase' );
+		$this->assertStringContainsString( 'wc_get_logger()', $fuente );
 	}
 }

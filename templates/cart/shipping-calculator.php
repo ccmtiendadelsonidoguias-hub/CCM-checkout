@@ -83,12 +83,14 @@ do_action( 'woocommerce_before_shipping_calculator' ); ?>
 				// dispara aquí porque esta plantilla no llama a
 				// woocommerce_form_field(), así que se arma el <select> a mano
 				// con la misma decisión pura que usa el checkout.
-				$ccmck_city_state = (string) WC()->customer->get_shipping_state();
-				$ccmck_city_value = (string) WC()->customer->get_shipping_city();
-				$ccmck_city_args  = CCMCK_Cart_Shipping::city_field_args(
+				$ccmck_city_state   = (string) WC()->customer->get_shipping_state();
+				$ccmck_city_value   = (string) WC()->customer->get_shipping_city();
+				$ccmck_city_catalog = CCMCK_Cities::catalog();
+				$ccmck_city_args    = CCMCK_Cart_Shipping::city_field_args(
 					array( 'input_class' => array( 'input-text' ) ),
-					CCMCK_Cart_Shipping::city_options( CCMCK_Cities::catalog(), $ccmck_city_state ),
-					$ccmck_city_state
+					CCMCK_Cart_Shipping::city_options( $ccmck_city_catalog, $ccmck_city_state ),
+					$ccmck_city_state,
+					(bool) $ccmck_city_catalog
 				);
 				?>
 				<select

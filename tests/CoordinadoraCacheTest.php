@@ -72,6 +72,55 @@ final class CoordinadoraCacheTest extends TestCase {
 		$this->assertStringNotContainsString( 'LLAVE', CCMCK_Coordinadora::cache_key( $this->args() ) );
 	}
 
+	public function test_otra_cuenta_da_otra_clave(): void {
+		// CCMCK_Guias cotiza la guia CE con guias_cuenta_ce (6, ver
+		// class-ccmck-guias.php:616) y el carrito/checkout con la cuenta por
+		// defecto (2). Hoy tarifan igual, pero el comentario de guias.php dice
+		// que se usa 6 A PROPOSITO por si las tarifas divergen a futuro: una
+		// clave compartida entre las dos anularia esa previsión en silencio.
+		$dos  = $this->args(); // sin 'cuenta': cae al default (2), como rates().
+		$seis = $this->args();
+		$seis['cuenta'] = 6; // como CCMCK_Guias::generar() para la guia CE.
+		$this->assertNotSame(
+			CCMCK_Coordinadora::cache_key( $dos ),
+			CCMCK_Coordinadora::cache_key( $seis ),
+			'cuenta 2 (carrito) y cuenta 6 (guia CE) no deben compartir clave de cache'
+		);
+	}
+
+	public function test_cuenta_por_defecto_es_2_como_build_request(): void {
+		// cache_key() debe asumir el MISMO default que build_request() (2):
+		// si no, una llamada sin 'cuenta' explicito (el carrito) y una con
+		// 'cuenta' => 2 explicito (si algun dia se hace explicito) deberian
+		// seguir compartiendo clave, porque piden exactamente lo mismo.
+		$sin_cuenta = $this->args();
+		$con_dos    = $this->args();
+		$con_dos['cuenta'] = 2;
+		$this->assertSame( CCMCK_Coordinadora::cache_key( $sin_cuenta ), CCMCK_Coordinadora::cache_key( $con_dos ) );
+	}
+
+	public function test_otro_nit_da_otra_clave(): void {
+		$otro = $this->args();
+		$otro['nit'] = '999999999';
+		$this->assertNotSame( CCMCK_Coordinadora::cache_key( $this->args() ), CCMCK_Coordinadora::cache_key( $otro ) );
+	}
+
+	public function test_cuentas_distintas_no_comparten_cache_de_quote(): void {
+		// No solo cache_key() en aislado: quote() de verdad debe pegarle a la
+		// API una vez POR CUENTA para el mismo envio, no reusar la respuesta
+		// de la otra cuenta.
+		$GLOBALS['ccmck_test_http']['queue'] = array( $this->respuesta_ok(), $this->respuesta_ok() );
+
+		$dos  = $this->args();
+		$seis = $this->args();
+		$seis['cuenta'] = 6;
+
+		CCMCK_Coordinadora::quote( $dos );
+		CCMCK_Coordinadora::quote( $seis );
+
+		$this->assertSame( 2, $GLOBALS['ccmck_test_http']['calls'], 'cuenta 2 y cuenta 6 deben pegarle a la API cada una, no compartir cache' );
+	}
+
 	// --- quote(): que la caché MUERDA de verdad, no solo que cache_key() sea pura ---
 
 	public function test_acierto_de_cache_no_llama_a_la_api(): void {
@@ -162,5 +211,29 @@ final class CoordinadoraCacheTest extends TestCase {
 		$this->assertStringNotContainsString( "ccmck_cot_%", $sql, 'el guion bajo sin escapar no debe aparecer en el SQL' );
 		$this->assertStringContainsString( '_transient_', $sql );
 		$this->assertStringContainsString( '_transient_timeout_', $sql );
+	}
+
+	// --- init(): purge_cache() debe engancharse tambien al PRIMER guardado ---
+
+	public function test_purge_cache_se_engancha_tambien_al_primer_guardado(): void {
+		// update_option_{$option} NO dispara la primera vez que se guarda la
+		// opcion (WordPress dispara add_option_{$option} en su lugar, porque
+		// la opcion todavia no existe). init() no se puede invocar bajo
+		// PHPUnit (add_action() no esta definida en el bootstrap: ninguna
+		// prueba de este banco carga WordPress entero), asi que se verifica
+		// en el CODIGO FUENTE que las DOS acciones queden enganchadas a
+		// purge_cache.
+		$ruta   = dirname( __DIR__ ) . '/includes/class-ccmck-coordinadora.php';
+		$fuente = file_get_contents( $ruta );
+		$this->assertNotFalse( $fuente, "no pude leer $ruta" );
+		$this->assertStringContainsString(
+			"add_action( 'update_option_' . CCMCK_Settings::OPTION, array( __CLASS__, 'purge_cache' ) )",
+			$fuente
+		);
+		$this->assertStringContainsString(
+			"add_action( 'add_option_' . CCMCK_Settings::OPTION, array( __CLASS__, 'purge_cache' ) )",
+			$fuente,
+			'falta enganchar add_option_ (el primer guardado no dispara update_option_)'
+		);
 	}
 }

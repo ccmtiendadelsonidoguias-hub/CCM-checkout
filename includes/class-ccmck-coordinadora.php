@@ -272,9 +272,19 @@ final class CCMCK_Coordinadora {
     /**
      * Clave de caché de una cotización. PURA.
      *
-     * Solo destino, origen, valoración y contenido: dos clientes con el mismo
-     * envío comparten respuesta. Las credenciales quedan FUERA a propósito —
-     * esta clave se guarda en la base de datos.
+     * Destino, origen, valoración, contenido, cuenta y nit: dos cotizaciones
+     * con esos mismos datos comparten respuesta. Las CREDENCIALES (apikey,
+     * clave) quedan FUERA a propósito — esta clave se guarda en la base de
+     * datos.
+     *
+     * `cuenta` y `nit` SÍ entran, aunque hoy tarifen igual: CCMCK_Guias cotiza
+     * la guía CE con `guias_cuenta_ce` (6, ver class-ccmck-guias.php) y el
+     * carrito/checkout con la cuenta por defecto (2) — verificado que ambas
+     * tarifan igual, pero justamente por si eso diverge algún día (ver
+     * comentario en class-ccmck-guias.php). Sin `cuenta` en la clave, una
+     * caché compartida entre las dos anularía esa previsión en silencio: el
+     * carrito podría servir una tarifa cacheada con la cuenta 6, o la guía CE
+     * una con la 2, sin que nada lo avise.
      */
     public static function cache_key( array $args ): string {
         $material = array(
@@ -282,6 +292,8 @@ final class CCMCK_Coordinadora {
             'destino'    => (string) ( $args['destino'] ?? '' ),
             'valoracion' => (int) ( $args['valoracion'] ?? 0 ),
             'detalle'    => $args['detalle'] ?? array(),
+            'cuenta'     => (int) ( $args['cuenta'] ?? 2 ),
+            'nit'        => (string) ( $args['nit'] ?? '' ),
         );
         return 'ccmck_cot_' . md5( (string) wp_json_encode( $material ) );
     }
@@ -391,6 +403,13 @@ final class CCMCK_Coordinadora {
 
     public static function init(): void {
         add_filter( 'woocommerce_package_rates', array( __CLASS__, 'rates' ), 20, 2 );
+        // update_option_{$option} NO dispara en el primer guardado de la
+        // opción: ahí WordPress dispara add_option_{$option} en su lugar
+        // (la opción todavía no existe en wp_options). Sin este segundo
+        // enganche, la primerísima vez que se guardan los ajustes (activar
+        // el toggle, cargar credenciales, cambiar reglas de caja) no purga
+        // nada cacheado antes de esa configuración inicial.
         add_action( 'update_option_' . CCMCK_Settings::OPTION, array( __CLASS__, 'purge_cache' ) );
+        add_action( 'add_option_' . CCMCK_Settings::OPTION, array( __CLASS__, 'purge_cache' ) );
     }
 }
