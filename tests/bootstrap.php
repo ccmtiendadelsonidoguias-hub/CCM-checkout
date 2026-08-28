@@ -193,3 +193,5 @@ if ( ! function_exists( 'set_transient' ) ) {
         return true;
     }
 }
+
+require_once dirname( __DIR__ ) . '/includes/class-ccmck-cart-shipping.php';
