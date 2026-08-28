@@ -14,6 +14,11 @@ final class CCMCK_Templates {
         'cart/cart.php',
         'cart/cart-totals.php',
         'cart/cart-empty.php',
+        // woocommerce_form_field_args nunca se dispara para calc_shipping_city:
+        // shipping-calculator.php pinta ese campo con un <input> a pelo, sin
+        // pasar por woocommerce_form_field(). Por eso la ciudad se convierte en
+        // <select> sobreescribiendo la plantilla entera, no enganchando un filtro.
+        'cart/shipping-calculator.php',
     );
 
     public static function init(): void {

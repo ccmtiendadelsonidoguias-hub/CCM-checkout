@@ -88,18 +88,6 @@ final class CCMCK_Cart_Shipping {
 		return $args;
 	}
 
-	/** Filtro woocommerce_form_field_args. Solo junta datos y delega. */
-	public static function filter_field( $args, $key, $value ) {
-		if ( 'calc_shipping_city' !== $key || ! is_array( $args ) ) {
-			return $args;
-		}
-		$state = '';
-		if ( function_exists( 'WC' ) && WC()->customer ) {
-			$state = (string) WC()->customer->get_shipping_state();
-		}
-		return self::city_field_args( $args, self::city_options( CCMCK_Cities::catalog(), $state ), $state );
-	}
-
 	/** Cuerpo de la respuesta REST. PURO. */
 	public static function rest_payload( array $catalog, string $state ): array {
 		return array( 'opciones' => self::city_options( $catalog, $state ) );
@@ -196,7 +184,6 @@ final class CCMCK_Cart_Shipping {
 	}
 
 	public static function init(): void {
-		add_filter( 'woocommerce_form_field_args', array( __CLASS__, 'filter_field' ), 20, 3 );
 		add_action( 'rest_api_init', array( __CLASS__, 'register_rest_routes' ) );
 		add_action( 'woocommerce_cart_totals_before_shipping', array( __CLASS__, 'print_notice' ) );
 	}
