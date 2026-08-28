@@ -289,10 +289,18 @@ final class CCMCK_Coordinadora {
     /** Borra las cotizaciones cacheadas. Cambiar tarifas o credenciales las invalida. */
     public static function purge_cache(): void {
         global $wpdb;
+        // Supuesto verificado (no algo que el revisor pudiera ver en el codigo):
+        // ni el VPS ni el entorno local tienen cache de objetos persistente
+        // (sin object-cache.php como drop-in, sin plugin Redis/Memcached), asi
+        // que los transients viven en wp_options y este DELETE los alcanza de
+        // verdad. Si algun dia se instala un cache de objetos persistente, esta
+        // purga se vuelve un no-op silencioso: esos transients dejarian de
+        // pasar por wp_options.
+        $like = $wpdb->esc_like( 'ccmck_cot_' ) . '%';
         $wpdb->query(
             "DELETE FROM {$wpdb->options}
-             WHERE option_name LIKE '_transient_ccmck_cot_%'
-                OR option_name LIKE '_transient_timeout_ccmck_cot_%'"
+             WHERE option_name LIKE '_transient_{$like}'
+                OR option_name LIKE '_transient_timeout_{$like}'"
         );
     }
 
@@ -312,7 +320,14 @@ final class CCMCK_Coordinadora {
         ) );
         if ( is_wp_error( $response ) ) {
             self::log( 'HTTP: ' . $response->get_error_message() );
-            return array( 'ok' => false, 'flete_total' => 0, 'dias' => 0, 'error' => $response->get_error_message() );
+            $fail = array( 'ok' => false, 'flete_total' => 0, 'dias' => 0, 'error' => $response->get_error_message() );
+            // Decision consciente: un corte de red breve (timeout, DNS, TLS)
+            // deja de cotizar 5 minutos para TODOS los visitantes con este
+            // mismo envio, a cambio de no clavarle a cada uno los 5s de
+            // timeout mientras Coordinadora esta caida. Mismo TTL corto que
+            // los fallos de nivel API, por la misma razon.
+            set_transient( $key, $fail, 5 * MINUTE_IN_SECONDS );
+            return $fail;
         }
         $parsed = self::parse_response(
             (string) wp_remote_retrieve_body( $response ),

@@ -1,10 +1,30 @@
 <?php
 use PHPUnit\Framework\TestCase;
 
+/**
+ * wpdb mínimo para probar purge_cache(): solo registra las queries que le
+ * llegan y escapa LIKE como el $wpdb real (addcslashes de '_%\'), para poder
+ * verificar que el SQL escapa los guiones bajos de 'ccmck_cot_'.
+ */
+final class CCMCK_Fake_Wpdb_Cache {
+	public $options = 'wp_options';
+	public $queries = array();
+
+	public function query( $sql ) {
+		$this->queries[] = $sql;
+		return 0;
+	}
+
+	public function esc_like( $text ) {
+		return addcslashes( (string) $text, '_%\\' );
+	}
+}
+
 final class CoordinadoraCacheTest extends TestCase {
 
 	protected function setUp(): void {
 		$GLOBALS['ccmck_test_transients'] = array();
+		$GLOBALS['ccmck_test_http']       = array( 'calls' => 0, 'queue' => array() );
 	}
 
 	private function args(): array {
@@ -14,6 +34,15 @@ final class CoordinadoraCacheTest extends TestCase {
 			'apikey' => 'LLAVE', 'clave' => 'SECRETO',
 		);
 	}
+
+	private function respuesta_ok(): array {
+		return array(
+			'body' => '{"jsonrpc":"2.0","id":0,"result":{"flete_total":15700,"dias_entrega":2},"error":null}',
+			'code' => 200,
+		);
+	}
+
+	// --- cache_key(): pureza (banco original del brief) ---
 
 	public function test_el_mismo_envio_da_la_misma_clave(): void {
 		$this->assertSame(
@@ -41,5 +70,97 @@ final class CoordinadoraCacheTest extends TestCase {
 		$otro['apikey'] = 'OTRA'; $otro['clave'] = 'OTRO';
 		$this->assertSame( CCMCK_Coordinadora::cache_key( $this->args() ), CCMCK_Coordinadora::cache_key( $otro ) );
 		$this->assertStringNotContainsString( 'LLAVE', CCMCK_Coordinadora::cache_key( $this->args() ) );
+	}
+
+	// --- quote(): que la caché MUERDA de verdad, no solo que cache_key() sea pura ---
+
+	public function test_acierto_de_cache_no_llama_a_la_api(): void {
+		$GLOBALS['ccmck_test_http']['queue'] = array( $this->respuesta_ok() );
+		$args = $this->args();
+
+		$primero = CCMCK_Coordinadora::quote( $args );
+		$segundo = CCMCK_Coordinadora::quote( $args );
+
+		$this->assertSame( 1, $GLOBALS['ccmck_test_http']['calls'], 'la segunda llamada debe salir de la caché, no de la red' );
+		$this->assertSame( $primero, $segundo );
+		$this->assertTrue( $primero['ok'] );
+		$this->assertSame( 15700, $primero['flete_total'] );
+	}
+
+	public function test_sin_cache_cada_llamada_pega_a_la_api(): void {
+		// Prueba de control: si no hay nada cacheado entre llamadas (mismo
+		// envío, dos visitantes en sesiones distintas), sí debe volver a pegar
+		// a la API. Esto es lo que demuestra que la prueba de arriba muerde:
+		// aquí el contador SÍ debe subir a 2.
+		$GLOBALS['ccmck_test_http']['queue'] = array( $this->respuesta_ok(), $this->respuesta_ok() );
+		$args = $this->args();
+
+		CCMCK_Coordinadora::quote( $args );
+		$GLOBALS['ccmck_test_transients'] = array(); // simula una sesión/visitante nuevo, sin caché compartida
+		CCMCK_Coordinadora::quote( $args );
+
+		$this->assertSame( 2, $GLOBALS['ccmck_test_http']['calls'] );
+	}
+
+	public function test_ttl_ok_es_12_horas_y_fallo_de_api_es_5_minutos(): void {
+		$GLOBALS['ccmck_test_http']['queue'] = array( $this->respuesta_ok() );
+		$args_ok = $this->args();
+		CCMCK_Coordinadora::quote( $args_ok );
+		$key_ok = CCMCK_Coordinadora::cache_key( $args_ok );
+		$this->assertSame( 12 * HOUR_IN_SECONDS, $GLOBALS['ccmck_test_transients'][ $key_ok ]['expira'] );
+
+		$GLOBALS['ccmck_test_http']['queue'] = array( array( 'body' => 'no-es-json', 'code' => 200 ) );
+		$args_fail = $this->args();
+		$args_fail['destino'] = '05001000'; // clave distinta, para no pisar el transient de arriba
+		$resultado = CCMCK_Coordinadora::quote( $args_fail );
+		$this->assertFalse( $resultado['ok'] );
+		$key_fail = CCMCK_Coordinadora::cache_key( $args_fail );
+		$this->assertSame( 5 * MINUTE_IN_SECONDS, $GLOBALS['ccmck_test_transients'][ $key_fail ]['expira'] );
+	}
+
+	public function test_fallo_de_red_tambien_cachea_con_ttl_corto(): void {
+		// Antes del fix del revisor, is_wp_error() devolvía ANTES de cachear:
+		// una caída de red no quedaba protegida por el TTL corto y cada
+		// visitante se comía el timeout de 5s completo mientras Coordinadora
+		// estaba caída.
+		$GLOBALS['ccmck_test_http']['queue'] = array(
+			new WP_Error( 'http_request_failed', 'cURL error 28: Connection timed out' ),
+		);
+		$args = $this->args();
+
+		$primero = CCMCK_Coordinadora::quote( $args );
+		$this->assertFalse( $primero['ok'] );
+
+		// Segunda llamada: la cola de red ya está vacía (solo encolamos un
+		// WP_Error). Si el fallo de red no se hubiera cacheado, esto volvería
+		// a pegar a wp_remote_post() (que devolvería el default '{}'/200, no
+		// un WP_Error) en vez de reusar $primero.
+		$segundo = CCMCK_Coordinadora::quote( $args );
+		$this->assertSame( 1, $GLOBALS['ccmck_test_http']['calls'], 'el fallo de red debe cachearse: no debe volver a tocar la red' );
+		$this->assertSame( $primero, $segundo );
+
+		$key = CCMCK_Coordinadora::cache_key( $args );
+		$hit = get_transient( $key );
+		$this->assertIsArray( $hit );
+		$this->assertSame( 5 * MINUTE_IN_SECONDS, $GLOBALS['ccmck_test_transients'][ $key ]['expira'] );
+	}
+
+	// --- purge_cache(): borra lo cacheado, escapando el LIKE ---
+
+	public function test_purge_cache_escapa_los_guiones_bajos_del_like(): void {
+		global $wpdb;
+		$wpdb = new CCMCK_Fake_Wpdb_Cache();
+
+		CCMCK_Coordinadora::purge_cache();
+
+		$this->assertNotEmpty( $wpdb->queries );
+		$sql = implode( ' ', $wpdb->queries );
+		// '_' es comodín de UN carácter en LIKE de MySQL: sin escapar, el patrón
+		// también matchearía basura como 'ccmckXcotX'. esc_like() debe convertir
+		// 'ccmck_cot_' en 'ccmck\_cot\_'.
+		$this->assertStringContainsString( 'ccmck\\_cot\\_', $sql );
+		$this->assertStringNotContainsString( "ccmck_cot_%", $sql, 'el guion bajo sin escapar no debe aparecer en el SQL' );
+		$this->assertStringContainsString( '_transient_', $sql );
+		$this->assertStringContainsString( '_transient_timeout_', $sql );
 	}
 }

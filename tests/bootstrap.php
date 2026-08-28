@@ -111,6 +111,14 @@ if ( ! class_exists( 'WP_Error' ) ) {
             }
             return $this->errors[ $code ] ?? array();
         }
+        /** Como WP real: el primer mensaje del primer código (o del código pedido). */
+        public function get_error_message( $code = '' ) {
+            if ( '' === $code ) {
+                $code = $this->get_error_codes()[0] ?? '';
+            }
+            $msgs = $this->get_error_messages( $code );
+            return $msgs[0] ?? '';
+        }
     }
 }
 
@@ -201,5 +209,40 @@ if ( ! function_exists( 'set_transient' ) ) {
 
 defined( 'HOUR_IN_SECONDS' )   || define( 'HOUR_IN_SECONDS', 3600 );
 defined( 'MINUTE_IN_SECONDS' ) || define( 'MINUTE_IN_SECONDS', 60 );
+
+// wp_remote_post() de mentira: cuenta llamadas HTTP reales y devuelve
+// respuestas encoladas desde `$GLOBALS['ccmck_test_http']` (mismo estilo que
+// los transients de arriba). Las pruebas cargan 'queue' en su setUp() y leen
+// 'calls' para verificar que la caché evita la llamada de red. Un elemento de
+// la cola puede ser {body,code} o una instancia de WP_Error, para simular una
+// caída de red real.
+if ( ! function_exists( 'wp_remote_post' ) ) {
+    function wp_remote_post( $url, $args = array() ) {
+        if ( ! isset( $GLOBALS['ccmck_test_http'] ) ) {
+            $GLOBALS['ccmck_test_http'] = array( 'calls' => 0, 'queue' => array() );
+        }
+        $GLOBALS['ccmck_test_http']['calls']++;
+        $queue = $GLOBALS['ccmck_test_http']['queue'];
+        $next  = $queue ? array_shift( $queue ) : array( 'body' => '{}', 'code' => 200 );
+        $GLOBALS['ccmck_test_http']['queue'] = $queue;
+        if ( $next instanceof WP_Error ) {
+            return $next;
+        }
+        return array(
+            'body'     => (string) ( $next['body'] ?? '{}' ),
+            'response' => array( 'code' => (int) ( $next['code'] ?? 200 ) ),
+        );
+    }
+}
+if ( ! function_exists( 'wp_remote_retrieve_body' ) ) {
+    function wp_remote_retrieve_body( $response ) {
+        return is_array( $response ) ? (string) ( $response['body'] ?? '' ) : '';
+    }
+}
+if ( ! function_exists( 'wp_remote_retrieve_response_code' ) ) {
+    function wp_remote_retrieve_response_code( $response ) {
+        return is_array( $response ) ? (int) ( $response['response']['code'] ?? 0 ) : 0;
+    }
+}
 
 require_once dirname( __DIR__ ) . '/includes/class-ccmck-cart-shipping.php';
