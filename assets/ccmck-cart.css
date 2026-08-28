@@ -1,1 +1,303 @@
-/* Estilos de la página de carrito. Se rellenan en la tarea 6. */
+/**
+ * Página de carrito.
+ *
+ * La calculadora de envío usa EL MISMO sistema de campos que el checkout
+ * (ccmck-checkout.css, "===== FORM ====="): etiqueta 12/500 #666, campo con
+ * borde #d1d1d1 y radio 6px, foco con borde tinta y halo suave, y la misma
+ * flecha SVG en los <select>. Aquí no se inventan tokens: si el checkout
+ * cambia, esto se actualiza con él.
+ *
+ * ── Por qué los CAMPOS llevan !important y el resto no ──────────────────────
+ * Medido en staging, no supuesto: inyectando esta misma regla al final del
+ * <head> SIN !important, el <select> no se movía de padding 8px, radio 4px y su
+ * propia flecha en base64 encima del texto; CON !important sí. Algo de fuera lo
+ * pisa con esa arma —no está en el tema, ni en Elementor, ni en ninguna hoja
+ * legible desde la página— y contra eso subir especificidad no sirve de nada
+ * (probado también: duplicar la clase del formulario no cambió nada).
+ * La etiqueta, el botón y el aviso ganan limpio, así que NO lo llevan. Si algún
+ * día ese tercero desaparece, esto se puede quitar campo por campo comprobando
+ * el valor calculado.
+ *
+ * Se corrigen además tres cosas que venían del tema:
+ *  - la celda de totales alinea a la derecha, y el formulario lo heredaba;
+ *  - los <select> mostraban la flecha del tema ENCIMA del texto;
+ *  - "Cambiar dirección" salía con un recuadro naranja del tema.
+ */
+
+/* ============================================================
+   Calculadora de envío
+   ============================================================ */
+
+/* El formulario vive dentro de la celda de totales, que va alineada a la
+   derecha. Se recupera la lectura normal para todo el bloque. */
+.cart_totals .woocommerce-shipping-calculator,
+.cart_totals .woocommerce-shipping-calculator * {
+	text-align: left;
+}
+
+.cart_totals .woocommerce-shipping-calculator {
+	margin-top: 12px;
+	padding-top: 14px;
+	border-top: 1px solid #eee;
+}
+
+/* Enlace que abre el formulario: control discreto, no enlace suelto. Mismo
+   radio y misma familia que los campos de al lado. */
+.cart_totals .shipping-calculator-button {
+	display: inline-block;
+	padding: 6px 10px;
+	margin-top: 2px;
+	border: 1px solid #d1d1d1;
+	border-radius: 6px;
+	font-size: 13px;
+	font-weight: 500;
+	line-height: 1.2;
+	color: #1a1a1a;
+	text-decoration: none;
+	background: #fff;
+	transition: border-color 0.2s, color 0.2s;
+}
+
+.cart_totals .shipping-calculator-button:hover,
+.cart_totals .shipping-calculator-button:focus-visible {
+	border-color: #1a1a1a;
+	color: #1a1a1a;
+	text-decoration: none;
+}
+
+.cart_totals .shipping-calculator-button:focus-visible {
+	outline: 2px solid var(--ccmck-sidebar, #1a1a1a);
+	outline-offset: 2px;
+}
+
+/* El tema pintaba un recuadro naranja sobre este enlace al pulsarlo. */
+.cart_totals .shipping-calculator-button:focus:not(:focus-visible) {
+	outline: none;
+}
+
+/* ---- Campos: calcados del checkout ---- */
+
+.woocommerce-shipping-calculator .form-row {
+	display: block;
+	margin: 0 0 12px;
+	padding: 0;
+	float: none;
+	width: auto;
+}
+
+.woocommerce-shipping-calculator .form-row:last-of-type {
+	margin-bottom: 14px;
+}
+
+.woocommerce-shipping-calculator label {
+	display: block;
+	margin-bottom: 4px;
+	font-size: 12px;
+	font-weight: 500;
+	line-height: 1.3;
+	color: #666;
+}
+
+.woocommerce-shipping-calculator .required {
+	color: var(--ccmck-accent, #e63946);
+	border: 0;
+	text-decoration: none;
+}
+
+.woocommerce-shipping-calculator .input-text,
+.woocommerce-shipping-calculator select {
+	width: 100%;
+	border: 1px solid #d1d1d1 !important;
+	border-radius: 6px !important;
+	font-family: inherit;
+	font-size: 14px !important;
+	line-height: 1.3;
+	color: var(--ccmck-sidebar, #1a1a1a) !important;
+	background-color: #fff !important;
+	box-shadow: none;
+	appearance: none;
+	-webkit-appearance: none;
+	transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+/* El padding va por tipo de campo y NO se declara arriba: cuando la taquigrafía
+   estaba en el bloque común y el hueco de la flecha en la regla de abajo, ganaba
+   la de arriba y la flecha volvía a pisar el texto. Una sola declaración por
+   campo, sin competencia posible. */
+.woocommerce-shipping-calculator .input-text {
+	padding: 12px 14px !important;
+}
+
+/* Con `.woocommerce-shipping-calculator select` a secas, algo externo con la
+   misma especificidad y cargado DESPUÉS ganaba y devolvía el padding a 14px, con
+   la flecha encima del texto. Añadir el contexto `.cart_totals` sube la
+   especificidad lo justo. Medido, no supuesto. */
+.cart_totals .woocommerce-shipping-calculator select,
+.woocommerce-shipping-calculator select {
+	/* 36px a la derecha = sitio para la flecha. */
+	padding: 12px 36px 12px 14px !important;
+}
+
+.woocommerce-shipping-calculator .input-text::placeholder {
+	color: #aaa;
+}
+
+.woocommerce-shipping-calculator .input-text:focus,
+.woocommerce-shipping-calculator select:focus {
+	outline: none;
+	border-color: var(--ccmck-sidebar, #1a1a1a) !important;
+	box-shadow: 0 0 0 2px rgba(26, 26, 26, 0.08);
+}
+
+/* Un select deshabilitado significa "todavía no puedes elegir aquí", y tiene
+   que verse distinto de uno vacío pero utilizable. */
+.woocommerce-shipping-calculator select:disabled {
+	background-color: #f7f7f7 !important;
+	color: #888 !important;
+	cursor: not-allowed;
+}
+
+/* Flecha propia, la misma del checkout. El tema pintaba la suya encima del
+   texto porque el campo no reservaba sitio a la derecha. */
+.woocommerce-shipping-calculator select {
+	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") !important;
+	background-repeat: no-repeat !important;
+	background-position: right 12px center !important;
+}
+
+/* ---- Select2: país y departamento ----
+   WooCommerce sustituye esos dos <select> por widgets de Select2, así que el
+   campo que se ve NO es el <select> (queda oculto) sino el marcado de Select2,
+   que el tema estiliza a su manera: 34px de alto, borde rgba(32,7,7,.8) y radio
+   4px. Sin esto, dos campos del mismo formulario se ven distintos del tercero.
+   Se iguala al sistema del checkout, incluida la flecha. */
+
+.woocommerce-shipping-calculator .select2-container--default .select2-selection--single {
+	height: auto !important;
+	min-height: 48px;
+	border: 1px solid #d1d1d1 !important;
+	border-radius: 6px !important;
+	background: #fff !important;
+	display: flex;
+	align-items: center;
+}
+
+.woocommerce-shipping-calculator .select2-container--default .select2-selection--single .select2-selection__rendered {
+	padding: 0 36px 0 14px !important;
+	line-height: 1.3 !important;
+	font-size: 14px;
+	color: var(--ccmck-sidebar, #1a1a1a) !important;
+}
+
+/* La flecha propia de Select2 se retira y se pinta la misma del checkout, en el
+   mismo sitio que en los demás campos. */
+.woocommerce-shipping-calculator .select2-container--default .select2-selection--single .select2-selection__arrow {
+	display: none !important;
+}
+
+.woocommerce-shipping-calculator .select2-container--default .select2-selection--single {
+	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") !important;
+	background-repeat: no-repeat !important;
+	background-position: right 12px center !important;
+}
+
+.woocommerce-shipping-calculator .select2-container--default.select2-container--open .select2-selection--single,
+.woocommerce-shipping-calculator .select2-container--default .select2-selection--single:focus {
+	border-color: var(--ccmck-sidebar, #1a1a1a) !important;
+	box-shadow: 0 0 0 2px rgba(26, 26, 26, 0.08);
+}
+
+@media (max-width: 768px) {
+	.woocommerce-shipping-calculator .select2-container--default .select2-selection--single .select2-selection__rendered {
+		font-size: 16px;
+	}
+}
+
+/* Botón de actualizar: ancho completo, que es lo que pide una columna
+   estrecha, y sin depender del botón genérico del tema. */
+.woocommerce-shipping-calculator button[name="calc_shipping"] {
+	width: 100%;
+	padding: 12px 16px;
+	border: 0;
+	border-radius: 6px;
+	font-family: inherit;
+	font-size: 14px;
+	font-weight: 600;
+	line-height: 1.2;
+	color: #fff;
+	background: var(--ccmck-sidebar, #1a1a1a);
+	cursor: pointer;
+	transition: opacity 0.2s;
+}
+
+.woocommerce-shipping-calculator button[name="calc_shipping"]:hover {
+	opacity: 0.88;
+}
+
+.woocommerce-shipping-calculator button[name="calc_shipping"]:focus-visible {
+	outline: 2px solid var(--ccmck-sidebar, #1a1a1a);
+	outline-offset: 2px;
+}
+
+/* ============================================================
+   Aviso de por qué no hay flete
+   ============================================================
+   Es el mensaje que existe para que nadie lea "Recogida local" y crea que no
+   le enviamos a casa. Se pinta como guía, no como error: filete de acento a
+   la izquierda y el mismo gris de texto que las etiquetas del formulario. */
+
+tr.ccmck-cart-aviso td {
+	padding: 10px 12px;
+	border-left: 3px solid var(--ccmck-accent, #e63946);
+	border-radius: 0 6px 6px 0;
+	font-size: 13px;
+	font-weight: 500;
+	line-height: 1.45;
+	color: #444;
+	background: #fafafa;
+	text-align: left;
+}
+
+/* ============================================================
+   Móvil
+   ============================================================ */
+
+@media (max-width: 768px) {
+	.cart_totals .woocommerce-shipping-calculator .input-text,
+	.cart_totals .woocommerce-shipping-calculator select {
+		/* 16px evita que iOS haga zoom al enfocar el campo. */
+		font-size: 16px !important;
+		min-height: 48px;
+	}
+
+	.cart_totals .woocommerce-shipping-calculator button[name="calc_shipping"] {
+		font-size: 16px;
+		min-height: 48px;
+	}
+
+	.cart_totals .shipping-calculator-button {
+		min-height: 44px;
+		padding: 10px 14px;
+		line-height: 1.4;
+	}
+
+	/* La tabla se apila y WooCommerce usa data-title como etiqueta de fila; el
+	   aviso trae su propio texto, así que no necesita esa etiqueta repetida. */
+	tr.ccmck-cart-aviso td::before {
+		display: none;
+	}
+
+	tr.ccmck-cart-aviso td {
+		width: 100%;
+		text-align: left;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.woocommerce-shipping-calculator .input-text,
+	.woocommerce-shipping-calculator select,
+	.woocommerce-shipping-calculator button[name="calc_shipping"],
+	.cart_totals .shipping-calculator-button {
+		transition: none;
+	}
+}

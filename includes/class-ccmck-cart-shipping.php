@@ -363,9 +363,12 @@ final class CCMCK_Cart_Shipping {
 				array( 'source' => 'ccmck-cart-shipping' )
 			);
 		}
+		// data-title: en móvil WooCommerce apila la tabla y usa ese atributo como
+		// etiqueta de la fila. Sin él, el aviso sale con una etiqueta vacía al lado.
 		printf(
-			'<tr class="ccmck-cart-aviso ccmck-cart-aviso--%1$s"><td colspan="2">%2$s</td></tr>',
+			'<tr class="ccmck-cart-aviso ccmck-cart-aviso--%1$s"><td colspan="2" data-title="%2$s">%3$s</td></tr>',
 			esc_attr( $estado['clave'] ),
+			esc_attr__( 'Envío', 'ccm-checkout' ),
 			esc_html( $estado['texto'] )
 		);
 	}
