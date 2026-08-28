@@ -113,4 +113,35 @@ final class CartShippingTest extends TestCase {
 		// El desplegable debe quedar vacio y deshabilitado, no romper la pagina.
 		$this->assertSame( array( 'opciones' => array() ), CCMCK_Cart_Shipping::rest_payload( $this->catalogo(), 'Narnia' ) );
 	}
+
+	public function test_el_encolado_del_carrito_va_antes_del_return_de_is_checkout(): void {
+		// Precedente que ya costo produccion: is_checkout() corta con un return
+		// temprano. Si alguien mueve el bloque del carrito despues de ese
+		// return (por "orden mas prolijo", por ejemplo), el JS deja de
+		// cargarse en el carrito y ningun otro test de este banco lo nota,
+		// porque enqueue() no se ejecuta bajo PHPUnit (necesita WordPress
+		// entero). Por eso la prueba lee el CODIGO FUENTE, no el comportamiento.
+		$ruta   = dirname( __DIR__ ) . '/includes/class-ccmck-assets.php';
+		$fuente = file_get_contents( $ruta );
+		$this->assertNotFalse( $fuente, "no pude leer $ruta" );
+
+		$inicio_enqueue = strpos( $fuente, 'function enqueue(' );
+		$this->assertNotFalse( $inicio_enqueue, 'no encontre function enqueue() en class-ccmck-assets.php' );
+
+		// A partir de aqui, todo lo que sigue es el CUERPO de enqueue(). Ojo:
+		// preload_lcp() tiene su propio "is_checkout()" ANTES en el archivo;
+		// recortar desde este punto evita que ese otro match arruine la prueba.
+		$cuerpo_enqueue = substr( $fuente, $inicio_enqueue );
+
+		$pos_carrito  = strpos( $cuerpo_enqueue, "'ccmck-cart-city'" );
+		$pos_checkout = strpos( $cuerpo_enqueue, '! is_checkout()' );
+
+		$this->assertNotFalse( $pos_carrito, "no encontre el handle 'ccmck-cart-city' dentro de enqueue()" );
+		$this->assertNotFalse( $pos_checkout, "no encontre '! is_checkout()' dentro de enqueue()" );
+		$this->assertLessThan(
+			$pos_checkout,
+			$pos_carrito,
+			'el encolado de ccmck-cart-city debe ir ANTES del return de is_checkout(), o nunca se ejecuta en el carrito'
+		);
+	}
 }

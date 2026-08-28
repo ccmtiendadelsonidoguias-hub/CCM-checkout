@@ -61,6 +61,8 @@ final class CCMCK_Assets {
                 'rest'     => esc_url_raw( rest_url( 'ccmck/v1/ciudades' ) ),
                 'elige'    => __( 'Elige tu ciudad', 'ccm-checkout' ),
                 'cargando' => __( 'Cargando ciudades…', 'ccm-checkout' ),
+                'vacio'    => __( 'No hay ciudades para ese departamento', 'ccm-checkout' ),
+                'error'    => __( 'No se pudieron cargar las ciudades. Envía el formulario para intentar de nuevo.', 'ccm-checkout' ),
             ) );
         }
 
