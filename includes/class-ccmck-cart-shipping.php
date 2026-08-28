@@ -59,4 +59,48 @@ final class CCMCK_Cart_Shipping {
 		asort( $out, SORT_NATURAL | SORT_FLAG_CASE );
 		return $out;
 	}
+
+	/**
+	 * Cómo queda el campo de ciudad. PURO.
+	 *
+	 * @param array  $args    Args originales de woocommerce_form_field.
+	 * @param array  $options Salida de city_options().
+	 * @param string $state   Departamento en sesión.
+	 */
+	public static function city_field_args( array $args, array $options, string $state ): array {
+		$args['type'] = 'select';
+		$args['input_class'] = array_merge( (array) ( $args['input_class'] ?? array() ), array( 'ccmck-cart-city' ) );
+
+		if ( ! $options ) {
+			$args['options'] = array(
+				'' => '' === trim( $state )
+					? __( 'Elige primero el departamento', 'ccm-checkout' )
+					: __( 'No hay ciudades para ese departamento', 'ccm-checkout' ),
+			);
+			$args['custom_attributes'] = array_merge(
+				(array) ( $args['custom_attributes'] ?? array() ),
+				array( 'disabled' => 'disabled' )
+			);
+			return $args;
+		}
+
+		$args['options'] = array( '' => __( 'Elige tu ciudad', 'ccm-checkout' ) ) + $options;
+		return $args;
+	}
+
+	/** Filtro woocommerce_form_field_args. Solo junta datos y delega. */
+	public static function filter_field( $args, $key, $value ) {
+		if ( 'calc_shipping_city' !== $key || ! is_array( $args ) ) {
+			return $args;
+		}
+		$state = '';
+		if ( function_exists( 'WC' ) && WC()->customer ) {
+			$state = (string) WC()->customer->get_shipping_state();
+		}
+		return self::city_field_args( $args, self::city_options( CCMCK_Cities::catalog(), $state ), $state );
+	}
+
+	public static function init(): void {
+		add_filter( 'woocommerce_form_field_args', array( __CLASS__, 'filter_field' ), 20, 3 );
+	}
 }

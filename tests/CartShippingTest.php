@@ -74,4 +74,28 @@ final class CartShippingTest extends TestCase {
 		// Si el plugin de ciudades se desactiva, el carrito debe seguir cargando.
 		$this->assertSame( array(), CCMCK_Cart_Shipping::city_options( array(), 'Cundinamarca' ) );
 	}
+
+	public function test_sin_departamento_el_campo_queda_deshabilitado_y_lo_dice(): void {
+		$args = CCMCK_Cart_Shipping::city_field_args( array( 'type' => 'text' ), array(), '' );
+		$this->assertSame( 'select', $args['type'] );
+		$this->assertTrue( isset( $args['custom_attributes']['disabled'] ) );
+		$this->assertStringContainsString( 'departamento', reset( $args['options'] ) );
+	}
+
+	public function test_con_departamento_el_campo_trae_sus_ciudades(): void {
+		$opts = CCMCK_Cart_Shipping::city_options( $this->catalogo(), 'Atlantico' );
+		$args = CCMCK_Cart_Shipping::city_field_args( array( 'type' => 'text' ), $opts, 'Atlantico' );
+		$this->assertSame( 'select', $args['type'] );
+		$this->assertFalse( isset( $args['custom_attributes']['disabled'] ) );
+		$this->assertArrayHasKey( 'BARRANQUILLA (ATL) (08001000)', $args['options'] );
+		// La primera opcion invita a elegir, no preselecciona una ciudad.
+		$this->assertSame( '', array_key_first( $args['options'] ) );
+	}
+
+	public function test_un_departamento_sin_ciudades_no_finge_que_las_tiene(): void {
+		// Catalogo vacio (plugin de ciudades caido): mejor deshabilitado que un
+		// desplegable de una sola opcion vacia que parece roto.
+		$args = CCMCK_Cart_Shipping::city_field_args( array( 'type' => 'text' ), array(), 'Cundinamarca' );
+		$this->assertTrue( isset( $args['custom_attributes']['disabled'] ) );
+	}
 }

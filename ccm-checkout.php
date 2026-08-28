@@ -8,7 +8,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'CCMCK_VERSION', '1.0.3' );
+define( 'CCMCK_VERSION', '1.2.0' );
 define( 'CCMCK_DIR', trailingslashit( dirname( __FILE__ ) ) );
 define( 'CCMCK_URL', plugin_dir_url( __FILE__ ) );
 
@@ -31,6 +31,7 @@ require_once CCMCK_DIR . 'includes/class-ccmck-wompi.php';
 require_once CCMCK_DIR . 'includes/class-ccmck-newsletter.php';
 require_once CCMCK_DIR . 'includes/class-ccmck-surcharge.php';
 require_once CCMCK_DIR . 'includes/class-ccmck-coordinadora.php';
+require_once CCMCK_DIR . 'includes/class-ccmck-cart-shipping.php';
 require_once CCMCK_DIR . 'includes/class-ccmck-guias.php';
 require_once CCMCK_DIR . 'includes/class-ccmck-cotizar.php';
 require_once CCMCK_DIR . 'includes/class-ccmck-reports.php';
@@ -66,6 +67,7 @@ function ccmck_boot(): void {
     CCMCK_Newsletter::init();
     CCMCK_Surcharge::init();
     CCMCK_Coordinadora::init();
+    CCMCK_Cart_Shipping::init();
     CCMCK_Guias::init();
     CCMCK_Cotizar::init();
     CCMCK_Reports::init();
