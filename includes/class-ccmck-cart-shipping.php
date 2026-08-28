@@ -100,7 +100,29 @@ final class CCMCK_Cart_Shipping {
 		return self::city_field_args( $args, self::city_options( CCMCK_Cities::catalog(), $state ), $state );
 	}
 
+	/** Cuerpo de la respuesta REST. PURO. */
+	public static function rest_payload( array $catalog, string $state ): array {
+		return array( 'opciones' => self::city_options( $catalog, $state ) );
+	}
+
+	public static function register_rest_routes(): void {
+		register_rest_route( 'ccmck/v1', '/ciudades', array(
+			'methods'  => 'GET',
+			'callback' => static function ( $request ) {
+				return rest_ensure_response(
+					self::rest_payload( CCMCK_Cities::catalog(), (string) $request->get_param( 'departamento' ) )
+				);
+			},
+			// Catálogo público de municipios: no hay dato de cliente que proteger.
+			'permission_callback' => '__return_true',
+			'args' => array(
+				'departamento' => array( 'required' => true, 'type' => 'string' ),
+			),
+		) );
+	}
+
 	public static function init(): void {
 		add_filter( 'woocommerce_form_field_args', array( __CLASS__, 'filter_field' ), 20, 3 );
+		add_action( 'rest_api_init', array( __CLASS__, 'register_rest_routes' ) );
 	}
 }

@@ -99,4 +99,18 @@ final class CartShippingTest extends TestCase {
 		$this->assertTrue( isset( $args['custom_attributes']['disabled'] ) );
 		$this->assertStringContainsString( 'No hay ciudades', reset( $args['options'] ) );
 	}
+
+	public function test_la_respuesta_rest_devuelve_valor_y_etiqueta(): void {
+		// Se prueba el armado de la respuesta, no WP_REST_Request.
+		$payload = CCMCK_Cart_Shipping::rest_payload( $this->catalogo(), 'Atlantico' );
+		$this->assertSame(
+			array( 'opciones' => array( 'BARRANQUILLA (ATL) (08001000)' => 'BARRANQUILLA (ATL)' ) ),
+			$payload
+		);
+	}
+
+	public function test_un_departamento_desconocido_devuelve_lista_vacia_no_un_error(): void {
+		// El desplegable debe quedar vacio y deshabilitado, no romper la pagina.
+		$this->assertSame( array( 'opciones' => array() ), CCMCK_Cart_Shipping::rest_payload( $this->catalogo(), 'Narnia' ) );
+	}
 }

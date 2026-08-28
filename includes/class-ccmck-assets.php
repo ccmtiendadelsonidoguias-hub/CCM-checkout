@@ -46,6 +46,22 @@ final class CCMCK_Assets {
                 'ajaxUrl' => admin_url( 'admin-ajax.php' ),
                 'nonce'   => wp_create_nonce( 'ccmck_cart' ),
             ) );
+
+            // Repoblado del desplegable de ciudad al cambiar de departamento.
+            // Va aqui, ANTES del return de is_checkout(), o no se cargaria nunca
+            // en el carrito.
+            wp_enqueue_script(
+                'ccmck-cart-city',
+                CCMCK_URL . 'assets/ccmck-cart-city.js',
+                array(),
+                self::asset_version( 'assets/ccmck-cart-city.js' ),
+                true
+            );
+            wp_localize_script( 'ccmck-cart-city', 'ccmckCartCity', array(
+                'rest'     => esc_url_raw( rest_url( 'ccmck/v1/ciudades' ) ),
+                'elige'    => __( 'Elige tu ciudad', 'ccm-checkout' ),
+                'cargando' => __( 'Cargando ciudades…', 'ccm-checkout' ),
+            ) );
         }
 
         if ( ! is_checkout() ) {
