@@ -170,4 +170,26 @@ final class CartShippingTest extends TestCase {
 		$this->assertStringContainsString( 'Cabina X', $e['texto'] );
 		$this->assertStringContainsString( 'Trípode Y', $e['texto'] );
 	}
+
+	public function test_sin_ciudad_manda_aunque_tambien_falten_medidas(): void {
+		// Precedencia: sin ciudad es lo primero que se arregla.
+		$e = CCMCK_Cart_Shipping::estado( false, array( 'Cabina X' ) );
+		$this->assertSame( 'sin_ciudad', $e['clave'] );
+		$this->assertStringContainsString( 'ciudad', $e['texto'] );
+	}
+
+	public function test_falta_medida_castea_a_float_como_rates(): void {
+		// rates() hace (float) $it['weight'] <= 0. Aqui debe ser igual.
+		// Casos que rompen si se usa lógica booleana cruda (! $peso):
+		$this->assertTrue( CCMCK_Cart_Shipping::falta_medida( '0.00' ), 'string "0.00" debe contar como falta' );
+		$this->assertTrue( CCMCK_Cart_Shipping::falta_medida( '0' ), 'string "0" debe contar como falta' );
+		$this->assertTrue( CCMCK_Cart_Shipping::falta_medida( '' ), 'string vacío debe contar como falta' );
+		$this->assertTrue( CCMCK_Cart_Shipping::falta_medida( null ), 'null debe contar como falta' );
+		$this->assertTrue( CCMCK_Cart_Shipping::falta_medida( 0 ), 'número 0 debe contar como falta' );
+		$this->assertTrue( CCMCK_Cart_Shipping::falta_medida( 0.0 ), 'float 0.0 debe contar como falta' );
+		// Casos que SÍ tienen medidas:
+		$this->assertFalse( CCMCK_Cart_Shipping::falta_medida( '10.50' ), 'string "10.50" no debe contar como falta' );
+		$this->assertFalse( CCMCK_Cart_Shipping::falta_medida( 10 ), 'número 10 no debe contar como falta' );
+		$this->assertFalse( CCMCK_Cart_Shipping::falta_medida( 0.01 ), 'float 0.01 no debe contar como falta' );
+	}
 }

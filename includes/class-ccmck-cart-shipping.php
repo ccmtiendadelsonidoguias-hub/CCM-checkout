@@ -122,6 +122,16 @@ final class CCMCK_Cart_Shipping {
 	}
 
 	/**
+	 * ¿Falta esta medida? Castea a float como hace rates(). PURO.
+	 *
+	 * @param mixed $medida Peso o dimensión (string, float, etc).
+	 * @return bool True si falta o es cero.
+	 */
+	public static function falta_medida( $medida ): bool {
+		return (float) $medida <= 0;
+	}
+
+	/**
 	 * Qué avisar en la línea de Envío. PURO.
 	 *
 	 * @param bool  $tiene_dane   ¿La ciudad en sesión trae DANE?
@@ -158,7 +168,7 @@ final class CCMCK_Cart_Shipping {
 			if ( ! $p || ! $p->needs_shipping() ) {
 				continue;
 			}
-			if ( ! $p->get_weight() || ! $p->get_length() || ! $p->get_width() || ! $p->get_height() ) {
+			if ( self::falta_medida( $p->get_weight() ) || self::falta_medida( $p->get_length() ) || self::falta_medida( $p->get_width() ) || self::falta_medida( $p->get_height() ) ) {
 				$falta[] = $p->get_name();
 			}
 		}
