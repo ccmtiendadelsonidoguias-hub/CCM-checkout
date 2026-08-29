@@ -169,6 +169,9 @@ if ( ! function_exists( 'wp_localize_script' ) ) {
 if ( ! function_exists( 'admin_url' ) ) {
     function admin_url( $path = '' ) { return 'https://ejemplo.test/wp-admin/' . ltrim( (string) $path, '/' ); }
 }
+if ( ! function_exists( 'home_url' ) ) {
+    function home_url( $path = '' ) { return 'https://ejemplo.test/' . ltrim( (string) $path, '/' ); }
+}
 if ( ! function_exists( 'wp_create_nonce' ) ) {
     function wp_create_nonce( $action = -1 ) { return 'nonce-de-prueba'; }
 }

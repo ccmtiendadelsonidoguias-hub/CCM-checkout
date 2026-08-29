@@ -19,16 +19,23 @@ final class CCMCK_Whatsapp {
     /**
      * Mensaje pre-escrito del chat. PURO.
      *
+     * El host NO tiene default: en staging el sitio vive en
+     * dev.ccmtiendadelsonido.com y un default hardcodeado a producción
+     * reintroduciría en silencio el bug que este método arregla (ver quien
+     * llama, que lo lee del sitio con home_url()).
+     *
      * @param string $name         Nombre del cliente (puede venir vacío).
      * @param string $order_number Número visible del pedido.
+     * @param string $host         Host del sitio (ej. ccmtiendadelsonido.com).
      */
-    public static function build_message( string $name, string $order_number ): string {
+    public static function build_message( string $name, string $order_number, string $host ): string {
         $name = trim( $name );
         $who  = '' !== $name ? sprintf( 'Hola, soy %s.', $name ) : 'Hola.';
         return sprintf(
-            '%s Acabo de realizar el pedido #%s en ccmtiendadelsonido.com y quiero confirmar mi compra.',
+            '%s Acabo de realizar el pedido #%s en %s y quiero confirmar mi compra.',
             $who,
-            $order_number
+            $order_number,
+            $host
         );
     }
 
@@ -38,13 +45,14 @@ final class CCMCK_Whatsapp {
      * @param string $number       Solo dígitos (ej. 573178119077).
      * @param string $name         Nombre del cliente.
      * @param string $order_number Número visible del pedido.
+     * @param string $host         Host del sitio (ej. ccmtiendadelsonido.com).
      */
-    public static function build_wa_url( string $number, string $name, string $order_number ): string {
+    public static function build_wa_url( string $number, string $name, string $order_number, string $host ): string {
         $number = preg_replace( '/[^0-9]/', '', $number );
         if ( '' === $number ) {
             return '';
         }
-        return 'https://wa.me/' . $number . '?text=' . rawurlencode( self::build_message( $name, $order_number ) );
+        return 'https://wa.me/' . $number . '?text=' . rawurlencode( self::build_message( $name, $order_number, $host ) );
     }
 
     /** Hook woocommerce_thankyou: imprime el <dialog> + JS inline. */
@@ -60,7 +68,8 @@ final class CCMCK_Whatsapp {
         }
 
         $name = trim( $order->get_billing_first_name() . ' ' . $order->get_billing_last_name() );
-        $url  = self::build_wa_url( (string) $s['whatsapp_number'], $name, (string) $order->get_order_number() );
+        $host = (string) wp_parse_url( home_url(), PHP_URL_HOST );
+        $url  = self::build_wa_url( (string) $s['whatsapp_number'], $name, (string) $order->get_order_number(), $host );
         if ( '' === $url ) {
             return;
         }
