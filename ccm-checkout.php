@@ -19,6 +19,7 @@ require_once CCMCK_DIR . 'includes/class-ccmck-assets.php';
 require_once CCMCK_DIR . 'includes/class-ccmck-document.php';
 require_once CCMCK_DIR . 'includes/class-ccmck-payments.php';
 require_once CCMCK_DIR . 'includes/class-ccmck-cart-ajax.php';
+require_once CCMCK_DIR . 'includes/class-ccmck-side-cart-notices.php';
 require_once CCMCK_DIR . 'includes/class-ccmck-faq.php';
 require_once CCMCK_DIR . 'includes/class-ccmck-info-cards.php';
 require_once CCMCK_DIR . 'includes/class-ccmck-whatsapp.php';
@@ -56,6 +57,7 @@ function ccmck_boot(): void {
     CCMCK_Document::init();
     CCMCK_Payments::init();
     CCMCK_Cart_Ajax::init();
+    CCMCK_Side_Cart_Notices::init();
     CCMCK_Faq::init();
     CCMCK_Info_Cards::init();
     CCMCK_Thankyou::init();
