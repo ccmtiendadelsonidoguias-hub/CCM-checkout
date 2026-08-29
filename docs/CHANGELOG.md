@@ -131,6 +131,21 @@ Hecho **solo en dev**.
 - **Comprobante de Efecty "cortado" en desktop** — el iframe del comprobante de Mercado Pago se veía recortado por la derecha con una franja oscura encima. Causa: el panel oscuro del resumen (`.page-sidebar`) pinta su fondo con un `box-shadow: 9999px 9999px 0 9999px #1a1a1a` para sangrar hasta el borde de la pantalla; ese shadow se derrama también hacia abajo y, como el voucher va a ancho completo debajo de la grilla, tapaba en negro la mitad derecha del comprobante. El shadow NO es hit-testeable (`elementFromPoint` devolvía el `<p>`/página, no el panel), lo que despistaba el diagnóstico. Fix (en `ccmck-checkout.css`): `.ccmck-gateway-output` pasa a ancho completo con fondo blanco propio y stacking propio (`position:relative; z-index:1; background:#fff`) para cubrir el shadow derramado en toda la franja, y el iframe del comprobante se acota (`max-width:1152px`, centrado) para que Mercado Pago pinte su tarjeta completa. Verificado en vivo (chrome-devtools) a 1920px.
 - Activada la clase `CCMCK_Faq` en el bootstrap (estaba `require`-ida pero sin `::init()`).
 
+## [1.3.0] - 2026-08-29
+
+### Añadido
+- Ubicación de envío (departamento/ciudad) recordada entre visitas al carrito, avisos del cajón lateral devueltos al carrito, y rediseño del resumen.
+
+## [1.2.0] - 2026-08-29
+
+### Añadido
+- Cotización de flete de Coordinadora directamente en la página de carrito propia.
+
+## [1.1.0] - 2026-08-29
+
+### Añadido
+- Página de carrito propia (reemplaza el bloque `[woocommerce_cart]`) con redirección de `/carrito/` a la nueva URL.
+
 ## [1.0.1] - 2026-06-05
 
 ### Cambiado
