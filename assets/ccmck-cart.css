@@ -1,229 +1,248 @@
 /**
- * Página de carrito.
+ * Página de carrito — diseño 2026-08-28.
  *
- * ⚠️ RECONSTRUIDO EL 2026-08-28. La versión anterior de este fichero vivía SOLO
- * en staging, sin versionar (git la daba como `??`), y se perdió al desplegar
- * encima. Esto no es aquella hoja: es una reconstrucción a partir de las clases
- * que usa `templates/cart/cart.php` y `cart-totals.php`, con los tokens del
- * checkout. Si aparece la original en un backup del hosting, compárense y
- * quédese la que el dueño prefiera — pero que la que quede esté COMMITEADA.
+ * ⚠️ RECONSTRUIDO. La hoja anterior vivía SOLO en staging, sin versionar, y se
+ * perdió al desplegar encima. Esto no es aquella: es una reconstrucción sobre
+ * las clases de `templates/cart/cart.php` y `cart-totals.php`.
  *
- * Tokens, todos de ccmck-checkout.css ("===== FORM ====="): tinta #1a1a1a,
- * etiquetas #666, bordes #d1d1d1, filetes #eee, acento #e63946, radio 6px.
- * Aquí no se inventa ninguno.
+ * PALETA: la del kit de Elementor, que es la que el ROADMAP manda para las
+ * pantallas nuevas del área de cliente —#E60000 y #191818—, NO el #e63946 de
+ * ccm-checkout.css. Esa discrepancia entre los dos rojos está anotada como
+ * decisión abierta del dueño; aquí se sigue la regla escrita.
+ * El rojo se gasta en un solo sitio: la acción de pagar. Todo lo demás es tinta,
+ * grises y filetes, para que el botón que importa no compita con nada.
  */
 
+:root {
+	--ccm-tinta: #191818;
+	--ccm-rojo: #e60000;
+	--ccm-gris-texto: #666;
+	--ccm-linea: #ececec;
+	--ccm-campo: #d8d8d8;
+	--ccm-superficie: #fff;
+	--ccm-tile: #f6f6f6;
+}
+
 /* ============================================================
-   Página: dos columnas en escritorio, una en móvil
+   Página: lista a la izquierda, resumen a la derecha
    ============================================================ */
 
 .ccmck-cart {
 	display: grid;
-	grid-template-columns: minmax(0, 1fr) 360px;
-	gap: 32px;
+	grid-template-columns: minmax(0, 1fr) 380px;
+	gap: 28px;
 	align-items: start;
-	max-width: 1200px;
+	max-width: 1240px;
 	margin: 0 auto;
-	padding: 8px 0 40px;
-	color: #1a1a1a;
+	padding: 8px 0 48px;
+	color: var(--ccm-tinta);
 }
 
-.ccmck-cart__form {
-	min-width: 0;
-}
+.ccmck-cart__form { min-width: 0; }
 
-/* ---- Lista de productos ---- */
+/* ---- Tarjeta de la lista ---- */
 
 .ccmck-cart__items {
 	margin: 0;
-	padding: 0;
+	padding: 0 24px;
 	list-style: none;
-	border: 1px solid #eee;
-	border-radius: 8px;
-	background: #fff;
-	overflow: hidden;
+	border: 1px solid var(--ccm-linea);
+	border-radius: 12px;
+	background: var(--ccm-superficie);
 }
+
+/* Cabecera de columnas, como en la referencia. La pinta la plantilla; si algún
+   día no está, la lista sigue leyéndose igual. */
+.ccmck-cart__encabezado {
+	display: grid;
+	grid-template-columns: 88px minmax(0, 1fr) 132px 120px 40px;
+	gap: 20px;
+	align-items: center;
+	padding: 18px 0 14px;
+	border-bottom: 1px solid var(--ccm-linea);
+	font-size: 12px;
+	font-weight: 600;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: var(--ccm-gris-texto);
+}
+
+.ccmck-cart__encabezado span:nth-child(2) { grid-column: 2; }
+.ccmck-cart__encabezado span:nth-child(3) { text-align: center; }
+.ccmck-cart__encabezado span:nth-child(4) { text-align: right; }
 
 .ccmck-item {
 	display: grid;
-	grid-template-columns: 72px minmax(0, 1fr) auto auto 32px;
-	gap: 16px;
+	grid-template-columns: 88px minmax(0, 1fr) 132px 120px 40px;
+	gap: 20px;
 	align-items: center;
 	margin: 0;
-	padding: 16px;
-	border-bottom: 1px solid #eee;
+	padding: 20px 0;
+	border-bottom: 1px solid var(--ccm-linea);
 }
 
-.ccmck-item:last-child {
-	border-bottom: 0;
-}
+.ccmck-item:last-child { border-bottom: 0; }
+
+/* ---- Foto sobre baldosa gris, como en la referencia ---- */
 
 .ccmck-item__photo {
-	display: block;
-	width: 72px;
-	height: 72px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 88px;
+	height: 88px;
+	border-radius: 10px;
+	background: var(--ccm-tile);
+	overflow: hidden;
 }
 
 /* Sin esto la foto sale a tamaño completo y rompe la fila entera. */
 .ccmck-item__photo img {
-	width: 72px;
-	height: 72px;
+	width: 76px;
+	height: 76px;
 	object-fit: contain;
-	border: 1px solid #eee;
-	border-radius: 6px;
-	background: #fff;
 	display: block;
+	mix-blend-mode: multiply;
 }
 
 .ccmck-item__body {
 	min-width: 0;
 	display: flex;
 	flex-direction: column;
-	gap: 2px;
+	gap: 3px;
 }
 
 .ccmck-item__name {
 	font-size: 15px;
 	font-weight: 600;
 	line-height: 1.35;
-	color: #1a1a1a;
+	color: var(--ccm-tinta);
 }
 
-.ccmck-item__name a {
-	color: inherit;
-	text-decoration: none;
-}
-
-.ccmck-item__name a:hover {
-	text-decoration: underline;
-}
+.ccmck-item__name a { color: inherit; text-decoration: none; }
+.ccmck-item__name a:hover { text-decoration: underline; }
 
 .ccmck-item__meta {
-	font-size: 12px;
-	line-height: 1.4;
-	color: #666;
+	font-size: 12.5px;
+	line-height: 1.45;
+	color: var(--ccm-gris-texto);
 }
 
 .ccmck-item__aviso {
 	font-size: 12px;
-	font-weight: 500;
+	font-weight: 600;
 	line-height: 1.4;
-	color: var(--ccmck-accent, #e63946);
+	color: var(--ccm-rojo);
 }
 
 .ccmck-item__total {
-	font-size: 15px;
-	font-weight: 600;
+	font-size: 19px;
+	font-weight: 700;
+	text-align: right;
 	white-space: nowrap;
+	letter-spacing: -0.01em;
 }
 
-/* ---- Escalonador de cantidad ---- */
+/* ---- Cantidad: pastilla, como en la referencia ---- */
 
 .ccmck-qty {
 	display: inline-flex;
 	align-items: center;
-	border: 1px solid #d1d1d1;
-	border-radius: 6px;
+	justify-self: center;
+	border: 1px solid var(--ccm-campo);
+	border-radius: 999px;
 	overflow: hidden;
-	background: #fff;
+	background: var(--ccm-superficie);
 }
 
 .ccmck-qty__menos,
 .ccmck-qty__mas {
 	width: 34px;
-	height: 36px;
+	height: 34px;
 	/* !important: el tema le pone borde y color de acento a todo <button>, y
-	   estos dos son controles neutros dentro del escalonador. */
+	   estos son controles neutros dentro de la pastilla. */
 	border: 0 !important;
-	background: #fff !important;
-	color: #1a1a1a !important;
-	font-size: 16px;
+	background: transparent !important;
+	color: var(--ccm-tinta) !important;
+	font-size: 15px;
 	line-height: 1;
 	cursor: pointer;
 	transition: background-color 0.15s;
 }
 
 .ccmck-qty__menos:hover,
-.ccmck-qty__mas:hover {
-	background: #f5f5f5;
-}
+.ccmck-qty__mas:hover { background: var(--ccm-tile) !important; }
 
 .ccmck-qty__menos:focus-visible,
 .ccmck-qty__mas:focus-visible {
-	outline: 2px solid #1a1a1a;
+	outline: 2px solid var(--ccm-tinta);
 	outline-offset: -2px;
 }
 
 .ccmck-qty input,
 .ccmck-qty .qty {
-	width: 44px;
-	height: 36px;
+	width: 38px;
+	height: 34px;
 	padding: 0 !important;
 	border: 0 !important;
-	border-left: 1px solid #eee !important;
-	border-right: 1px solid #eee !important;
 	border-radius: 0 !important;
 	text-align: center;
 	font-size: 14px;
-	background: #fff;
+	font-weight: 600;
+	background: transparent;
 	appearance: textfield;
 	-moz-appearance: textfield;
 }
 
 .ccmck-qty input::-webkit-outer-spin-button,
-.ccmck-qty input::-webkit-inner-spin-button {
-	-webkit-appearance: none;
-	margin: 0;
-}
+.ccmck-qty input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 
-/* ---- Quitar del carrito ---- */
+/* ---- Quitar ---- */
 
-.ccmck-item__remove a,
-.ccmck-item__remove {
+.ccmck-item__remove,
+.ccmck-item__remove a {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	width: 32px;
-	height: 32px;
-	border-radius: 6px;
-	color: #888;
-	font-size: 16px;
+	width: 36px;
+	height: 36px;
+	border-radius: 8px;
+	color: #9a9a9a;
+	font-size: 15px;
 	line-height: 1;
 	text-decoration: none;
 	transition: color 0.15s, background-color 0.15s;
 }
 
 .ccmck-item__remove a:hover {
-	color: var(--ccmck-accent, #e63946);
-	background: #fdf0f1;
+	color: var(--ccm-rojo);
+	background: #fdecec;
 }
 
-/* ---- Acciones bajo la lista ---- */
+/* ---- Actualizar: pastilla oscura a la izquierda, como en la referencia ---- */
 
 .ccmck-cart__acciones {
 	display: flex;
-	justify-content: flex-end;
-	margin-top: 16px;
+	justify-content: flex-start;
+	margin-top: 20px;
 }
 
 .ccmck-cart__actualizar {
-	padding: 10px 18px !important;
-	border: 1px solid #d1d1d1 !important;
-	border-radius: 6px !important;
+	padding: 13px 28px !important;
+	border: 0 !important;
+	border-radius: 999px !important;
 	font-size: 14px !important;
-	font-weight: 500 !important;
-	color: #1a1a1a !important;
-	background: #fff !important;
+	font-weight: 600 !important;
+	color: #fff !important;
+	background: var(--ccm-tinta) !important;
 	cursor: pointer;
-	transition: border-color 0.2s;
+	transition: opacity 0.2s;
 }
 
-.ccmck-cart__actualizar:hover:not(:disabled) {
-	border-color: #1a1a1a !important;
-}
+.ccmck-cart__actualizar:hover:not(:disabled) { opacity: 0.88; }
 
 .ccmck-cart__actualizar:disabled {
-	opacity: 0.5;
+	opacity: 0.35;
 	cursor: default;
 }
 
@@ -238,19 +257,20 @@
 }
 
 .ccmck-resumen {
-	padding: 20px;
-	border: 1px solid #eee;
-	border-radius: 8px;
-	background: #fff;
+	padding: 24px;
+	border: 1px solid var(--ccm-linea);
+	border-radius: 12px;
+	background: var(--ccm-superficie);
 	float: none;
 	width: auto;
 }
 
 .ccmck-resumen__titulo {
-	margin: 0 0 16px;
-	font-size: 16px;
-	font-weight: 600;
+	margin: 0 0 18px;
+	font-size: 15px;
+	font-weight: 700;
 	line-height: 1.3;
+	letter-spacing: -0.01em;
 }
 
 .ccmck-resumen__fila {
@@ -258,53 +278,48 @@
 	align-items: baseline;
 	justify-content: space-between;
 	gap: 16px;
-	padding: 8px 0;
-	font-size: 14px;
-	color: #444;
+	padding: 7px 0;
+	font-size: 13.5px;
+	color: #4a4a4a;
 }
 
-.ccmck-resumen__fila--cupon {
-	color: var(--ccmck-accent, #e63946);
-}
+.ccmck-resumen__fila--cupon { color: var(--ccm-rojo); }
 
 .ccmck-resumen__total {
-	margin-top: 8px;
-	padding-top: 14px;
-	border-top: 1px solid #eee;
-	font-size: 18px;
+	margin-top: 10px;
+	padding-top: 16px;
+	border-top: 1px solid var(--ccm-linea);
+	font-size: 19px;
 	font-weight: 700;
-	color: #1a1a1a;
+	color: var(--ccm-tinta);
+	letter-spacing: -0.01em;
 }
 
 /* La tabla de envío es de WooCommerce; se le quita el aspecto de tabla. */
 .ccmck-resumen__envio {
 	width: 100%;
-	margin: 4px 0;
+	margin: 2px 0;
 	border: 0;
 	border-collapse: collapse;
-	font-size: 14px;
+	font-size: 13.5px;
 }
 
 .ccmck-resumen__envio th,
 .ccmck-resumen__envio td {
-	padding: 8px 0;
+	padding: 7px 0;
 	border: 0;
 	vertical-align: top;
 	text-align: left;
-	color: #444;
+	color: #4a4a4a;
 }
 
 .ccmck-resumen__envio th {
 	width: 34%;
 	font-weight: 500;
-	color: #666;
+	color: var(--ccm-gris-texto);
 }
 
-.ccmck-resumen__envio ul {
-	margin: 0;
-	padding: 0;
-	list-style: none;
-}
+.ccmck-resumen__envio ul { margin: 0; padding: 0; list-style: none; }
 
 .ccmck-resumen__envio li {
 	margin: 0 0 6px;
@@ -313,57 +328,106 @@
 	gap: 8px;
 }
 
-/* ---- Cupón ---- */
+/* ---- Cupón: campo + botón en línea, como en la referencia ---- */
 
 .ccmck-cupon {
-	margin-top: 16px;
-	padding-top: 16px;
-	border-top: 1px solid #eee;
+	margin: 0 0 18px;
+	padding: 0;
+	border: 0;
 }
 
 .ccmck-cupon__etiqueta {
 	display: block;
-	margin-bottom: 6px;
+	margin-bottom: 7px;
 	font-size: 12px;
 	font-weight: 500;
-	color: #666;
+	color: var(--ccm-gris-texto);
 }
 
-.ccmck-cupon__campos {
-	display: flex;
-	gap: 8px;
-}
+.ccmck-cupon__campos { display: flex; gap: 8px; }
 
 .ccmck-cupon__codigo {
 	flex: 1;
 	min-width: 0;
-	padding: 10px 12px !important;
-	border: 1px solid #d1d1d1 !important;
-	border-radius: 6px !important;
-	font-size: 14px !important;
-	background: #fff !important;
+	padding: 11px 14px !important;
+	border: 1px solid var(--ccm-campo) !important;
+	border-radius: 8px !important;
+	font-size: 13.5px !important;
+	background: var(--ccm-superficie) !important;
 }
 
 .ccmck-cupon__codigo:focus {
 	outline: none;
-	border-color: #1a1a1a !important;
-	box-shadow: 0 0 0 2px rgba(26, 26, 26, 0.08);
+	border-color: var(--ccm-tinta) !important;
+	box-shadow: 0 0 0 2px rgba(25, 24, 24, 0.08);
 }
 
 .ccmck-cupon__aplicar {
-	padding: 10px 16px !important;
-	border: 1px solid #d1d1d1 !important;
-	border-radius: 6px !important;
-	font-size: 14px !important;
-	font-weight: 500 !important;
-	color: #1a1a1a !important;
-	background: #fff !important;
+	padding: 11px 20px !important;
+	border: 1px solid var(--ccm-campo) !important;
+	border-radius: 8px !important;
+	font-size: 13.5px !important;
+	font-weight: 600 !important;
+	color: var(--ccm-tinta) !important;
+	background: var(--ccm-superficie) !important;
 	white-space: nowrap;
 	cursor: pointer;
+	transition: border-color 0.2s;
 }
 
-.ccmck-cupon__aplicar:hover {
-	border-color: #1a1a1a !important;
+.ccmck-cupon__aplicar:hover { border-color: var(--ccm-tinta) !important; }
+
+/* ---- Pagar: el único elemento en rojo de toda la página ---- */
+
+.ccmck-resumen__pagar { margin-top: 18px; }
+
+/* Solo el botón de finalizar compra. `a.button` a secas también cogía el de
+   WhatsApp ("Cotizar pedido"), que quedaba rojo y competía con la acción
+   principal. El rojo se gasta una sola vez en la página. */
+.ccmck-resumen__pagar .checkout-button {
+	display: block;
+	width: 100%;
+	padding: 15px 20px !important;
+	border: 0 !important;
+	border-radius: 10px !important;
+	font-size: 15px !important;
+	font-weight: 700 !important;
+	text-align: center;
+	color: #fff !important;
+	background: var(--ccm-rojo) !important;
+	text-decoration: none;
+	transition: opacity 0.2s;
+}
+
+.ccmck-resumen__pagar .checkout-button:hover { opacity: 0.9; }
+
+/* Cotizar por WhatsApp es la acción secundaria: mismo tamaño, sin peso de
+   color, y conserva su icono verde. */
+.ccmck-resumen__pagar .boton-whatsapp {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	width: 100%;
+	margin-bottom: 10px;
+	padding: 14px 20px !important;
+	border: 1px solid var(--ccm-campo) !important;
+	border-radius: 10px !important;
+	font-size: 14px !important;
+	font-weight: 600 !important;
+	color: var(--ccm-tinta) !important;
+	background: var(--ccm-superficie) !important;
+	text-decoration: none;
+	transition: border-color 0.2s;
+}
+
+.ccmck-resumen__pagar .boton-whatsapp:hover {
+	border-color: var(--ccm-tinta) !important;
+}
+
+.ccmck-resumen__pagar .checkout-button:focus-visible {
+	outline: 2px solid var(--ccm-tinta);
+	outline-offset: 2px;
 }
 
 /* ============================================================
@@ -377,25 +441,30 @@
 		padding: 0 0 32px;
 	}
 
-	.ccmck-cart__resumen {
-		position: static;
-	}
+	.ccmck-cart__resumen { position: static; }
 
-	/* La fila pasa a dos líneas: foto + datos arriba, cantidad y total abajo. */
+	/* Las columnas se apilan, así que la cabecera deja de tener sentido. */
+	.ccmck-cart__encabezado { display: none; }
+
+	.ccmck-cart__items { padding: 0 16px; }
+
 	.ccmck-item {
-		grid-template-columns: 64px minmax(0, 1fr) 32px;
+		grid-template-columns: 72px minmax(0, 1fr) 36px;
 		grid-template-areas:
 			"foto  body   quitar"
 			"foto  qty    total";
-		row-gap: 10px;
+		gap: 12px 14px;
 	}
 
-	.ccmck-item__photo { grid-area: foto; width: 64px; height: 64px; }
-	.ccmck-item__photo img { width: 64px; height: 64px; }
+	.ccmck-item__photo { grid-area: foto; width: 72px; height: 72px; }
+	.ccmck-item__photo img { width: 62px; height: 62px; }
 	.ccmck-item__body { grid-area: body; }
 	.ccmck-qty { grid-area: qty; justify-self: start; }
-	.ccmck-item__total { grid-area: total; justify-self: end; }
+	.ccmck-item__total { grid-area: total; justify-self: end; font-size: 17px; }
 	.ccmck-item__remove { grid-area: quitar; }
+
+	.ccmck-cart__acciones { justify-content: stretch; }
+	.ccmck-cart__actualizar { width: 100%; }
 }
 
 /* ============================================================
