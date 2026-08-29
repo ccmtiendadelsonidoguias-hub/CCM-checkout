@@ -1,28 +1,402 @@
 /**
  * Página de carrito.
  *
- * La calculadora de envío usa EL MISMO sistema de campos que el checkout
- * (ccmck-checkout.css, "===== FORM ====="): etiqueta 12/500 #666, campo con
- * borde #d1d1d1 y radio 6px, foco con borde tinta y halo suave, y la misma
- * flecha SVG en los <select>. Aquí no se inventan tokens: si el checkout
- * cambia, esto se actualiza con él.
+ * ⚠️ RECONSTRUIDO EL 2026-08-28. La versión anterior de este fichero vivía SOLO
+ * en staging, sin versionar (git la daba como `??`), y se perdió al desplegar
+ * encima. Esto no es aquella hoja: es una reconstrucción a partir de las clases
+ * que usa `templates/cart/cart.php` y `cart-totals.php`, con los tokens del
+ * checkout. Si aparece la original en un backup del hosting, compárense y
+ * quédese la que el dueño prefiera — pero que la que quede esté COMMITEADA.
  *
- * ── Por qué los CAMPOS llevan !important y el resto no ──────────────────────
- * Medido en staging, no supuesto: inyectando esta misma regla al final del
- * <head> SIN !important, el <select> no se movía de padding 8px, radio 4px y su
- * propia flecha en base64 encima del texto; CON !important sí. Algo de fuera lo
- * pisa con esa arma —no está en el tema, ni en Elementor, ni en ninguna hoja
- * legible desde la página— y contra eso subir especificidad no sirve de nada
- * (probado también: duplicar la clase del formulario no cambió nada).
- * La etiqueta, el botón y el aviso ganan limpio, así que NO lo llevan. Si algún
- * día ese tercero desaparece, esto se puede quitar campo por campo comprobando
- * el valor calculado.
- *
- * Se corrigen además tres cosas que venían del tema:
- *  - la celda de totales alinea a la derecha, y el formulario lo heredaba;
- *  - los <select> mostraban la flecha del tema ENCIMA del texto;
- *  - "Cambiar dirección" salía con un recuadro naranja del tema.
+ * Tokens, todos de ccmck-checkout.css ("===== FORM ====="): tinta #1a1a1a,
+ * etiquetas #666, bordes #d1d1d1, filetes #eee, acento #e63946, radio 6px.
+ * Aquí no se inventa ninguno.
  */
+
+/* ============================================================
+   Página: dos columnas en escritorio, una en móvil
+   ============================================================ */
+
+.ccmck-cart {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) 360px;
+	gap: 32px;
+	align-items: start;
+	max-width: 1200px;
+	margin: 0 auto;
+	padding: 8px 0 40px;
+	color: #1a1a1a;
+}
+
+.ccmck-cart__form {
+	min-width: 0;
+}
+
+/* ---- Lista de productos ---- */
+
+.ccmck-cart__items {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	border: 1px solid #eee;
+	border-radius: 8px;
+	background: #fff;
+	overflow: hidden;
+}
+
+.ccmck-item {
+	display: grid;
+	grid-template-columns: 72px minmax(0, 1fr) auto auto 32px;
+	gap: 16px;
+	align-items: center;
+	margin: 0;
+	padding: 16px;
+	border-bottom: 1px solid #eee;
+}
+
+.ccmck-item:last-child {
+	border-bottom: 0;
+}
+
+.ccmck-item__photo {
+	display: block;
+	width: 72px;
+	height: 72px;
+}
+
+/* Sin esto la foto sale a tamaño completo y rompe la fila entera. */
+.ccmck-item__photo img {
+	width: 72px;
+	height: 72px;
+	object-fit: contain;
+	border: 1px solid #eee;
+	border-radius: 6px;
+	background: #fff;
+	display: block;
+}
+
+.ccmck-item__body {
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.ccmck-item__name {
+	font-size: 15px;
+	font-weight: 600;
+	line-height: 1.35;
+	color: #1a1a1a;
+}
+
+.ccmck-item__name a {
+	color: inherit;
+	text-decoration: none;
+}
+
+.ccmck-item__name a:hover {
+	text-decoration: underline;
+}
+
+.ccmck-item__meta {
+	font-size: 12px;
+	line-height: 1.4;
+	color: #666;
+}
+
+.ccmck-item__aviso {
+	font-size: 12px;
+	font-weight: 500;
+	line-height: 1.4;
+	color: var(--ccmck-accent, #e63946);
+}
+
+.ccmck-item__total {
+	font-size: 15px;
+	font-weight: 600;
+	white-space: nowrap;
+}
+
+/* ---- Escalonador de cantidad ---- */
+
+.ccmck-qty {
+	display: inline-flex;
+	align-items: center;
+	border: 1px solid #d1d1d1;
+	border-radius: 6px;
+	overflow: hidden;
+	background: #fff;
+}
+
+.ccmck-qty__menos,
+.ccmck-qty__mas {
+	width: 34px;
+	height: 36px;
+	/* !important: el tema le pone borde y color de acento a todo <button>, y
+	   estos dos son controles neutros dentro del escalonador. */
+	border: 0 !important;
+	background: #fff !important;
+	color: #1a1a1a !important;
+	font-size: 16px;
+	line-height: 1;
+	cursor: pointer;
+	transition: background-color 0.15s;
+}
+
+.ccmck-qty__menos:hover,
+.ccmck-qty__mas:hover {
+	background: #f5f5f5;
+}
+
+.ccmck-qty__menos:focus-visible,
+.ccmck-qty__mas:focus-visible {
+	outline: 2px solid #1a1a1a;
+	outline-offset: -2px;
+}
+
+.ccmck-qty input,
+.ccmck-qty .qty {
+	width: 44px;
+	height: 36px;
+	padding: 0 !important;
+	border: 0 !important;
+	border-left: 1px solid #eee !important;
+	border-right: 1px solid #eee !important;
+	border-radius: 0 !important;
+	text-align: center;
+	font-size: 14px;
+	background: #fff;
+	appearance: textfield;
+	-moz-appearance: textfield;
+}
+
+.ccmck-qty input::-webkit-outer-spin-button,
+.ccmck-qty input::-webkit-inner-spin-button {
+	-webkit-appearance: none;
+	margin: 0;
+}
+
+/* ---- Quitar del carrito ---- */
+
+.ccmck-item__remove a,
+.ccmck-item__remove {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 32px;
+	height: 32px;
+	border-radius: 6px;
+	color: #888;
+	font-size: 16px;
+	line-height: 1;
+	text-decoration: none;
+	transition: color 0.15s, background-color 0.15s;
+}
+
+.ccmck-item__remove a:hover {
+	color: var(--ccmck-accent, #e63946);
+	background: #fdf0f1;
+}
+
+/* ---- Acciones bajo la lista ---- */
+
+.ccmck-cart__acciones {
+	display: flex;
+	justify-content: flex-end;
+	margin-top: 16px;
+}
+
+.ccmck-cart__actualizar {
+	padding: 10px 18px !important;
+	border: 1px solid #d1d1d1 !important;
+	border-radius: 6px !important;
+	font-size: 14px !important;
+	font-weight: 500 !important;
+	color: #1a1a1a !important;
+	background: #fff !important;
+	cursor: pointer;
+	transition: border-color 0.2s;
+}
+
+.ccmck-cart__actualizar:hover:not(:disabled) {
+	border-color: #1a1a1a !important;
+}
+
+.ccmck-cart__actualizar:disabled {
+	opacity: 0.5;
+	cursor: default;
+}
+
+/* ============================================================
+   Resumen del pedido
+   ============================================================ */
+
+.ccmck-cart__resumen {
+	position: sticky;
+	top: 24px;
+	min-width: 0;
+}
+
+.ccmck-resumen {
+	padding: 20px;
+	border: 1px solid #eee;
+	border-radius: 8px;
+	background: #fff;
+	float: none;
+	width: auto;
+}
+
+.ccmck-resumen__titulo {
+	margin: 0 0 16px;
+	font-size: 16px;
+	font-weight: 600;
+	line-height: 1.3;
+}
+
+.ccmck-resumen__fila {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 16px;
+	padding: 8px 0;
+	font-size: 14px;
+	color: #444;
+}
+
+.ccmck-resumen__fila--cupon {
+	color: var(--ccmck-accent, #e63946);
+}
+
+.ccmck-resumen__total {
+	margin-top: 8px;
+	padding-top: 14px;
+	border-top: 1px solid #eee;
+	font-size: 18px;
+	font-weight: 700;
+	color: #1a1a1a;
+}
+
+/* La tabla de envío es de WooCommerce; se le quita el aspecto de tabla. */
+.ccmck-resumen__envio {
+	width: 100%;
+	margin: 4px 0;
+	border: 0;
+	border-collapse: collapse;
+	font-size: 14px;
+}
+
+.ccmck-resumen__envio th,
+.ccmck-resumen__envio td {
+	padding: 8px 0;
+	border: 0;
+	vertical-align: top;
+	text-align: left;
+	color: #444;
+}
+
+.ccmck-resumen__envio th {
+	width: 34%;
+	font-weight: 500;
+	color: #666;
+}
+
+.ccmck-resumen__envio ul {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.ccmck-resumen__envio li {
+	margin: 0 0 6px;
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+}
+
+/* ---- Cupón ---- */
+
+.ccmck-cupon {
+	margin-top: 16px;
+	padding-top: 16px;
+	border-top: 1px solid #eee;
+}
+
+.ccmck-cupon__etiqueta {
+	display: block;
+	margin-bottom: 6px;
+	font-size: 12px;
+	font-weight: 500;
+	color: #666;
+}
+
+.ccmck-cupon__campos {
+	display: flex;
+	gap: 8px;
+}
+
+.ccmck-cupon__codigo {
+	flex: 1;
+	min-width: 0;
+	padding: 10px 12px !important;
+	border: 1px solid #d1d1d1 !important;
+	border-radius: 6px !important;
+	font-size: 14px !important;
+	background: #fff !important;
+}
+
+.ccmck-cupon__codigo:focus {
+	outline: none;
+	border-color: #1a1a1a !important;
+	box-shadow: 0 0 0 2px rgba(26, 26, 26, 0.08);
+}
+
+.ccmck-cupon__aplicar {
+	padding: 10px 16px !important;
+	border: 1px solid #d1d1d1 !important;
+	border-radius: 6px !important;
+	font-size: 14px !important;
+	font-weight: 500 !important;
+	color: #1a1a1a !important;
+	background: #fff !important;
+	white-space: nowrap;
+	cursor: pointer;
+}
+
+.ccmck-cupon__aplicar:hover {
+	border-color: #1a1a1a !important;
+}
+
+/* ============================================================
+   Móvil: una columna
+   ============================================================ */
+
+@media (max-width: 900px) {
+	.ccmck-cart {
+		grid-template-columns: 1fr;
+		gap: 20px;
+		padding: 0 0 32px;
+	}
+
+	.ccmck-cart__resumen {
+		position: static;
+	}
+
+	/* La fila pasa a dos líneas: foto + datos arriba, cantidad y total abajo. */
+	.ccmck-item {
+		grid-template-columns: 64px minmax(0, 1fr) 32px;
+		grid-template-areas:
+			"foto  body   quitar"
+			"foto  qty    total";
+		row-gap: 10px;
+	}
+
+	.ccmck-item__photo { grid-area: foto; width: 64px; height: 64px; }
+	.ccmck-item__photo img { width: 64px; height: 64px; }
+	.ccmck-item__body { grid-area: body; }
+	.ccmck-qty { grid-area: qty; justify-self: start; }
+	.ccmck-item__total { grid-area: total; justify-self: end; }
+	.ccmck-item__remove { grid-area: quitar; }
+}
 
 /* ============================================================
    Calculadora de envío
