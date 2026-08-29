@@ -2,10 +2,36 @@
 /**
  * cart-totals.php — CCM Checkout.
  *
- * Copia literal de woocommerce/templates/cart/cart-totals.php @version 2.3.6.
- * En esta tarea NO se cambia nada: se copia tal cual para probar que el desvío
- * funciona antes de tocar el diseño. Si algo se rompe después, se sabrá que fue
- * el diseño y no el mecanismo.
+ * Basado en woocommerce/templates/cart/cart-totals.php @version 2.3.6: la tabla
+ * de totales se sustituye por una tarjeta de resumen (.ccmck-resumen) con filas
+ * de div. Los ganchos de la plantilla original se conservan tal cual — otros
+ * plugins cuelgan de ellos.
+ *
+ * Tres cosas del núcleo se conservan a propósito, y ninguna es decorativa:
+ *
+ * 1. La clase `cart_totals` del contenedor, y que sea un `div`. El JavaScript
+ *    del carrito de WooCommerce hace `$( '.cart_totals' ).replaceWith( html )`
+ *    al aplicar un cupón, elegir envío o quitar un artículo, y bloquea
+ *    `div.cart_totals` para el velo de «cargando». Sin esa clase los importes se
+ *    quedan viejos y el velo no aparece.
+ * 2. Las clases `cart-subtotal` y `shipping` de las filas: la pasarela de Stripe
+ *    (funnelkit-stripe-woo-payment-gateway, activa en la tienda) las lee del
+ *    HTML para armar la hoja de Google Pay.
+ * 3. `wc-proceed-to-checkout` en el bloque del botón: la misma pasarela busca
+ *    ahí el botón de pagar para copiarle el estilo al botón exprés.
+ *
+ * El envío va dentro de una tabla mínima porque la plantilla del núcleo que lo
+ * pinta (`cart/cart-shipping.php`) devuelve un `<tr>`: fuera de una tabla el
+ * navegador descarta esas etiquetas y con ellas la clase del envío.
+ *
+ * Dos cosas del núcleo se dejan fuera a propósito:
+ *
+ * - La línea de impuestos. En Colombia el IVA va en el precio y esta tienda no
+ *   calcula ninguno hoy (`get_tax_totals()` viene vacío en desarrollo, 0 filas).
+ *   Calcularlo aquí rompería el checkout.
+ * - La calculadora de envío suelta. Solo se pintaba cuando `show_shipping()`
+ *   daba falso, y con `woocommerce_shipping_cost_requires_address` en «no» eso
+ *   no ocurre; además `cart/cart-shipping.php` ya la trae cuando hace falta.
  *
  * Revisar tras cada actualización de WooCommerce.
  *
@@ -15,92 +41,88 @@
 defined( 'ABSPATH' ) || exit;
 
 ?>
-<div class="cart_totals <?php echo ( WC()->customer->has_calculated_shipping() ) ? 'calculated_shipping' : ''; ?>">
+<div class="cart_totals ccmck-resumen <?php echo ( WC()->customer->has_calculated_shipping() ) ? 'calculated_shipping' : ''; ?>">
 
 	<?php do_action( 'woocommerce_before_cart_totals' ); ?>
 
-	<h2><?php esc_html_e( 'Cart totals', 'woocommerce' ); ?></h2>
+	<h2 class="ccmck-resumen__titulo"><?php esc_html_e( 'Resumen del pedido', 'ccm-checkout' ); ?></h2>
 
-	<table cellspacing="0" class="shop_table shop_table_responsive">
+	<div class="ccmck-resumen__fila cart-subtotal">
+		<span><?php esc_html_e( 'Subtotal', 'ccm-checkout' ); ?></span>
+		<span><?php wc_cart_totals_subtotal_html(); ?></span>
+	</div>
 
-		<tr class="cart-subtotal">
-			<th><?php esc_html_e( 'Subtotal', 'woocommerce' ); ?></th>
-			<td data-title="<?php esc_attr_e( 'Subtotal', 'woocommerce' ); ?>"><?php wc_cart_totals_subtotal_html(); ?></td>
-		</tr>
+	<?php foreach ( WC()->cart->get_coupons() as $code => $coupon ) : ?>
+		<div class="ccmck-resumen__fila ccmck-resumen__fila--cupon cart-discount coupon-<?php echo esc_attr( sanitize_title( $code ) ); ?>">
+			<span><?php wc_cart_totals_coupon_label( $coupon ); ?></span>
+			<span><?php wc_cart_totals_coupon_html( $coupon ); ?></span>
+		</div>
+	<?php endforeach; ?>
 
-		<?php foreach ( WC()->cart->get_coupons() as $code => $coupon ) : ?>
-			<tr class="cart-discount coupon-<?php echo esc_attr( sanitize_title( $code ) ); ?>">
-				<th><?php wc_cart_totals_coupon_label( $coupon ); ?></th>
-				<td data-title="<?php echo esc_attr( wc_cart_totals_coupon_label( $coupon, false ) ); ?>"><?php wc_cart_totals_coupon_html( $coupon ); ?></td>
-			</tr>
-		<?php endforeach; ?>
+	<?php if ( WC()->cart->needs_shipping() && WC()->cart->show_shipping() ) : ?>
 
-		<?php if ( WC()->cart->needs_shipping() && WC()->cart->show_shipping() ) : ?>
+		<?php do_action( 'woocommerce_cart_totals_before_shipping' ); ?>
 
-			<?php do_action( 'woocommerce_cart_totals_before_shipping' ); ?>
+		<table class="ccmck-resumen__envio"><?php wc_cart_totals_shipping_html(); ?></table>
 
-			<?php wc_cart_totals_shipping_html(); ?>
+		<?php do_action( 'woocommerce_cart_totals_after_shipping' ); ?>
 
-			<?php do_action( 'woocommerce_cart_totals_after_shipping' ); ?>
+	<?php endif; ?>
 
-		<?php elseif ( WC()->cart->needs_shipping() && 'yes' === get_option( 'woocommerce_enable_shipping_calc' ) ) : ?>
+	<?php foreach ( WC()->cart->get_fees() as $fee ) : ?>
+		<div class="ccmck-resumen__fila fee">
+			<span><?php echo esc_html( $fee->name ); ?></span>
+			<span><?php wc_cart_totals_fee_html( $fee ); ?></span>
+		</div>
+	<?php endforeach; ?>
 
-			<tr class="shipping">
-				<th><?php esc_html_e( 'Shipping', 'woocommerce' ); ?></th>
-				<td data-title="<?php esc_attr_e( 'Shipping', 'woocommerce' ); ?>"><?php woocommerce_shipping_calculator(); ?></td>
-			</tr>
+	<?php do_action( 'woocommerce_cart_totals_before_order_total' ); ?>
 
-		<?php endif; ?>
+	<div class="ccmck-resumen__fila ccmck-resumen__total order-total">
+		<span><?php esc_html_e( 'Total', 'ccm-checkout' ); ?></span>
+		<span><?php wc_cart_totals_order_total_html(); ?></span>
+	</div>
 
-		<?php foreach ( WC()->cart->get_fees() as $fee ) : ?>
-			<tr class="fee">
-				<th><?php echo esc_html( $fee->name ); ?></th>
-				<td data-title="<?php echo esc_attr( $fee->name ); ?>"><?php wc_cart_totals_fee_html( $fee ); ?></td>
-			</tr>
-		<?php endforeach; ?>
+	<?php do_action( 'woocommerce_cart_totals_after_order_total' ); ?>
 
-		<?php
-		if ( wc_tax_enabled() && ! WC()->cart->display_prices_including_tax() ) {
-			$taxable_address = WC()->customer->get_taxable_address();
-			$estimated_text  = '';
+	<?php
+	// Reposicion: el nucleo traia esta caja escrita a mano dentro del
+	// <td class="actions"> de cart.php, y al sustituir la tabla se fue con ella.
+	// Aqui necesita su PROPIO <form>, porque la tarjeta de resumen se pinta
+	// fuera del formulario del carrito y los formularios no se anidan.
+	//
+	// El nucleo aplica el descuento con solo recibir apply_coupon y coupon_code
+	// por POST (WC_Form_Handler::update_cart_action), sin exigir nonce; el nonce
+	// lo pide la rama de update_cart. Se manda igual: es gratis, y asi no
+	// dependemos de que el nucleo siga siendo laxo.
+	//
+	// Quitar un cupon va por $_GET['remove_coupon'], que es el enlace que
+	// wc_cart_totals_coupon_html() ya pinta en la fila del descuento.
+	//
+	// El id no puede ser `coupon_code`: ese lo usa el checkout de este mismo
+	// plugin, y un id repetido rompe la asociacion de la etiqueta.
+	?>
+	<?php if ( wc_coupons_enabled() ) : ?>
+		<form class="ccmck-cupon" method="post" action="<?php echo esc_url( wc_get_cart_url() ); ?>">
+			<label for="ccmck-cupon-codigo" class="ccmck-cupon__etiqueta"><?php esc_html_e( '¿Tienes un cupón?', 'ccm-checkout' ); ?></label>
+			<div class="ccmck-cupon__campos">
+				<input type="text" name="coupon_code" class="ccmck-cupon__codigo" id="ccmck-cupon-codigo" value="" placeholder="<?php esc_attr_e( 'Código del cupón', 'ccm-checkout' ); ?>" />
+				<button type="submit" class="ccmck-cupon__aplicar" name="apply_coupon" value="<?php esc_attr_e( 'Aplicar', 'ccm-checkout' ); ?>"><?php esc_html_e( 'Aplicar', 'ccm-checkout' ); ?></button>
+			</div>
+			<?php
+			// A mano, y no con wp_nonce_field(), porque esa funcion fuerza
+			// id="<nombre>" y el formulario del carrito ya usa ese mismo nombre:
+			// dos veces el mismo id es HTML invalido. El nucleo lee este campo de
+			// $_REQUEST, no por id. Y aplicar un cupon no le exige nonce
+			// (class-wc-form-handler.php:646); se manda igual por si eso cambia.
+			?>
+			<input type="hidden" name="woocommerce-cart-nonce" value="<?php echo esc_attr( wp_create_nonce( 'woocommerce-cart' ) ); ?>" />
+			<?php // Se conserva: hay plugins que cuelgan de este gancho. ?>
+			<?php do_action( 'woocommerce_cart_coupon' ); ?>
+		</form>
+	<?php endif; ?>
 
-			if ( WC()->customer->is_customer_outside_base() && ! WC()->customer->has_calculated_shipping() ) {
-				/* translators: %s location. */
-				$estimated_text = sprintf( ' <small>' . esc_html__( '(estimated for %s)', 'woocommerce' ) . '</small>', WC()->countries->estimated_for_prefix( $taxable_address[0] ) . WC()->countries->countries[ $taxable_address[0] ] );
-			}
-
-			if ( 'itemized' === get_option( 'woocommerce_tax_total_display' ) ) {
-				foreach ( WC()->cart->get_tax_totals() as $code => $tax ) { // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
-					?>
-					<tr class="tax-rate tax-rate-<?php echo esc_attr( sanitize_title( $code ) ); ?>">
-						<th><?php echo esc_html( $tax->label ) . $estimated_text; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></th>
-						<td data-title="<?php echo esc_attr( $tax->label ); ?>"><?php echo wp_kses_post( $tax->formatted_amount ); ?></td>
-					</tr>
-					<?php
-				}
-			} else {
-				?>
-				<tr class="tax-total">
-					<th><?php echo esc_html( WC()->countries->tax_or_vat() ) . $estimated_text; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></th>
-					<td data-title="<?php echo esc_attr( WC()->countries->tax_or_vat() ); ?>"><?php wc_cart_totals_taxes_total_html(); ?></td>
-				</tr>
-				<?php
-			}
-		}
-		?>
-
-		<?php do_action( 'woocommerce_cart_totals_before_order_total' ); ?>
-
-		<tr class="order-total">
-			<th><?php esc_html_e( 'Total', 'woocommerce' ); ?></th>
-			<td data-title="<?php esc_attr_e( 'Total', 'woocommerce' ); ?>"><?php wc_cart_totals_order_total_html(); ?></td>
-		</tr>
-
-		<?php do_action( 'woocommerce_cart_totals_after_order_total' ); ?>
-
-	</table>
-
-	<div class="wc-proceed-to-checkout">
+	<div class="wc-proceed-to-checkout ccmck-resumen__pagar">
 		<?php do_action( 'woocommerce_proceed_to_checkout' ); ?>
 	</div>
 
