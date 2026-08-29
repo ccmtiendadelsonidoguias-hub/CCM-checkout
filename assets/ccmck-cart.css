@@ -241,8 +241,13 @@
 
 .ccmck-cart__actualizar:hover:not(:disabled) { opacity: 0.88; }
 
+/* Deshabilitado = "todavía no hay nada que actualizar". Un bloque oscuro al 35%
+   se lee como un botón roto; un contorno se lee como un botón en espera. */
 .ccmck-cart__actualizar:disabled {
-	opacity: 0.35;
+	color: #9a9a9a !important;
+	background: var(--ccm-superficie) !important;
+	border: 1px solid var(--ccm-linea) !important;
+	opacity: 1;
 	cursor: default;
 }
 
@@ -302,6 +307,15 @@
 	border: 0;
 	border-collapse: collapse;
 	font-size: 13.5px;
+}
+
+.ccmck-resumen__envio,
+.ccmck-resumen__envio tr,
+.ccmck-resumen__envio th,
+.ccmck-resumen__envio td {
+	/* El tema pinta una banda gris en las filas de tabla; dentro de la tarjeta
+	   del resumen se ve como un parche. */
+	background: transparent !important;
 }
 
 .ccmck-resumen__envio th,
@@ -465,6 +479,11 @@
 
 	.ccmck-cart__acciones { justify-content: stretch; }
 	.ccmck-cart__actualizar { width: 100%; }
+
+	/* Las burbujas flotantes de WhatsApp y del carrito lateral se quedan encima
+	   de la esquina inferior derecha; sin este hueco tapan el total y el botón
+	   de pagar cuando se llega al final. */
+	.ccmck-cart__resumen { padding-bottom: 88px; }
 }
 
 /* ============================================================
