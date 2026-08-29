@@ -395,43 +395,60 @@
 
 .ccmck-resumen__pagar { margin-top: 18px; }
 
+/* Por qué tanto `!important` en este bloque: woocommerce.css le declara a los
+   dos botones `display`, `margin` y `line-height` desde selectores MÁS
+   específicos que los nuestros — `.woocommerce a.button` (0,2,1) y
+   `.woocommerce-cart .wc-proceed-to-checkout a.checkout-button` (0,3,1) —, así
+   que sin `!important` esas tres se pierden en silencio. Medido el 29-ago en
+   dev: el botón de WhatsApp salía `display:inline-block` con el flex muerto
+   (icono y texto pegados a la izquierda), 60 px de alto contra los 45 del
+   rojo, y `margin-bottom:0`, o sea sin aire entre los dos. */
+
+/* Los dos botones son un par: mismo ancho, mismo alto, mismo radio, contenido
+   centrado. Lo único que los separa es el color, que es justo la decisión que
+   tiene que tomar el cliente. */
+.ccmck-resumen__pagar .checkout-button,
+.ccmck-resumen__pagar .boton-whatsapp {
+	display: flex !important;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	box-sizing: border-box;
+	width: 100%;
+	min-height: 48px;
+	border-radius: 10px !important;
+	line-height: 1.2 !important;
+	text-align: center;
+	text-decoration: none;
+}
+
 /* Solo el botón de finalizar compra. `a.button` a secas también cogía el de
    WhatsApp ("Cotizar pedido"), que quedaba rojo y competía con la acción
    principal. El rojo se gasta una sola vez en la página. */
 .ccmck-resumen__pagar .checkout-button {
-	display: block;
-	width: 100%;
-	padding: 15px 20px !important;
+	margin: 0 !important;
+	padding: 14px 20px !important;
 	border: 0 !important;
-	border-radius: 10px !important;
 	font-size: 15px !important;
 	font-weight: 700 !important;
-	text-align: center;
 	color: #fff !important;
 	background: var(--ccm-rojo) !important;
-	text-decoration: none;
 	transition: opacity 0.2s;
 }
 
 .ccmck-resumen__pagar .checkout-button:hover { opacity: 0.9; }
 
 /* Cotizar por WhatsApp es la acción secundaria: mismo tamaño, sin peso de
-   color, y conserva su icono verde. */
+   color, y conserva su icono verde. Va ARRIBA en el marcado, así que el aire
+   entre ambos lo pone su margen inferior. */
 .ccmck-resumen__pagar .boton-whatsapp {
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	gap: 8px;
-	width: 100%;
-	margin-bottom: 10px;
-	padding: 14px 20px !important;
+	margin: 0 0 12px !important;
+	padding: 13px 20px !important;
 	border: 1px solid var(--ccm-campo) !important;
-	border-radius: 10px !important;
 	font-size: 14px !important;
 	font-weight: 600 !important;
 	color: var(--ccm-tinta) !important;
 	background: var(--ccm-superficie) !important;
-	text-decoration: none;
 	transition: border-color 0.2s;
 }
 
@@ -439,7 +456,17 @@
 	border-color: var(--ccm-tinta) !important;
 }
 
-.ccmck-resumen__pagar .checkout-button:focus-visible {
+/* El icono lo pinta OTRO plugin y trae su propio `margin-right`. Se anula para
+   que la separación la ponga el `gap` y no se sumen las dos. */
+.ccmck-resumen__pagar .boton-whatsapp .whatsapp-icon {
+	flex: 0 0 auto;
+	width: 20px;
+	height: 20px;
+	margin: 0;
+}
+
+.ccmck-resumen__pagar .checkout-button:focus-visible,
+.ccmck-resumen__pagar .boton-whatsapp:focus-visible {
 	outline: 2px solid var(--ccm-tinta);
 	outline-offset: 2px;
 }
