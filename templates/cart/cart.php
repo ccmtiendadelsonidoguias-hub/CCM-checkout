@@ -79,6 +79,19 @@ do_action( 'woocommerce_before_cart' ); ?>
 					// fija, así que ahí los botones no se pintan. Un botón que no
 					// hace nada es un defecto visible.
 					$sold_individually = $_product->is_sold_individually();
+
+					// Mismo principio, un paso más allá: cuando la línea ya tiene
+					// todas las unidades que hay, el más TAMPOCO hace nada — el
+					// JavaScript lo rechaza contra el `max` del campo. Antes se
+					// veía igual de pulsable que siempre y el cliente se quedaba
+					// dándole sin entender por qué el número no sube. Se pinta
+					// apagado, que es lo que ya es.
+					//
+					// El tope se lee con la ayuda pura, no a pelo: WooCommerce
+					// devuelve -1 cuando no hay tope y comparar eso directamente
+					// apagaría el botón en toda la tienda.
+					$maximo  = (int) $_product->get_max_purchase_quantity();
+					$en_tope = CCMCK_Cart_Ajax::en_tope( (int) $cart_item['quantity'], $maximo );
 					?>
 					<div class="ccmck-qty">
 						<?php if ( ! $sold_individually ) : ?>
@@ -112,7 +125,22 @@ do_action( 'woocommerce_before_cart' ); ?>
 						?>
 
 						<?php if ( ! $sold_individually ) : ?>
-							<button type="button" class="ccmck-qty__mas" aria-label="<?php esc_attr_e( 'Añadir uno', 'ccm-checkout' ); ?>">+</button>
+							<?php
+							// `disabled` de verdad, no solo un color: así el
+							// teclado lo salta en vez de ofrecer un control muerto.
+							// La razón va en la etiqueta accesible, porque un
+							// botón deshabilitado no muestra `title` en el
+							// navegador y quien no ve el gris se quedaría sin
+							// saber por qué.
+							$etiqueta_mas = $en_tope
+								? sprintf(
+									/* translators: %d: unidades disponibles */
+									_n( 'No hay más: solo queda %d unidad', 'No hay más: solo quedan %d unidades', $maximo, 'ccm-checkout' ),
+									$maximo
+								)
+								: __( 'Añadir uno', 'ccm-checkout' );
+							?>
+							<button type="button" class="ccmck-qty__mas" aria-label="<?php echo esc_attr( $etiqueta_mas ); ?>" <?php disabled( $en_tope ); ?>>+</button>
 						<?php endif; ?>
 					</div>
 

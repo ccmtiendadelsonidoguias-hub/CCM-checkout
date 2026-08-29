@@ -369,4 +369,120 @@ final class CartShippingTest extends TestCase {
 		$this->assertStringNotContainsString( 'error_log(', $fuente, 'no debe quedar ningun error_log() en esta clase' );
 		$this->assertStringContainsString( 'wc_get_logger()', $fuente );
 	}
+
+	/* ---------------------------------------------------------------
+	   La linea "Enviar a ..." tal como la lee el cliente
+	   --------------------------------------------------------------- */
+
+	public function test_la_ciudad_pierde_el_dane_y_la_abreviatura(): void {
+		// Se leia "Enviar a BARRANQUILLA (ATL) (08001000), Atlantico": el codigo
+		// es maquinaria nuestra y la abreviatura repite el departamento que la
+		// propia linea imprime justo despues.
+		$this->assertSame(
+			'BARRANQUILLA',
+			CCMCK_Cart_Shipping::ciudad_legible( 'BARRANQUILLA (ATL) (08001000)' )
+		);
+	}
+
+	public function test_una_ciudad_sin_parentesis_se_queda_igual(): void {
+		// Las direcciones antiguas guardaron texto libre. No hay nada que quitar.
+		$this->assertSame( 'Barranquilla', CCMCK_Cart_Shipping::ciudad_legible( 'Barranquilla' ) );
+		$this->assertSame( '', CCMCK_Cart_Shipping::ciudad_legible( '' ) );
+	}
+
+	public function test_no_se_recapitaliza_la_ciudad(): void {
+		// A proposito: el catalogo manda la ortografia. Ningun title-case
+		// automatico acierta con estos dos.
+		$this->assertSame( 'SANTIAGO DE TOLU', CCMCK_Cart_Shipping::ciudad_legible( 'SANTIAGO DE TOLU (SUC) (70820000)' ) );
+		$this->assertSame( 'BOGOTA D.C.', CCMCK_Cart_Shipping::ciudad_legible( 'BOGOTA D.C. (C/MARCA) (11001000)' ) );
+	}
+
+	public function test_si_solo_hay_codigo_se_devuelve_lo_que_habia(): void {
+		// Una ciudad rara es mejor que un destino en blanco.
+		$this->assertSame( '(08001000)', CCMCK_Cart_Shipping::ciudad_legible( '(08001000)' ) );
+	}
+
+	public function test_el_filtro_solo_toca_la_ciudad(): void {
+		$antes   = array( '{city}' => 'BARRANQUILLA (ATL) (08001000)', '{state}' => 'Atlantico', '{postcode}' => '080001' );
+		$despues = CCMCK_Cart_Shipping::destino_sin_dane( $antes );
+		$this->assertSame( 'BARRANQUILLA', $despues['{city}'] );
+		$this->assertSame( 'Atlantico', $despues['{state}'] );
+		$this->assertSame( '080001', $despues['{postcode}'] );
+	}
+
+	public function test_el_filtro_aguanta_lo_que_no_espera(): void {
+		// Otro plugin puede haber cambiado la forma antes que nosotros.
+		$this->assertSame( 'no soy un array', CCMCK_Cart_Shipping::destino_sin_dane( 'no soy un array' ) );
+		$this->assertSame( array(), CCMCK_Cart_Shipping::destino_sin_dane( array() ) );
+	}
+
+	/* ---------------------------------------------------------------
+	   "Gratis" en la opcion que no cuesta
+	   --------------------------------------------------------------- */
+
+	public function test_la_opcion_sin_coste_dice_gratis(): void {
+		$metodo = new class() {
+			public function get_cost() { return '0'; }
+		};
+		$this->assertStringContainsString(
+			'Gratis',
+			CCMCK_Cart_Shipping::etiqueta_gratis( 'Recogida local', $metodo )
+		);
+	}
+
+	public function test_la_opcion_con_precio_no_se_toca(): void {
+		$metodo = new class() {
+			public function get_cost() { return '37100'; }
+		};
+		$etiqueta = 'Coordinadora: <span class="woocommerce-Price-amount amount">$37.100</span>';
+		$this->assertSame( $etiqueta, CCMCK_Cart_Shipping::etiqueta_gratis( $etiqueta, $metodo ) );
+	}
+
+	public function test_no_se_duplica_si_el_nucleo_ya_pinta_el_importe(): void {
+		// Coste cero pero con importe ya escrito: si el nucleo cambia de idea y
+		// pinta "$0", no se le anade "Gratis" detras.
+		$metodo = new class() {
+			public function get_cost() { return '0'; }
+		};
+		$etiqueta = 'Recogida local: <span class="woocommerce-Price-amount amount">$0</span>';
+		$this->assertSame( $etiqueta, CCMCK_Cart_Shipping::etiqueta_gratis( $etiqueta, $metodo ) );
+	}
+
+	public function test_sin_metodo_no_se_inventa_nada(): void {
+		$this->assertSame( 'Recogida local', CCMCK_Cart_Shipping::etiqueta_gratis( 'Recogida local', null ) );
+	}
+
+	public function test_los_dos_puntos_del_importe_desaparecen(): void {
+		// "Coordinadora: $37.100" era una frase; ahora nombre y precio van a los
+		// dos extremos de la fila y esos dos puntos quedan colgando en el hueco.
+		$this->assertSame(
+			'Coordinadora <span class="woocommerce-Price-amount amount">$37.100</span>',
+			CCMCK_Cart_Shipping::etiqueta_sin_dos_puntos( 'Coordinadora: <span class="woocommerce-Price-amount amount">$37.100</span>' )
+		);
+	}
+
+	public function test_no_se_tocan_otros_dos_puntos(): void {
+		// Hay transportadoras con dos puntos en el nombre. Solo cae el separador
+		// que precede al importe.
+		$this->assertSame(
+			'Envio: express <span class="woocommerce-Price-amount amount">$10</span>',
+			CCMCK_Cart_Shipping::etiqueta_sin_dos_puntos( 'Envio: express: <span class="woocommerce-Price-amount amount">$10</span>' )
+		);
+		$this->assertSame( 'Recogida local', CCMCK_Cart_Shipping::etiqueta_sin_dos_puntos( 'Recogida local' ) );
+	}
+
+	public function test_el_filtro_compone_los_dos_retoques(): void {
+		$conPrecio = new class() {
+			public function get_cost() { return '37100'; }
+		};
+		$this->assertSame(
+			'Coordinadora <span class="woocommerce-Price-amount amount">$37.100</span>',
+			CCMCK_Cart_Shipping::etiqueta_opcion( 'Coordinadora: <span class="woocommerce-Price-amount amount">$37.100</span>', $conPrecio )
+		);
+
+		$sinCoste = new class() {
+			public function get_cost() { return '0'; }
+		};
+		$this->assertStringContainsString( 'Gratis', CCMCK_Cart_Shipping::etiqueta_opcion( 'Recogida local', $sinCoste ) );
+	}
 }

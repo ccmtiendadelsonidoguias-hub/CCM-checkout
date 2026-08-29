@@ -256,4 +256,5 @@ if ( ! function_exists( 'wp_remote_retrieve_response_code' ) ) {
 }
 
 require_once dirname( __DIR__ ) . '/includes/class-ccmck-cart-shipping.php';
+require_once dirname( __DIR__ ) . '/includes/class-ccmck-cart-ajax.php';
 require_once dirname( __DIR__ ) . '/includes/class-ccmck-ubicacion.php';

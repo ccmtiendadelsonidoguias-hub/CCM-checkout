@@ -363,18 +363,134 @@ final class CCMCK_Cart_Shipping {
 				array( 'source' => 'ccmck-cart-shipping' )
 			);
 		}
-		// data-title: en móvil WooCommerce apila la tabla y usa ese atributo como
-		// etiqueta de la fila. Sin él, el aviso sale con una etiqueta vacía al lado.
+		// Un <div>, NO un <tr>. Este gancho se dispara ANTES de que se abra la
+		// <table> del envío, así que un <tr> aquí queda fuera de tabla y el
+		// analizador del navegador se come las etiquetas y deja el texto suelto:
+		// el aviso salía sin su filete rojo ni su fondo, y el CSS
+		// `tr.ccmck-cart-aviso td` no llegaba a aplicarse nunca. Comprobado el
+		// 29-ago en el navegador.
 		printf(
-			'<tr class="ccmck-cart-aviso ccmck-cart-aviso--%1$s"><td colspan="2" data-title="%2$s">%3$s</td></tr>',
+			'<div class="ccmck-cart-aviso ccmck-cart-aviso--%1$s">%2$s</div>',
 			esc_attr( $estado['clave'] ),
-			esc_attr__( 'Envío', 'ccm-checkout' ),
 			esc_html( $estado['texto'] )
 		);
+	}
+
+	/**
+	 * La ciudad como la lee el cliente. PURO.
+	 *
+	 * El desplegable postea `NOMBRE (ABREV) (DANE)` porque el motor de flete
+	 * necesita el DANE exacto para cotizar. Al cliente le sobran las dos cosas:
+	 * el DANE es maquinaria nuestra, y la abreviatura del departamento es
+	 * redundante porque la línea imprime el departamento entero justo después.
+	 * Se leía «Enviar a BARRANQUILLA (ATL) (08001000), Atlantico»: tres formas
+	 * de decir un sitio, una de ellas un código.
+	 *
+	 * NO se re-capitaliza a propósito. El catálogo es quien manda la ortografía,
+	 * y ningún title-case automático acierta con «SANTIAGO DE TOLU» ni con
+	 * «BOGOTA D.C.».
+	 *
+	 * Si al quitar los paréntesis no queda nada, se devuelve lo que había: una
+	 * ciudad rara es mejor que un destino en blanco.
+	 */
+	public static function ciudad_legible( string $city ): string {
+		$limpia = trim( (string) preg_replace( '/\s*\([^)]*\)/', '', $city ) );
+		return '' === $limpia ? trim( $city ) : $limpia;
+	}
+
+	/**
+	 * Quita el DANE de la línea «Enviar a …».
+	 *
+	 * Va sobre `woocommerce_formatted_address_replacements`, que WooCommerce
+	 * aplica ANTES de escapar, así que aquí los valores llegan crudos.
+	 *
+	 * @param array $replace Sustituciones {campo} => valor.
+	 */
+	public static function destino_sin_dane( $replace ) {
+		if ( is_array( $replace ) && isset( $replace['{city}'] ) ) {
+			$replace['{city}'] = self::ciudad_legible( (string) $replace['{city}'] );
+		}
+		return $replace;
+	}
+
+	/**
+	 * Pone «Gratis» a las opciones que no cuestan nada.
+	 *
+	 * WooCommerce oculta el coste de `local_pickup` y `free_shipping` cuando es
+	 * cero (`wc_cart_totals_shipping_method_label`), y en una frase corrida eso
+	 * tiene sentido. Aquí las opciones se leen como una comparación de dos
+	 * precios en columna, y una celda vacía al lado de «$37.100» obliga al
+	 * cliente a deducir que la otra no cuesta. Se dice.
+	 *
+	 * Solo se añade si la etiqueta no trae ya un importe, para no duplicarlo si
+	 * el núcleo cambia de idea.
+	 *
+	 * @param string $label  Etiqueta completa, con HTML.
+	 * @param object $method WC_Shipping_Rate.
+	 */
+	public static function etiqueta_gratis( $label, $method = null ) {
+		if ( ! is_string( $label ) || ! is_object( $method ) || ! method_exists( $method, 'get_cost' ) ) {
+			return $label;
+		}
+		if ( 0.0 < (float) $method->get_cost() || false !== strpos( $label, 'woocommerce-Price-amount' ) ) {
+			return $label;
+		}
+		return $label . ' <span class="ccmck-envio__gratis">' . esc_html__( 'Gratis', 'ccm-checkout' ) . '</span>';
+	}
+
+	/**
+	 * Quita los dos puntos que el núcleo pone antes del importe. PURO.
+	 *
+	 * `wc_cart_totals_shipping_method_label()` compone «Coordinadora: $37.100»
+	 * porque ahí la etiqueta es una frase corrida. Aquí el nombre y el importe
+	 * van a los dos extremos de la fila, y unos dos puntos colgando en mitad del
+	 * hueco son puntuación de otra maqueta.
+	 *
+	 * Se toca SOLO el separador que precede al importe, no cualquier «:» — hay
+	 * transportadoras con dos puntos en el nombre.
+	 */
+	public static function etiqueta_sin_dos_puntos( string $label ): string {
+		return str_replace( ': <span class="woocommerce-Price-amount', ' <span class="woocommerce-Price-amount', $label );
+	}
+
+	/**
+	 * Lo que se cuelga del filtro: compone los dos retoques de la etiqueta.
+	 *
+	 * @param string $label  Etiqueta completa, con HTML.
+	 * @param object $method WC_Shipping_Rate.
+	 */
+	public static function etiqueta_opcion( $label, $method = null ) {
+		if ( ! is_string( $label ) ) {
+			return $label;
+		}
+		return self::etiqueta_gratis( self::etiqueta_sin_dos_puntos( $label ), $method );
+	}
+
+	/**
+	 * Los dos retoques de arriba se encienden y se apagan alrededor del bloque
+	 * de envío del carrito, y solo ahí.
+	 *
+	 * `woocommerce_formatted_address_replacements` lo usa TODA la tienda —
+	 * correos de pedido, panel de administración, rótulos —, y ahí el DANE sí
+	 * hace falta. Dejarlo puesto para siempre sería arreglar una línea y romper
+	 * lo que va a la transportadora.
+	 */
+	public static function retoques_on(): void {
+		add_filter( 'woocommerce_formatted_address_replacements', array( __CLASS__, 'destino_sin_dane' ) );
+		add_filter( 'woocommerce_cart_shipping_method_full_label', array( __CLASS__, 'etiqueta_opcion' ), 10, 2 );
+	}
+
+	public static function retoques_off(): void {
+		remove_filter( 'woocommerce_formatted_address_replacements', array( __CLASS__, 'destino_sin_dane' ) );
+		remove_filter( 'woocommerce_cart_shipping_method_full_label', array( __CLASS__, 'etiqueta_opcion' ), 10 );
 	}
 
 	public static function init(): void {
 		add_action( 'rest_api_init', array( __CLASS__, 'register_rest_routes' ) );
 		add_action( 'woocommerce_cart_totals_before_shipping', array( __CLASS__, 'print_notice' ) );
+		// Prioridad alta para encender ANTES que nada más que cuelgue del gancho,
+		// y baja para apagar DESPUÉS. El bloque de envío queda dentro.
+		add_action( 'woocommerce_cart_totals_before_shipping', array( __CLASS__, 'retoques_on' ), 5 );
+		add_action( 'woocommerce_cart_totals_after_shipping', array( __CLASS__, 'retoques_off' ), 99 );
 	}
 }
