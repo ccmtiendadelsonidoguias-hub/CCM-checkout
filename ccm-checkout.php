@@ -8,7 +8,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'CCMCK_VERSION', '1.0.3' );
+define( 'CCMCK_VERSION', '1.3.0' );
 define( 'CCMCK_DIR', trailingslashit( dirname( __FILE__ ) ) );
 define( 'CCMCK_URL', plugin_dir_url( __FILE__ ) );
 
@@ -19,6 +19,7 @@ require_once CCMCK_DIR . 'includes/class-ccmck-assets.php';
 require_once CCMCK_DIR . 'includes/class-ccmck-document.php';
 require_once CCMCK_DIR . 'includes/class-ccmck-payments.php';
 require_once CCMCK_DIR . 'includes/class-ccmck-cart-ajax.php';
+require_once CCMCK_DIR . 'includes/class-ccmck-side-cart-notices.php';
 require_once CCMCK_DIR . 'includes/class-ccmck-faq.php';
 require_once CCMCK_DIR . 'includes/class-ccmck-info-cards.php';
 require_once CCMCK_DIR . 'includes/class-ccmck-whatsapp.php';
@@ -31,9 +32,12 @@ require_once CCMCK_DIR . 'includes/class-ccmck-wompi.php';
 require_once CCMCK_DIR . 'includes/class-ccmck-newsletter.php';
 require_once CCMCK_DIR . 'includes/class-ccmck-surcharge.php';
 require_once CCMCK_DIR . 'includes/class-ccmck-coordinadora.php';
+require_once CCMCK_DIR . 'includes/class-ccmck-cart-shipping.php';
+require_once CCMCK_DIR . 'includes/class-ccmck-ubicacion.php';
 require_once CCMCK_DIR . 'includes/class-ccmck-guias.php';
 require_once CCMCK_DIR . 'includes/class-ccmck-cotizar.php';
 require_once CCMCK_DIR . 'includes/class-ccmck-reports.php';
+require_once CCMCK_DIR . 'includes/class-ccmck-cart-redirect.php';
 
 add_action( 'plugins_loaded', 'ccmck_boot', 20 );
 function ccmck_boot(): void {
@@ -53,6 +57,7 @@ function ccmck_boot(): void {
     CCMCK_Document::init();
     CCMCK_Payments::init();
     CCMCK_Cart_Ajax::init();
+    CCMCK_Side_Cart_Notices::init();
     CCMCK_Faq::init();
     CCMCK_Info_Cards::init();
     CCMCK_Thankyou::init();
@@ -65,7 +70,10 @@ function ccmck_boot(): void {
     CCMCK_Newsletter::init();
     CCMCK_Surcharge::init();
     CCMCK_Coordinadora::init();
+    CCMCK_Cart_Shipping::init();
+    CCMCK_Ubicacion::init();
     CCMCK_Guias::init();
     CCMCK_Cotizar::init();
     CCMCK_Reports::init();
+    CCMCK_Cart_Redirect::init();
 }

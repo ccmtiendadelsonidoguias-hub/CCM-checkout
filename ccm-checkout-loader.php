@@ -2,7 +2,7 @@
 /**
  * Plugin Name: CCM Checkout
  * Description: Checkout personalizado para WooCommerce (reemplazo de CheckoutWC). Reestiliza el checkout clásico y página de gracias, configurable desde WooCommerce › Checkout CCM.
- * Version:     1.0.1
+ * Version:     1.3.0
  * Author:      CCM
  *
  * ----------------------------------------------------------------------------

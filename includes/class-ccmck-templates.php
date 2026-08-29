@@ -8,6 +8,17 @@ final class CCMCK_Templates {
         'checkout/review-order.php',
         'checkout/payment.php',
         'checkout/thankyou.php',
+        // Carrito. Se sustituyen aquí y no en un plugin aparte porque el
+        // carrito y el checkout comparten el cotizador de Coordinadora, las
+        // ciudades con DANE y los recargos.
+        'cart/cart.php',
+        'cart/cart-totals.php',
+        'cart/cart-empty.php',
+        // woocommerce_form_field_args nunca se dispara para calc_shipping_city:
+        // shipping-calculator.php pinta ese campo con un <input> a pelo, sin
+        // pasar por woocommerce_form_field(). Por eso la ciudad se convierte en
+        // <select> sobreescribiendo la plantilla entera, no enganchando un filtro.
+        'cart/shipping-calculator.php',
     );
 
     public static function init(): void {

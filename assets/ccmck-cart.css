@@ -1,0 +1,929 @@
+/**
+ * Página de carrito — diseño 2026-08-28.
+ *
+ * ⚠️ RECONSTRUIDO. La hoja anterior vivía SOLO en staging, sin versionar, y se
+ * perdió al desplegar encima. Esto no es aquella: es una reconstrucción sobre
+ * las clases de `templates/cart/cart.php` y `cart-totals.php`.
+ *
+ * PALETA: la del kit de Elementor, que es la que el ROADMAP manda para las
+ * pantallas nuevas del área de cliente —#E60000 y #191818—, NO el #e63946 de
+ * ccm-checkout.css. Esa discrepancia entre los dos rojos está anotada como
+ * decisión abierta del dueño; aquí se sigue la regla escrita.
+ * El rojo se gasta en un solo sitio: la acción de pagar. Todo lo demás es tinta,
+ * grises y filetes, para que el botón que importa no compita con nada.
+ */
+
+:root {
+	--ccm-tinta: #191818;
+	--ccm-rojo: #e60000;
+	--ccm-gris-texto: #666;
+	--ccm-linea: #ececec;
+	--ccm-campo: #d8d8d8;
+	--ccm-superficie: #fff;
+	--ccm-tile: #f6f6f6;
+	/* Controles que no pueden hacer nada: visible, pero claramente apagado. */
+	--ccm-apagado: #c4c4c4;
+}
+
+/* ============================================================
+   Página: lista a la izquierda, resumen a la derecha
+   ============================================================ */
+
+.ccmck-cart {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) 380px;
+	gap: 28px;
+	align-items: start;
+	max-width: 1240px;
+	margin: 0 auto;
+	padding: 8px 0 48px;
+	color: var(--ccm-tinta);
+}
+
+.ccmck-cart__form { min-width: 0; }
+
+/* ---- Tarjeta de la lista ---- */
+
+.ccmck-cart__items {
+	margin: 0;
+	padding: 0 24px;
+	list-style: none;
+	border: 1px solid var(--ccm-linea);
+	border-radius: 12px;
+	background: var(--ccm-superficie);
+}
+
+/* Cabecera de columnas, como en la referencia. La pinta la plantilla; si algún
+   día no está, la lista sigue leyéndose igual. */
+.ccmck-cart__encabezado {
+	display: grid;
+	grid-template-columns: 88px minmax(0, 1fr) 132px 120px 40px;
+	gap: 20px;
+	align-items: center;
+	padding: 18px 0 14px;
+	border-bottom: 1px solid var(--ccm-linea);
+	font-size: 12px;
+	font-weight: 600;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: var(--ccm-gris-texto);
+}
+
+.ccmck-cart__encabezado span:nth-child(2) { grid-column: 2; }
+.ccmck-cart__encabezado span:nth-child(3) { text-align: center; }
+.ccmck-cart__encabezado span:nth-child(4) { text-align: right; }
+
+.ccmck-item {
+	display: grid;
+	grid-template-columns: 88px minmax(0, 1fr) 132px 120px 40px;
+	gap: 20px;
+	align-items: center;
+	margin: 0;
+	padding: 20px 0;
+	border-bottom: 1px solid var(--ccm-linea);
+}
+
+.ccmck-item:last-child { border-bottom: 0; }
+
+/* ---- Foto sobre baldosa gris, como en la referencia ---- */
+
+.ccmck-item__photo {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 88px;
+	height: 88px;
+	border-radius: 10px;
+	background: var(--ccm-tile);
+	overflow: hidden;
+}
+
+/* Sin esto la foto sale a tamaño completo y rompe la fila entera. */
+.ccmck-item__photo img {
+	width: 76px;
+	height: 76px;
+	object-fit: contain;
+	display: block;
+	mix-blend-mode: multiply;
+}
+
+.ccmck-item__body {
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+}
+
+.ccmck-item__name {
+	font-size: 15px;
+	font-weight: 600;
+	line-height: 1.35;
+	color: var(--ccm-tinta);
+}
+
+.ccmck-item__name a { color: inherit; text-decoration: none; }
+.ccmck-item__name a:hover { text-decoration: underline; }
+
+.ccmck-item__meta {
+	font-size: 12.5px;
+	line-height: 1.45;
+	color: var(--ccm-gris-texto);
+}
+
+.ccmck-item__aviso {
+	font-size: 12px;
+	font-weight: 600;
+	line-height: 1.4;
+	color: var(--ccm-rojo);
+}
+
+.ccmck-item__total {
+	font-size: 19px;
+	font-weight: 700;
+	text-align: right;
+	white-space: nowrap;
+	letter-spacing: -0.01em;
+}
+
+/* ---- Cantidad: pastilla, como en la referencia ---- */
+
+.ccmck-qty {
+	display: inline-flex;
+	align-items: center;
+	justify-self: center;
+	border: 1px solid var(--ccm-campo);
+	border-radius: 999px;
+	overflow: hidden;
+	background: var(--ccm-superficie);
+}
+
+.ccmck-qty__menos,
+.ccmck-qty__mas {
+	width: 34px;
+	height: 34px;
+	/* !important: el tema le pone borde y color de acento a todo <button>, y
+	   estos son controles neutros dentro de la pastilla. */
+	border: 0 !important;
+	background: transparent !important;
+	color: var(--ccm-tinta) !important;
+	font-size: 15px;
+	line-height: 1;
+	cursor: pointer;
+	transition: background-color 0.15s;
+}
+
+.ccmck-qty__menos:hover,
+.ccmck-qty__mas:hover { background: var(--ccm-tile) !important; }
+
+/* Última unidad en el carrito: el más ya no puede hacer nada — el JavaScript lo
+   rechaza contra el `max` del campo y el servidor no tendría qué añadir. Antes
+   se veía igual de pulsable que siempre y el cliente le daba sin entender por
+   qué el número no sube. La plantilla le pone `disabled` de verdad, no solo
+   este color, así que el teclado también lo salta. */
+.ccmck-qty__mas:disabled {
+	color: var(--ccm-apagado) !important;
+	cursor: not-allowed;
+}
+
+.ccmck-qty__mas:disabled:hover { background: transparent !important; }
+
+.ccmck-qty__menos:focus-visible,
+.ccmck-qty__mas:focus-visible {
+	outline: 2px solid var(--ccm-tinta);
+	outline-offset: -2px;
+}
+
+.ccmck-qty input,
+.ccmck-qty .qty {
+	width: 38px;
+	height: 34px;
+	padding: 0 !important;
+	border: 0 !important;
+	border-radius: 0 !important;
+	text-align: center;
+	font-size: 14px;
+	font-weight: 600;
+	background: transparent;
+	appearance: textfield;
+	-moz-appearance: textfield;
+}
+
+.ccmck-qty input::-webkit-outer-spin-button,
+.ccmck-qty input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
+/* ---- Quitar ---- */
+
+.ccmck-item__remove,
+.ccmck-item__remove a {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 36px;
+	height: 36px;
+	border-radius: 8px;
+	color: #9a9a9a;
+	font-size: 15px;
+	line-height: 1;
+	text-decoration: none;
+	transition: color 0.15s, background-color 0.15s;
+}
+
+.ccmck-item__remove a:hover {
+	color: var(--ccm-rojo);
+	background: #fdecec;
+}
+
+/* ---- Actualizar: pastilla oscura a la izquierda, como en la referencia ---- */
+
+.ccmck-cart__acciones {
+	display: flex;
+	justify-content: flex-start;
+	margin-top: 20px;
+}
+
+.ccmck-cart__actualizar {
+	padding: 13px 28px !important;
+	border: 0 !important;
+	border-radius: 999px !important;
+	font-size: 14px !important;
+	font-weight: 600 !important;
+	color: #fff !important;
+	background: var(--ccm-tinta) !important;
+	cursor: pointer;
+	transition: opacity 0.2s;
+}
+
+.ccmck-cart__actualizar:hover:not(:disabled) { opacity: 0.88; }
+
+/* Deshabilitado = "todavía no hay nada que actualizar". Un bloque oscuro al 35%
+   se lee como un botón roto; un contorno se lee como un botón en espera. */
+.ccmck-cart__actualizar:disabled {
+	color: #9a9a9a !important;
+	background: var(--ccm-superficie) !important;
+	border: 1px solid var(--ccm-linea) !important;
+	opacity: 1;
+	cursor: default;
+}
+
+/* ============================================================
+   Resumen del pedido
+   ============================================================ */
+
+.ccmck-cart__resumen {
+	position: sticky;
+	top: 24px;
+	min-width: 0;
+}
+
+.ccmck-resumen {
+	padding: 24px;
+	border: 1px solid var(--ccm-linea);
+	border-radius: 12px;
+	background: var(--ccm-superficie);
+	float: none;
+	width: auto;
+}
+
+.ccmck-resumen__titulo {
+	margin: 0 0 18px;
+	font-size: 15px;
+	font-weight: 700;
+	line-height: 1.3;
+	letter-spacing: -0.01em;
+}
+
+.ccmck-resumen__fila {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 16px;
+	padding: 7px 0;
+	font-size: 13.5px;
+	color: #4a4a4a;
+}
+
+.ccmck-resumen__fila--cupon { color: var(--ccm-rojo); }
+
+.ccmck-resumen__total {
+	margin-top: 10px;
+	padding-top: 16px;
+	border-top: 1px solid var(--ccm-linea);
+	font-size: 19px;
+	font-weight: 700;
+	color: var(--ccm-tinta);
+	letter-spacing: -0.01em;
+}
+
+/* ============================================================
+   Envío: una comparación, no un párrafo
+   ============================================================
+   Este bloque existe para una sola cosa: que el cliente compare lo que cuesta
+   cada opción y elija. Se leía como una frase con radios metidos dentro — las
+   opciones sangradas en una columna de 218 px, el precio enterrado a media
+   frase, el destino arrastrando un código DANE — dentro de una tarjeta cuyas
+   demás filas son «nombre a la izquierda, importe a la derecha». Tres bordes
+   izquierdos distintos en un espacio de 330 px.
+
+   Ahora las opciones obedecen el mismo contrato que Subtotal y Total. */
+
+/* WooCommerce lo pinta como tabla porque `cart/cart-shipping.php` devuelve un
+   <tr>. Aquí no hay dos columnas que alinear, así que se le quita el aspecto de
+   tabla y el bloque ocupa el ancho entero de la tarjeta. */
+.ccmck-resumen__envio,
+.ccmck-resumen__envio tbody,
+.ccmck-resumen__envio tr,
+.ccmck-resumen__envio th,
+.ccmck-resumen__envio td {
+	display: block;
+	width: auto;
+	padding: 0;
+	border: 0;
+	text-align: left;
+	vertical-align: baseline;
+	/* El tema pinta una banda gris en las filas de tabla; dentro de la tarjeta
+	   del resumen se ve como un parche. */
+	background: transparent !important;
+}
+
+.ccmck-resumen__envio {
+	margin: 12px 0 0;
+	border-collapse: collapse;
+	font-size: 13.5px;
+	color: #4a4a4a;
+}
+
+/* «Envío» deja de ser etiqueta de columna y pasa a rotular el bloque, con el
+   mismo peso y el mismo gris que «¿Tienes un cupón?». */
+.ccmck-resumen__envio th {
+	margin-bottom: 8px;
+	font-size: 13.5px;
+	font-weight: 500;
+	color: var(--ccm-gris-texto);
+}
+
+/* ---- Las opciones ---- */
+
+.ccmck-resumen__envio ul {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	border: 1px solid var(--ccm-linea);
+	border-radius: 10px;
+	overflow: hidden;
+}
+
+.ccmck-resumen__envio li {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	margin: 0;
+	padding: 11px 14px;
+	border-top: 1px solid var(--ccm-linea);
+	transition: background-color 0.15s;
+}
+
+.ccmck-resumen__envio li:first-child { border-top: 0; }
+.ccmck-resumen__envio li:hover { background: var(--ccm-tile); }
+
+/* El radio salía con el azul del navegador: el único azul de la página, en el
+   bloque donde el acento es el rojo del kit. */
+.ccmck-resumen__envio input.shipping_method {
+	flex: 0 0 auto;
+	width: 16px;
+	height: 16px;
+	margin: 0;
+	accent-color: var(--ccm-rojo);
+	cursor: pointer;
+}
+
+/* La etiqueta es la fila entera: nombre a la izquierda, importe a la derecha —
+   el mismo contrato que Subtotal y Total— y de paso el área de clic deja de ser
+   solo el texto. */
+.ccmck-resumen__envio label {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 12px;
+	flex: 1 1 auto;
+	min-width: 0;
+	margin: 0;
+	font-size: 13.5px;
+	line-height: 1.35;
+	color: var(--ccm-tinta);
+	cursor: pointer;
+}
+
+/* woocommerce.css trae `.woocommerce ul#shipping_method li label { display:
+   inline }`, y eso lleva un ID: (1,2,3) contra los (0,2,0) de la regla de
+   arriba, así que el `flex` se perdía y el importe se quedaba pegado al nombre.
+   Medido el 29-ago. Se le gana por el mismo camino —el mismo ID, un nombre de
+   clase más— en vez de gastar un `!important`. */
+.ccmck-resumen__envio ul#shipping_method li label { display: flex; }
+
+.ccmck-resumen__envio label .woocommerce-Price-amount,
+.ccmck-resumen__envio .ccmck-envio__gratis {
+	flex: 0 0 auto;
+	white-space: nowrap;
+}
+
+.ccmck-resumen__envio label .woocommerce-Price-amount { font-weight: 700; }
+
+/* «Gratis» ocupa el sitio del importe, pero no compite con él: es la ausencia
+   de un precio, no un precio mejor. */
+.ccmck-resumen__envio .ccmck-envio__gratis {
+	font-weight: 600;
+	color: var(--ccm-gris-texto);
+}
+
+/* ---- Destino ---- */
+
+.ccmck-resumen__envio .woocommerce-shipping-destination {
+	margin: 10px 0 0;
+	font-size: 12.5px;
+	line-height: 1.5;
+	color: var(--ccm-gris-texto);
+}
+
+.ccmck-resumen__envio .woocommerce-shipping-destination strong {
+	font-weight: 600;
+	color: var(--ccm-tinta);
+}
+
+/* ---- Cupón: campo + botón en línea, como en la referencia ---- */
+
+.ccmck-cupon {
+	margin: 0 0 18px;
+	padding: 0;
+	border: 0;
+}
+
+.ccmck-cupon__etiqueta {
+	display: block;
+	margin-bottom: 7px;
+	font-size: 12px;
+	font-weight: 500;
+	color: var(--ccm-gris-texto);
+}
+
+.ccmck-cupon__campos { display: flex; gap: 8px; }
+
+.ccmck-cupon__codigo {
+	flex: 1;
+	min-width: 0;
+	padding: 11px 14px !important;
+	border: 1px solid var(--ccm-campo) !important;
+	border-radius: 8px !important;
+	font-size: 13.5px !important;
+	background: var(--ccm-superficie) !important;
+}
+
+.ccmck-cupon__codigo:focus {
+	outline: none;
+	border-color: var(--ccm-tinta) !important;
+	box-shadow: 0 0 0 2px rgba(25, 24, 24, 0.08);
+}
+
+.ccmck-cupon__aplicar {
+	padding: 11px 20px !important;
+	border: 1px solid var(--ccm-campo) !important;
+	border-radius: 8px !important;
+	font-size: 13.5px !important;
+	font-weight: 600 !important;
+	color: var(--ccm-tinta) !important;
+	background: var(--ccm-superficie) !important;
+	white-space: nowrap;
+	cursor: pointer;
+	transition: border-color 0.2s;
+}
+
+.ccmck-cupon__aplicar:hover { border-color: var(--ccm-tinta) !important; }
+
+/* ---- Pagar: el único elemento en rojo de toda la página ---- */
+
+.ccmck-resumen__pagar { margin-top: 18px; }
+
+/* Por qué tanto `!important` en este bloque: woocommerce.css le declara a los
+   dos botones `display`, `margin` y `line-height` desde selectores MÁS
+   específicos que los nuestros — `.woocommerce a.button` (0,2,1) y
+   `.woocommerce-cart .wc-proceed-to-checkout a.checkout-button` (0,3,1) —, así
+   que sin `!important` esas tres se pierden en silencio. Medido el 29-ago en
+   dev: el botón de WhatsApp salía `display:inline-block` con el flex muerto
+   (icono y texto pegados a la izquierda), 60 px de alto contra los 45 del
+   rojo, y `margin-bottom:0`, o sea sin aire entre los dos. */
+
+/* Los dos botones son un par: mismo ancho, mismo alto, mismo radio, contenido
+   centrado. Lo único que los separa es el color, que es justo la decisión que
+   tiene que tomar el cliente. */
+.ccmck-resumen__pagar .checkout-button,
+.ccmck-resumen__pagar .boton-whatsapp {
+	display: flex !important;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	box-sizing: border-box;
+	width: 100%;
+	min-height: 48px;
+	border-radius: 10px !important;
+	line-height: 1.2 !important;
+	text-align: center;
+	text-decoration: none;
+}
+
+/* Solo el botón de finalizar compra. `a.button` a secas también cogía el de
+   WhatsApp ("Cotizar pedido"), que quedaba rojo y competía con la acción
+   principal. El rojo se gasta una sola vez en la página. */
+.ccmck-resumen__pagar .checkout-button {
+	margin: 0 !important;
+	padding: 14px 20px !important;
+	border: 0 !important;
+	font-size: 15px !important;
+	font-weight: 700 !important;
+	color: #fff !important;
+	background: var(--ccm-rojo) !important;
+	transition: opacity 0.2s;
+}
+
+.ccmck-resumen__pagar .checkout-button:hover { opacity: 0.9; }
+
+/* Cotizar por WhatsApp es la acción secundaria: mismo tamaño, sin peso de
+   color, y conserva su icono verde. Va ARRIBA en el marcado, así que el aire
+   entre ambos lo pone su margen inferior. */
+.ccmck-resumen__pagar .boton-whatsapp {
+	margin: 0 0 12px !important;
+	padding: 13px 20px !important;
+	border: 1px solid var(--ccm-campo) !important;
+	font-size: 14px !important;
+	font-weight: 600 !important;
+	color: var(--ccm-tinta) !important;
+	background: var(--ccm-superficie) !important;
+	transition: border-color 0.2s;
+}
+
+.ccmck-resumen__pagar .boton-whatsapp:hover {
+	border-color: var(--ccm-tinta) !important;
+}
+
+/* El icono lo pinta OTRO plugin y trae su propio `margin-right`. Se anula para
+   que la separación la ponga el `gap` y no se sumen las dos. */
+.ccmck-resumen__pagar .boton-whatsapp .whatsapp-icon {
+	flex: 0 0 auto;
+	width: 20px;
+	height: 20px;
+	margin: 0;
+}
+
+.ccmck-resumen__pagar .checkout-button:focus-visible,
+.ccmck-resumen__pagar .boton-whatsapp:focus-visible {
+	outline: 2px solid var(--ccm-tinta);
+	outline-offset: 2px;
+}
+
+/* ============================================================
+   Móvil: una columna
+   ============================================================ */
+
+@media (max-width: 900px) {
+	.ccmck-cart {
+		grid-template-columns: 1fr;
+		gap: 20px;
+		padding: 0 0 32px;
+	}
+
+	.ccmck-cart__resumen { position: static; }
+
+	/* Las columnas se apilan, así que la cabecera deja de tener sentido. */
+	.ccmck-cart__encabezado { display: none; }
+
+	.ccmck-cart__items { padding: 0 16px; }
+
+	.ccmck-item {
+		grid-template-columns: 72px minmax(0, 1fr) 36px;
+		grid-template-areas:
+			"foto  body   quitar"
+			"foto  qty    total";
+		gap: 12px 14px;
+	}
+
+	.ccmck-item__photo { grid-area: foto; width: 72px; height: 72px; }
+	.ccmck-item__photo img { width: 62px; height: 62px; }
+	.ccmck-item__body { grid-area: body; }
+	.ccmck-qty { grid-area: qty; justify-self: start; }
+	.ccmck-item__total { grid-area: total; justify-self: end; font-size: 17px; }
+	.ccmck-item__remove { grid-area: quitar; }
+
+	.ccmck-cart__acciones { justify-content: stretch; }
+	.ccmck-cart__actualizar { width: 100%; }
+
+	/* Las burbujas flotantes de WhatsApp y del carrito lateral se quedan encima
+	   de la esquina inferior derecha; sin este hueco tapan el total y el botón
+	   de pagar cuando se llega al final. */
+	.ccmck-cart__resumen { padding-bottom: 88px; }
+}
+
+/* ============================================================
+   Calculadora de envío
+   ============================================================ */
+
+/* El formulario vive dentro de la celda de totales, que va alineada a la
+   derecha. Se recupera la lectura normal para todo el bloque. */
+.cart_totals .woocommerce-shipping-calculator,
+.cart_totals .woocommerce-shipping-calculator * {
+	text-align: left;
+}
+
+.cart_totals .woocommerce-shipping-calculator {
+	margin-top: 6px;
+}
+
+/* El filete separa el FORMULARIO, no el enlace que lo abre: mientras está
+   cerrado, la sección no pinta nada y no deja una raya suelta bajo el destino. */
+.cart_totals .shipping-calculator-form {
+	margin-top: 12px;
+	padding-top: 14px;
+	border-top: 1px solid var(--ccm-linea);
+}
+
+/* Cuando YA hay destino, cambiarlo es una salida secundaria: un enlace, no un
+   tercer botón en una tarjeta que ya tiene dos. Sin destino puesto el enlace es
+   el único camino adelante, y ahí conserva su aspecto de control (la regla de
+   abajo). El selector se apoya en que la línea de destino solo existe en el
+   primer caso. */
+.woocommerce-shipping-destination ~ .woocommerce-shipping-calculator .shipping-calculator-button {
+	display: inline;
+	padding: 0;
+	margin: 0;
+	border: 0;
+	min-height: 0;
+	border-radius: 0;
+	background: none;
+	font-size: 12.5px;
+	font-weight: 600;
+	color: var(--ccm-tinta);
+	text-decoration: underline;
+	text-underline-offset: 3px;
+}
+
+.woocommerce-shipping-destination ~ .woocommerce-shipping-calculator .shipping-calculator-button:hover {
+	color: var(--ccm-rojo);
+	text-decoration: underline;
+}
+
+/* Enlace que abre el formulario: control discreto, no enlace suelto. Mismo
+   radio y misma familia que los campos de al lado. */
+.cart_totals .shipping-calculator-button {
+	display: inline-block;
+	padding: 6px 10px;
+	margin-top: 2px;
+	border: 1px solid #d1d1d1;
+	border-radius: 6px;
+	font-size: 13px;
+	font-weight: 500;
+	line-height: 1.2;
+	color: #1a1a1a;
+	text-decoration: none;
+	background: #fff;
+	transition: border-color 0.2s, color 0.2s;
+}
+
+.cart_totals .shipping-calculator-button:hover,
+.cart_totals .shipping-calculator-button:focus-visible {
+	border-color: #1a1a1a;
+	color: #1a1a1a;
+	text-decoration: none;
+}
+
+.cart_totals .shipping-calculator-button:focus-visible {
+	outline: 2px solid var(--ccm-tinta);
+	outline-offset: 2px;
+}
+
+/* El tema pintaba un recuadro naranja sobre este enlace al pulsarlo. */
+.cart_totals .shipping-calculator-button:focus:not(:focus-visible) {
+	outline: none;
+}
+
+/* ---- Campos: calcados del checkout ---- */
+
+.woocommerce-shipping-calculator .form-row {
+	display: block;
+	margin: 0 0 12px;
+	padding: 0;
+	float: none;
+	width: auto;
+}
+
+.woocommerce-shipping-calculator .form-row:last-of-type {
+	margin-bottom: 14px;
+}
+
+.woocommerce-shipping-calculator label {
+	display: block;
+	margin-bottom: 4px;
+	font-size: 12px;
+	font-weight: 500;
+	line-height: 1.3;
+	color: #666;
+}
+
+.woocommerce-shipping-calculator .required {
+	color: var(--ccm-rojo);
+	border: 0;
+	text-decoration: none;
+}
+
+.woocommerce-shipping-calculator .input-text,
+.woocommerce-shipping-calculator select {
+	width: 100%;
+	border: 1px solid #d1d1d1 !important;
+	border-radius: 6px !important;
+	font-family: inherit;
+	font-size: 14px !important;
+	line-height: 1.3;
+	color: var(--ccm-tinta) !important;
+	background-color: #fff !important;
+	box-shadow: none;
+	appearance: none;
+	-webkit-appearance: none;
+	transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+/* El padding va por tipo de campo y NO se declara arriba: cuando la taquigrafía
+   estaba en el bloque común y el hueco de la flecha en la regla de abajo, ganaba
+   la de arriba y la flecha volvía a pisar el texto. Una sola declaración por
+   campo, sin competencia posible. */
+.woocommerce-shipping-calculator .input-text {
+	padding: 12px 14px !important;
+}
+
+/* Con `.woocommerce-shipping-calculator select` a secas, algo externo con la
+   misma especificidad y cargado DESPUÉS ganaba y devolvía el padding a 14px, con
+   la flecha encima del texto. Añadir el contexto `.cart_totals` sube la
+   especificidad lo justo. Medido, no supuesto. */
+.cart_totals .woocommerce-shipping-calculator select,
+.woocommerce-shipping-calculator select {
+	/* 36px a la derecha = sitio para la flecha. */
+	padding: 12px 36px 12px 14px !important;
+}
+
+.woocommerce-shipping-calculator .input-text::placeholder {
+	color: #aaa;
+}
+
+.woocommerce-shipping-calculator .input-text:focus,
+.woocommerce-shipping-calculator select:focus {
+	outline: none;
+	border-color: var(--ccm-tinta) !important;
+	box-shadow: 0 0 0 2px rgba(26, 26, 26, 0.08);
+}
+
+/* Un select deshabilitado significa "todavía no puedes elegir aquí", y tiene
+   que verse distinto de uno vacío pero utilizable. */
+.woocommerce-shipping-calculator select:disabled {
+	background-color: #f7f7f7 !important;
+	color: #888 !important;
+	cursor: not-allowed;
+}
+
+/* Flecha propia, la misma del checkout. El tema pintaba la suya encima del
+   texto porque el campo no reservaba sitio a la derecha. */
+.woocommerce-shipping-calculator select {
+	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") !important;
+	background-repeat: no-repeat !important;
+	background-position: right 12px center !important;
+}
+
+/* ---- Select2: país y departamento ----
+   WooCommerce sustituye esos dos <select> por widgets de Select2, así que el
+   campo que se ve NO es el <select> (queda oculto) sino el marcado de Select2,
+   que el tema estiliza a su manera: 34px de alto, borde rgba(32,7,7,.8) y radio
+   4px. Sin esto, dos campos del mismo formulario se ven distintos del tercero.
+   Se iguala al sistema del checkout, incluida la flecha. */
+
+.woocommerce-shipping-calculator .select2-container--default .select2-selection--single {
+	height: auto !important;
+	min-height: 48px;
+	border: 1px solid #d1d1d1 !important;
+	border-radius: 6px !important;
+	background: #fff !important;
+	display: flex;
+	align-items: center;
+}
+
+.woocommerce-shipping-calculator .select2-container--default .select2-selection--single .select2-selection__rendered {
+	padding: 0 36px 0 14px !important;
+	line-height: 1.3 !important;
+	font-size: 14px;
+	color: var(--ccm-tinta) !important;
+}
+
+/* La flecha propia de Select2 se retira y se pinta la misma del checkout, en el
+   mismo sitio que en los demás campos. */
+.woocommerce-shipping-calculator .select2-container--default .select2-selection--single .select2-selection__arrow {
+	display: none !important;
+}
+
+.woocommerce-shipping-calculator .select2-container--default .select2-selection--single {
+	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") !important;
+	background-repeat: no-repeat !important;
+	background-position: right 12px center !important;
+}
+
+.woocommerce-shipping-calculator .select2-container--default.select2-container--open .select2-selection--single,
+.woocommerce-shipping-calculator .select2-container--default .select2-selection--single:focus {
+	border-color: var(--ccm-tinta) !important;
+	box-shadow: 0 0 0 2px rgba(26, 26, 26, 0.08);
+}
+
+@media (max-width: 768px) {
+	.woocommerce-shipping-calculator .select2-container--default .select2-selection--single .select2-selection__rendered {
+		font-size: 16px;
+	}
+}
+
+/* Botón de actualizar: ancho completo, que es lo que pide una columna
+   estrecha, y sin depender del botón genérico del tema. */
+.woocommerce-shipping-calculator button[name="calc_shipping"] {
+	width: 100%;
+	padding: 12px 16px;
+	border: 0;
+	border-radius: 6px;
+	font-family: inherit;
+	font-size: 14px;
+	font-weight: 600;
+	line-height: 1.2;
+	color: #fff;
+	background: var(--ccm-tinta);
+	cursor: pointer;
+	transition: opacity 0.2s;
+}
+
+.woocommerce-shipping-calculator button[name="calc_shipping"]:hover {
+	opacity: 0.88;
+}
+
+.woocommerce-shipping-calculator button[name="calc_shipping"]:focus-visible {
+	outline: 2px solid var(--ccm-tinta);
+	outline-offset: 2px;
+}
+
+/* ============================================================
+   Aviso de por qué no hay flete
+   ============================================================
+   Es el mensaje que existe para que nadie lea "Recogida local" y crea que no
+   le enviamos a casa. Se pinta como guía, no como error: filete de acento a
+   la izquierda y el mismo gris de texto que las etiquetas del formulario. */
+
+/* Es un <div>, no un <tr>: el gancho que lo imprime se dispara antes de que se
+   abra la <table> del envío, y un <tr> fuera de tabla lo descarta el navegador
+   dejando el texto suelto y sin ninguno de estos estilos. */
+.ccmck-cart-aviso {
+	margin: 10px 0 0;
+	padding: 10px 12px;
+	border-left: 3px solid var(--ccm-rojo);
+	border-radius: 0 6px 6px 0;
+	font-size: 12.5px;
+	font-weight: 500;
+	line-height: 1.45;
+	color: #444;
+	background: var(--ccm-tile);
+	text-align: left;
+}
+
+/* El aviso explica por qué el bloque de envío se ve corto, así que tiene que
+   leerse pegado a ÉL y no colgando de la fila de Subtotal que va encima. */
+.ccmck-cart-aviso { margin-top: 14px; }
+.ccmck-cart-aviso + .ccmck-resumen__envio { margin-top: 8px; }
+
+/* ============================================================
+   Móvil
+   ============================================================ */
+
+@media (max-width: 768px) {
+	.cart_totals .woocommerce-shipping-calculator .input-text,
+	.cart_totals .woocommerce-shipping-calculator select {
+		/* 16px evita que iOS haga zoom al enfocar el campo. */
+		font-size: 16px !important;
+		min-height: 48px;
+	}
+
+	.cart_totals .woocommerce-shipping-calculator button[name="calc_shipping"] {
+		font-size: 16px;
+		min-height: 48px;
+	}
+
+	.cart_totals .shipping-calculator-button {
+		min-height: 44px;
+		padding: 10px 14px;
+		line-height: 1.4;
+	}
+
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.woocommerce-shipping-calculator .input-text,
+	.woocommerce-shipping-calculator select,
+	.woocommerce-shipping-calculator button[name="calc_shipping"],
+	.cart_totals .shipping-calculator-button {
+		transition: none;
+	}
+}

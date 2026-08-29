@@ -269,8 +269,61 @@ final class CCMCK_Coordinadora {
         return (int) round( $total );
     }
 
+    /**
+     * Clave de caché de una cotización. PURA.
+     *
+     * Destino, origen, valoración, contenido, cuenta y nit: dos cotizaciones
+     * con esos mismos datos comparten respuesta. Las CREDENCIALES (apikey,
+     * clave) quedan FUERA a propósito — esta clave se guarda en la base de
+     * datos.
+     *
+     * `cuenta` y `nit` SÍ entran, aunque hoy tarifen igual: CCMCK_Guias cotiza
+     * la guía CE con `guias_cuenta_ce` (6, ver class-ccmck-guias.php) y el
+     * carrito/checkout con la cuenta por defecto (2) — verificado que ambas
+     * tarifan igual, pero justamente por si eso diverge algún día (ver
+     * comentario en class-ccmck-guias.php). Sin `cuenta` en la clave, una
+     * caché compartida entre las dos anularía esa previsión en silencio: el
+     * carrito podría servir una tarifa cacheada con la cuenta 6, o la guía CE
+     * una con la 2, sin que nada lo avise.
+     */
+    public static function cache_key( array $args ): string {
+        $material = array(
+            'origen'     => (string) ( $args['origen'] ?? '' ),
+            'destino'    => (string) ( $args['destino'] ?? '' ),
+            'valoracion' => (int) ( $args['valoracion'] ?? 0 ),
+            'detalle'    => $args['detalle'] ?? array(),
+            'cuenta'     => (int) ( $args['cuenta'] ?? 2 ),
+            'nit'        => (string) ( $args['nit'] ?? '' ),
+        );
+        return 'ccmck_cot_' . md5( (string) wp_json_encode( $material ) );
+    }
+
+    /** Borra las cotizaciones cacheadas. Cambiar tarifas o credenciales las invalida. */
+    public static function purge_cache(): void {
+        global $wpdb;
+        // Supuesto verificado (no algo que el revisor pudiera ver en el codigo):
+        // ni el VPS ni el entorno local tienen cache de objetos persistente
+        // (sin object-cache.php como drop-in, sin plugin Redis/Memcached), asi
+        // que los transients viven en wp_options y este DELETE los alcanza de
+        // verdad. Si algun dia se instala un cache de objetos persistente, esta
+        // purga se vuelve un no-op silencioso: esos transients dejarian de
+        // pasar por wp_options.
+        $like = $wpdb->esc_like( 'ccmck_cot_' ) . '%';
+        $wpdb->query(
+            "DELETE FROM {$wpdb->options}
+             WHERE option_name LIKE '_transient_{$like}'
+                OR option_name LIKE '_transient_timeout_{$like}'"
+        );
+    }
+
     /** Llama a Cotizador.cotizar (timeout 5 s). Devuelve la forma de parse_response. */
     public static function quote( array $args ): array {
+        $key = self::cache_key( $args );
+        $hit = get_transient( $key );
+        if ( is_array( $hit ) ) {
+            return $hit;
+        }
+
         $body     = wp_json_encode( self::build_request( $args ) );
         $response = wp_remote_post( 'https://ws.coordinadora.com/ags/1.5/server.php', array(
             'timeout' => 5,
@@ -279,7 +332,14 @@ final class CCMCK_Coordinadora {
         ) );
         if ( is_wp_error( $response ) ) {
             self::log( 'HTTP: ' . $response->get_error_message() );
-            return array( 'ok' => false, 'flete_total' => 0, 'dias' => 0, 'error' => $response->get_error_message() );
+            $fail = array( 'ok' => false, 'flete_total' => 0, 'dias' => 0, 'error' => $response->get_error_message() );
+            // Decision consciente: un corte de red breve (timeout, DNS, TLS)
+            // deja de cotizar 5 minutos para TODOS los visitantes con este
+            // mismo envio, a cambio de no clavarle a cada uno los 5s de
+            // timeout mientras Coordinadora esta caida. Mismo TTL corto que
+            // los fallos de nivel API, por la misma razon.
+            set_transient( $key, $fail, 5 * MINUTE_IN_SECONDS );
+            return $fail;
         }
         $parsed = self::parse_response(
             (string) wp_remote_retrieve_body( $response ),
@@ -288,6 +348,10 @@ final class CCMCK_Coordinadora {
         if ( ! $parsed['ok'] ) {
             self::log( 'API: ' . $parsed['error'] );
         }
+
+        // Los fallos caducan en minutos: cachear un error de la API medio día
+        // es clavarlo.
+        set_transient( $key, $parsed, $parsed['ok'] ? 12 * HOUR_IN_SECONDS : 5 * MINUTE_IN_SECONDS );
         return $parsed;
     }
 
@@ -339,5 +403,13 @@ final class CCMCK_Coordinadora {
 
     public static function init(): void {
         add_filter( 'woocommerce_package_rates', array( __CLASS__, 'rates' ), 20, 2 );
+        // update_option_{$option} NO dispara en el primer guardado de la
+        // opción: ahí WordPress dispara add_option_{$option} en su lugar
+        // (la opción todavía no existe en wp_options). Sin este segundo
+        // enganche, la primerísima vez que se guardan los ajustes (activar
+        // el toggle, cargar credenciales, cambiar reglas de caja) no purga
+        // nada cacheado antes de esa configuración inicial.
+        add_action( 'update_option_' . CCMCK_Settings::OPTION, array( __CLASS__, 'purge_cache' ) );
+        add_action( 'add_option_' . CCMCK_Settings::OPTION, array( __CLASS__, 'purge_cache' ) );
     }
 }

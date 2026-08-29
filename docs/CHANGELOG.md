@@ -5,6 +5,25 @@ Todos los cambios notables de **CCM Checkout** se documentan en este archivo.
 El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 y el proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 
+## Carrito — las dos páginas, aclaradas (dev, 2026-08-15)
+
+La tienda tenía **dos** páginas de carrito y llevaban meses así:
+
+- **26011 "Mi carrito"** (`/mi-carrito/`) es la que WooCommerce usa. Tenía
+  **46.581 bytes de HTML pegado a mano** donde debía ir `[woocommerce_cart]`,
+  así que el carrito no funcionaba. Copia de lo que había, antes de tirarlo:
+  `/tmp/carrito-26011-original.html` en el servidor. **Nadie sabe quién lo puso
+  ni por qué**; conviene averiguarlo antes de repetir esto en producción.
+- **28 "Carrito"** (`/carrito/`) está vacía desde el 13-abr-2026, pero es dueña
+  del slug corto que la gente teclea. Ahora redirige con **301** a la buena,
+  para que Google traslade el valor de esa URL.
+
+La exclusión de caché se había puesto en `/carrito/` — la página vacía — así
+que el carrito de verdad seguía cacheable. Corregida a `/mi-carrito/`. Un
+carrito cacheado enseña el de otro cliente.
+
+Hecho **solo en dev**.
+
 ## [Sin publicar]
 
 ### Añadido
@@ -111,6 +130,21 @@ y el proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 - **Página de "pedido recibido" rota con Efecty / Mercado Pago** — al pagar con Efecty (pasarela Mercado Pago), la página de gracias mostraba, **debajo** del layout CCM, contenido crudo a ancho completo: el voucher del gateway (mensaje + `<a id="submit-payment">Imprimir ticket</a>` + el iframe del comprobante de Mercado Pago) **sin estilo**, y las secciones default de WooCommerce `.woocommerce-order-details` y `.woocommerce-customer-details` que **duplican** los datos que el layout CCM ya presenta estilizados. Causa (confirmada por chrome-devtools sobre un pedido real): en `templates/checkout/thankyou.php` los dos `do_action` (`woocommerce_thankyou_<método>` y `woocommerce_thankyou`) estaban **fuera** del contenedor estilizado `.page-wrapper`, como hijos directos de `.ccmck-thankyou-page`. Fix: se envuelven ambos hooks en `<div class="ccmck-gateway-output">` (conservando los dos — el voucher de Efecty y los scripts de tracking dependen de ellos) y en `ccmck-checkout.css` se **ocultan** los duplicados (`.woocommerce-order-details`/`.woocommerce-customer-details`), se **contiene y centra** el bloque del gateway (max-width 1200px) y se **estiliza** el botón "Imprimir ticket" con el look de marca (el ancho lleva `!important` para vencer el `style="width:75%"` inline que inyecta Mercado Pago). El comprobante de Efecty (iframe de Mercado Pago con convenio/Nº de pago) se conserva. Verificado por inyección en vivo (chrome-devtools) en desktop y móvil.
 - **Comprobante de Efecty "cortado" en desktop** — el iframe del comprobante de Mercado Pago se veía recortado por la derecha con una franja oscura encima. Causa: el panel oscuro del resumen (`.page-sidebar`) pinta su fondo con un `box-shadow: 9999px 9999px 0 9999px #1a1a1a` para sangrar hasta el borde de la pantalla; ese shadow se derrama también hacia abajo y, como el voucher va a ancho completo debajo de la grilla, tapaba en negro la mitad derecha del comprobante. El shadow NO es hit-testeable (`elementFromPoint` devolvía el `<p>`/página, no el panel), lo que despistaba el diagnóstico. Fix (en `ccmck-checkout.css`): `.ccmck-gateway-output` pasa a ancho completo con fondo blanco propio y stacking propio (`position:relative; z-index:1; background:#fff`) para cubrir el shadow derramado en toda la franja, y el iframe del comprobante se acota (`max-width:1152px`, centrado) para que Mercado Pago pinte su tarjeta completa. Verificado en vivo (chrome-devtools) a 1920px.
 - Activada la clase `CCMCK_Faq` en el bootstrap (estaba `require`-ida pero sin `::init()`).
+
+## [1.3.0] - 2026-08-29
+
+### Añadido
+- Ubicación de envío (departamento/ciudad) recordada entre visitas al carrito, avisos del cajón lateral devueltos al carrito, y rediseño del resumen.
+
+## [1.2.0] - 2026-08-29
+
+### Añadido
+- Cotización de flete de Coordinadora directamente en la página de carrito propia.
+
+## [1.1.0] - 2026-08-29
+
+### Añadido
+- Página de carrito propia (reemplaza el bloque `[woocommerce_cart]`) con redirección de `/carrito/` a la nueva URL.
 
 ## [1.0.1] - 2026-06-05
 

@@ -7,6 +7,21 @@ final class CCMCK_Cart_Ajax {
         add_action( 'wp_ajax_nopriv_ccmck_update_cart_item', array( __CLASS__, 'handle' ) );
     }
 
+    /**
+     * ¿Esta línea ya llegó al tope de existencias? PURO.
+     *
+     * `WC_Product::get_max_purchase_quantity()` devuelve **-1** cuando NO hay
+     * tope: el producto no gestiona stock, o admite reservas. Ese -1 es la
+     * trampa — comparado a pelo, cualquier cantidad quedaría "por encima del
+     * tope" y el botón de más saldría apagado en toda la tienda.
+     *
+     * @param int $cantidad Unidades que ya hay en el carrito.
+     * @param int $maximo   Tope de WooCommerce; -1 (o 0) significan «sin tope».
+     */
+    public static function en_tope( int $cantidad, int $maximo ): bool {
+        return $maximo > 0 && $cantidad >= $maximo;
+    }
+
     public static function handle(): void {
         check_ajax_referer( 'ccmck_cart', 'nonce' );
 
