@@ -867,6 +867,94 @@
 }
 
 /* ============================================================
+   Carrito vacío
+   ============================================================
+   `templates/cart/cart-empty.php` envuelve todo en `.ccmck-vacio` «para poder
+   centrarlo y darle aire» — pero ese CSS NUNCA SE ESCRIBIÓ. El resultado era la
+   pantalla más nativa de la tienda: la barra gris de aviso de WooCommerce a todo
+   lo ancho y su botón gris de radio 3px, justo al lado de un carrito rediseñado.
+   Reportado por el dueño el 30-ago, en dev y en producción.
+
+   El mensaje NO se escribe en la plantilla a propósito (lo pinta
+   `wc_empty_cart_message()` desde `woocommerce_cart_is_empty`, del mismo gancho
+   que cuelgan los avisos de verdad), así que aquí solo se le quita el disfraz de
+   aviso: en esta pantalla es la única frase, no una notificación. */
+
+.ccmck-vacio {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 20px;
+	width: 100%;
+	max-width: 560px;
+	margin: 0 auto;
+	padding: 72px 20px 88px;
+	text-align: center;
+}
+
+.ccmck-vacio .wc-empty-cart-message {
+	width: 100%;
+	margin: 0;
+}
+
+/* `!important` medido: `.woocommerce ... .woocommerce-info` de woocommerce.css
+   gana por especificidad a una regla de clases nuestra, igual que ya pasó con
+   los botones del resumen. */
+.ccmck-vacio .cart-empty {
+	margin: 0 !important;
+	padding: 0 !important;
+	border: 0 !important;
+	background: none !important;
+	font-size: 19px;
+	font-weight: 700;
+	line-height: 1.35;
+	color: var(--ccm-tinta) !important;
+	text-align: center;
+	letter-spacing: -0.01em;
+}
+
+/* El icono del aviso (la «i» en un círculo) se pinta con un pseudo-elemento.
+   Aquí sobra: no estamos informando de un incidente, el carrito solo está
+   vacío. */
+.ccmck-vacio .cart-empty::before {
+	display: none !important;
+}
+
+.ccmck-vacio .return-to-shop { margin: 0; }
+
+/* Mismo botón que «Finalizar compra»: 48px, radio 10, rojo del kit. Es la única
+   acción de la pantalla y debe leerse como tal, no como el botón gris del
+   tema. */
+.ccmck-vacio .return-to-shop .button {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 48px;
+	padding: 14px 28px !important;
+	border: 0 !important;
+	border-radius: 10px !important;
+	background: var(--ccm-rojo) !important;
+	color: #fff !important;
+	font-size: 15px !important;
+	font-weight: 700 !important;
+	line-height: 1.2 !important;
+	text-decoration: none;
+	transition: opacity 0.2s;
+}
+
+.ccmck-vacio .return-to-shop .button:hover { opacity: 0.9; }
+
+.ccmck-vacio .return-to-shop .button:focus-visible {
+	outline: 2px solid var(--ccm-tinta);
+	outline-offset: 2px;
+}
+
+@media (max-width: 600px) {
+	.ccmck-vacio { padding: 48px 16px 64px; }
+	.ccmck-vacio .cart-empty { font-size: 17px; }
+}
+
+/* ============================================================
    Aviso de por qué no hay flete
    ============================================================
    Es el mensaje que existe para que nadie lea "Recogida local" y crea que no
