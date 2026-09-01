@@ -93,7 +93,16 @@ if ( ! function_exists( 'wp_json_encode' ) ) {
 }
 
 if ( ! function_exists( 'get_option' ) ) {
-    function get_option( $name, $default = false ) { return $default; }
+    /*
+     * Devuelve lo que el test haya puesto en $GLOBALS['ccmck_test_options'], y
+     * el valor por defecto si no hay nada. Antes devolvia SIEMPRE el defecto,
+     * asi que ningun test podia ejercitar codigo que dependiera de un ajuste
+     * guardado —como el kill switch del puente—: la prueba pasaba sin probar.
+     */
+    function get_option( $name, $default = false ) {
+        $store = $GLOBALS['ccmck_test_options'] ?? array();
+        return array_key_exists( $name, $store ) ? $store[ $name ] : $default;
+    }
 }
 if ( ! function_exists( 'is_wp_error' ) ) {
     function is_wp_error( $thing ) { return $thing instanceof WP_Error; }
@@ -262,3 +271,19 @@ require_once dirname( __DIR__ ) . '/includes/class-ccmck-cart-shipping.php';
 require_once dirname( __DIR__ ) . '/includes/class-ccmck-cart-ajax.php';
 require_once dirname( __DIR__ ) . '/includes/class-ccmck-side-cart-notices.php';
 require_once dirname( __DIR__ ) . '/includes/class-ccmck-ubicacion.php';
+
+if ( ! function_exists( 'update_option' ) ) {
+    function update_option( $name, $value, $autoload = null ) {
+        $GLOBALS['ccmck_test_options'][ $name ] = $value;
+        return true;
+    }
+}
+if ( ! function_exists( 'delete_option' ) ) {
+    function delete_option( $name ) {
+        unset( $GLOBALS['ccmck_test_options'][ $name ] );
+        return true;
+    }
+}
+if ( ! function_exists( 'wp_cache_delete' ) ) {
+    function wp_cache_delete( $key, $group = '' ) { return true; }
+}

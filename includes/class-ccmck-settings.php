@@ -50,10 +50,6 @@ final class CCMCK_Settings {
             'surcharge_brands'       => array(),
             // Coordinadora — cotización directa del flete (ver spec 2026-07-08).
             'coordinadora_enabled'          => false,
-            // Kill switch del puente contra la cotizacion duplicada del plugin
-            // oficial. Apagado por defecto: encenderlo es un acto deliberado, y
-            // apagarlo devuelve el comportamiento anterior sin desplegar nada.
-            'coordinadora_puente'           => false,
             'coordinadora_apikey'           => '',
             'coordinadora_clave'            => '',
             'coordinadora_nit'              => '901677789',
@@ -134,7 +130,6 @@ final class CCMCK_Settings {
         $out['surcharge_brands'] = array_values( array_unique( array_filter( $brands ) ) );
 
         $out['coordinadora_enabled'] = ! empty( $input['coordinadora_enabled'] );
-        $out['coordinadora_puente']  = ! empty( $input['coordinadora_puente'] );
         $out['coordinadora_apikey']  = sanitize_text_field( $input['coordinadora_apikey'] ?? '' );
         $out['coordinadora_clave']   = sanitize_text_field( $input['coordinadora_clave'] ?? '' );
         $out['coordinadora_nit']     = preg_replace( '/[^0-9]/', '', (string) ( $input['coordinadora_nit'] ?? '' ) );

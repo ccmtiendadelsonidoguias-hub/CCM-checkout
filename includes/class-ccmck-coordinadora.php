@@ -152,33 +152,109 @@ final class CCMCK_Coordinadora {
         self::$stats[ $contador ] = ( self::$stats[ $contador ] ?? 0 ) + 1;
     }
 
+    /** Prefijo de las opciones de métrica. Una opción por día y contador. */
+    const PREFIJO_METRICA = 'ccmck_m:';
+
     /**
      * Vuelca los contadores UNA vez por request, en `shutdown`.
      *
-     * No se escribe por evento: sin caché de objetos persistente cada
-     * `update_option()` es una escritura a MySQL, y el cálculo de envío corre
-     * varias veces por petición. La opción no es autoload y se poda a 14 días.
+     * ATOMICIDAD. La versión anterior hacía `get_option` → modificar array →
+     * `update_option` sobre una sola opción con todo dentro. Dos peticiones
+     * simultáneas leían el mismo valor y la segunda escribía encima: se perdían
+     * incrementos, y con ellos cualquier porcentaje que se quisiera calcular.
+     *
+     * Ahora cada contador es su propia fila y se incrementa con UNA sentencia
+     * `INSERT ... ON DUPLICATE KEY UPDATE option_value = option_value + n`, que
+     * MariaDB resuelve de forma atómica sobre el índice único de `option_name`.
+     * Sin bloqueos, sin tabla nueva, sin transacciones: nada que revertir más
+     * allá de borrar filas.
+     *
+     * Se sigue acumulando en memoria y volcando al final para no lanzar una
+     * consulta por evento: sin caché de objetos persistente, el cálculo de
+     * envío corre varias veces por petición.
      */
     public static function stats_flush(): void {
         if ( ! self::$stats ) {
             return;
         }
-        $hoy   = gmdate( 'Y-m-d' );
-        $todo  = get_option( 'ccmck_quote_stats', array() );
-        $todo  = is_array( $todo ) ? $todo : array();
-        $dia   = isset( $todo[ $hoy ] ) && is_array( $todo[ $hoy ] ) ? $todo[ $hoy ] : array();
 
-        foreach ( self::$stats as $k => $n ) {
-            $dia[ $k ] = (int) ( $dia[ $k ] ?? 0 ) + (int) $n;
+        global $wpdb;
+        $dia = gmdate( 'Ymd' );
+
+        foreach ( self::$stats as $contador => $n ) {
+            $n = (int) $n;
+            if ( $n <= 0 ) {
+                continue;
+            }
+            $nombre = self::PREFIJO_METRICA . $dia . ':' . $contador;
+
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- incremento atómico; `update_option` pierde escrituras concurrentes.
+            $wpdb->query(
+                $wpdb->prepare(
+                    "INSERT INTO {$wpdb->options} ( option_name, option_value, autoload )
+                     VALUES ( %s, %d, 'off' )
+                     ON DUPLICATE KEY UPDATE option_value = option_value + %d",
+                    $nombre,
+                    $n,
+                    $n
+                )
+            );
+
+            // La fila se escribió por SQL directo: la caché de opciones del
+            // request no lo sabe y devolvería el valor viejo.
+            wp_cache_delete( $nombre, 'options' );
         }
-        $todo[ $hoy ] = $dia;
 
-        krsort( $todo );
-        $todo = array_slice( $todo, 0, 14, true );
-
-        update_option( 'ccmck_quote_stats', $todo, false );
         self::$stats = array();
     }
+
+    /**
+     * Lee las métricas acumuladas, por día. Para informar, no para el flujo.
+     *
+     * @param int $dias Cuántos días hacia atrás.
+     * @return array<string,array<string,int>> día => contador => valor
+     */
+    public static function stats_leer( int $dias = 14 ): array {
+        global $wpdb;
+
+        $like = $wpdb->esc_like( self::PREFIJO_METRICA ) . '%';
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+        $filas = $wpdb->get_results( $wpdb->prepare( "SELECT option_name, option_value FROM {$wpdb->options} WHERE option_name LIKE %s", $like ) );
+
+        $corte = gmdate( 'Ymd', time() - $dias * DAY_IN_SECONDS );
+        $out   = array();
+        foreach ( (array) $filas as $f ) {
+            $partes = explode( ':', (string) $f->option_name, 3 );
+            if ( 3 !== count( $partes ) ) {
+                continue;
+            }
+            if ( $partes[1] < $corte ) {
+                continue;
+            }
+            $out[ $partes[1] ][ $partes[2] ] = (int) $f->option_value;
+        }
+        krsort( $out );
+        return $out;
+    }
+
+    /** Borra métricas más viejas que N días. Idempotente. */
+    public static function stats_podar( int $dias = 14 ): int {
+        global $wpdb;
+        $corte = gmdate( 'Ymd', time() - $dias * DAY_IN_SECONDS );
+        $like  = $wpdb->esc_like( self::PREFIJO_METRICA ) . '%';
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+        $filas = $wpdb->get_col( $wpdb->prepare( "SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE %s", $like ) );
+        $n = 0;
+        foreach ( (array) $filas as $nombre ) {
+            $partes = explode( ':', (string) $nombre, 3 );
+            if ( 3 === count( $partes ) && $partes[1] < $corte ) {
+                delete_option( $nombre );
+                $n++;
+            }
+        }
+        return $n;
+    }
+
 
     /**
      * Cotiza con memo de request.
@@ -506,8 +582,22 @@ final class CCMCK_Coordinadora {
         $key = self::cache_key( $args );
         $hit = get_transient( $key );
         if ( is_array( $hit ) ) {
+            /*
+             * Un acierto de caché NO es un evento de red y no puede contarse
+             * como tal. Antes `rates()` sumaba el resultado —éxito o fallo— sin
+             * saber si venía de la red o del transient, así que
+             * `network_failure / eligible` no era una tasa de fallos HTTP: era
+             * una mezcla. Los contadores `remote_*` de abajo son los únicos que
+             * cuentan salidas de verdad.
+             *
+             * Un fallo recuperado del transient se cuenta como acierto de caché
+             * de un fallo, no como un fallo de red nuevo.
+             */
+            self::stats_add( empty( $hit['ok'] ) ? 'ccmck_transient_failure_hit' : 'ccmck_transient_success_hit' );
             return $hit;
         }
+
+        self::stats_add( 'ccmck_remote_attempt' );
 
         $body     = wp_json_encode( self::build_request( $args ) );
         $response = wp_remote_post( 'https://ws.coordinadora.com/ags/1.5/server.php', array(
@@ -521,6 +611,7 @@ final class CCMCK_Coordinadora {
             // contadores distintos. Sin esta marca, ambos llegan como ok=false
             // y la telemetria no puede distinguir «Coordinadora esta caida» de
             // «Coordinadora dice que no puede llevar esto».
+            self::stats_add( 'ccmck_remote_network_failure' );
             $fail = array( 'ok' => false, 'flete_total' => 0, 'dias' => 0, 'error' => $response->get_error_message(), 'fallo' => 'red' );
             // Decision consciente: un corte de red breve (timeout, DNS, TLS)
             // deja de cotizar 5 minutos para TODOS los visitantes con este
@@ -534,6 +625,7 @@ final class CCMCK_Coordinadora {
             (string) wp_remote_retrieve_body( $response ),
             wp_remote_retrieve_response_code( $response )
         );
+        self::stats_add( $parsed['ok'] ? 'ccmck_remote_success' : 'ccmck_remote_api_failure' );
         if ( ! $parsed['ok'] ) {
             self::log( 'API: ' . $parsed['error'] );
         }
@@ -574,6 +666,30 @@ final class CCMCK_Coordinadora {
         );
     }
 
+    /**
+     * ¿Dejó el plugin oficial una tarifa suya en el paquete? PURA.
+     *
+     * `apply_quote()` borra las tarifas `coordinadora*` cuando cotizamos, así
+     * que esta comprobación solo tiene sentido ANTES de eso — o sea, sobre lo
+     * que llega al filtro. Distinguir «se le dejó correr» de «entregó tarifa»
+     * importa: medido en dev, con un producto sin peso el oficial corre y NO
+     * deja nada, y el «respaldo» que justificaba mantenerlo no respalda.
+     *
+     * @param array $rates Tarifas tal como llegan al filtro.
+     */
+    public static function hay_tarifa_oficial( array $rates ): bool {
+        foreach ( $rates as $id => $rate ) {
+            if ( 0 === strpos( (string) $id, 'coordinadora' ) ) {
+                return true;
+            }
+            $mid = is_object( $rate ) && method_exists( $rate, 'get_method_id' ) ? (string) $rate->get_method_id() : '';
+            if ( '' !== $mid && 0 === strpos( $mid, 'coordinadora' ) ) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public static function rates( $rates, $package = array() ): array {
         $rates   = is_array( $rates ) ? $rates : array();
         $package = is_array( $package ) ? $package : array();
@@ -591,12 +707,12 @@ final class CCMCK_Coordinadora {
         if ( ! $pre['elegible'] ) {
             $contador = self::contador_de_motivo( $pre['motivo'] );
             if ( null !== $contador ) {
-                // Solo se cuenta como respaldo cuando el motivo es de catálogo
-                // o destino. Que el módulo esté apagado o sin credenciales no
-                // es un respaldo: es que no está en juego.
+                // Solo cuenta como respaldo cuando el motivo es de catálogo o
+                // destino. Que el módulo esté apagado o sin credenciales no es
+                // un respaldo: es que no está en juego.
                 self::stats_add( $contador );
-                self::stats_add( 'ccmck_official_fallback_used' );
-                self::log( 'Sin cotizar (' . $pre['motivo'] . '); se usa el fallback del plugin oficial.' );
+                self::contar_respaldo( $rates );
+                self::log( 'Sin cotizar (' . $pre['motivo'] . '); se deja correr el plugin oficial.' );
             }
             return $rates;
         }
@@ -605,18 +721,35 @@ final class CCMCK_Coordinadora {
 
         $quote = self::quote_memo( self::args_para( $package ) );
 
+        /*
+         * Estos dos son POR LLAMADA A rates(), no eventos de red: el resultado
+         * puede venir del memo del request o del transient. Para la tasa de
+         * fallos HTTP hay que usar `ccmck_remote_*`, nunca estos.
+         */
         if ( ! empty( $quote['ok'] ) ) {
-            self::stats_add( 'ccmck_quote_success' );
-        } elseif ( 'red' === ( $quote['fallo'] ?? '' ) ) {
-            self::stats_add( 'ccmck_quote_network_failure' );
-            self::stats_add( 'ccmck_official_fallback_used' );
+            self::stats_add( 'ccmck_quote_result_ok' );
         } else {
-            self::stats_add( 'ccmck_quote_api_failure' );
-            self::stats_add( 'ccmck_official_fallback_used' );
+            self::stats_add( 'ccmck_quote_result_fail' );
+            self::contar_respaldo( $rates );
         }
 
         return self::apply_quote( $rates, $quote );
     }
+
+    /**
+     * Cuenta que el oficial pudo correr Y si de verdad dejó tarifa.
+     *
+     * Dos contadores porque son dos hechos distintos, y confundirlos fue el
+     * defecto del contador anterior: `ccmck_official_fallback_used` subía con
+     * solo dejarle paso, aunque después no entregara nada.
+     */
+    private static function contar_respaldo( array $rates ): void {
+        self::stats_add( 'ccmck_official_fallback_allowed' );
+        if ( self::hay_tarifa_oficial( $rates ) ) {
+            self::stats_add( 'ccmck_official_rate_present' );
+        }
+    }
+
 
 
     /* =====================================================================
@@ -638,9 +771,20 @@ final class CCMCK_Coordinadora {
        paquete, no una por hook.
        ===================================================================== */
 
+    /**
+     * Opción PROPIA del kill switch, fuera de los ajustes generales.
+     *
+     * Vivía dentro de `ccmck_settings`, y esta clase engancha `purge_cache()` a
+     * `update_option_ccmck_settings`: apagar el puente habría borrado TODAS las
+     * cotizaciones cacheadas, o sea que el rollback del puente habría costado
+     * una tanda de llamadas a Coordinadora que nadie pidió. Separada, apagarlo
+     * toca solo el puente.
+     */
+    const OPCION_PUENTE = 'ccmck_coordinadora_puente';
+
     /** Kill switch. Apagado por defecto: encenderlo es un acto deliberado. */
     public static function puente_activo(): bool {
-        return (bool) CCMCK_Settings::get( 'coordinadora_puente', false );
+        return (bool) get_option( self::OPCION_PUENTE, false );
     }
 
     /**

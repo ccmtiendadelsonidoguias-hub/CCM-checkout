@@ -705,4 +705,229 @@ final class CartShippingTest extends TestCase {
 		$this->assertStringNotContainsString( "'alto'", $cuerpo );
 		$this->assertStringNotContainsString( 'dane_from_city', $cuerpo );
 	}
+
+	/* =====================================================================
+	   Fallo de red contra fallo de API: dos contadores, dos causas.
+	   ===================================================================== */
+
+	private function reset_http_y_transients(): void {
+		$GLOBALS['ccmck_test_transients'] = array();
+		$GLOBALS['ccmck_test_http'] = array( 'calls' => 0, 'queue' => array() );
+	}
+
+	private function args_de_juguete(): array {
+		return array(
+			'nit' => '901677789', 'origen' => '08001000', 'destino' => '11001000',
+			'valoracion' => 100000, 'detalle' => array( array( 'peso' => 2 ) ),
+			'apikey' => 'k', 'clave' => 'c',
+		);
+	}
+
+	/**
+	 * Un corte de red se marca como `red`, no como error de la API.
+	 *
+	 * Sin esta marca, «Coordinadora esta caida» y «Coordinadora dice que no
+	 * puede llevar esto» llegan iguales a la telemetria, y son dos problemas
+	 * que se atienden de forma distinta: uno se espera, el otro se corrige.
+	 */
+	public function test_un_corte_de_red_se_marca_como_red(): void {
+		$this->reset_http_y_transients();
+		$GLOBALS['ccmck_test_http']['queue'][] = new WP_Error( 'http_request_failed', 'cURL error 28: timeout' );
+
+		$r = CCMCK_Coordinadora::quote( $this->args_de_juguete() );
+
+		$this->assertFalse( (bool) $r['ok'] );
+		$this->assertSame( 'red', $r['fallo'] );
+	}
+
+	/** Una respuesta que no es la esperada se marca como `api`. */
+	public function test_una_respuesta_invalida_se_marca_como_api(): void {
+		$this->reset_http_y_transients();
+		$GLOBALS['ccmck_test_http']['queue'][] = array(
+			'response' => array( 'code' => 200 ),
+			'body'     => '<html>mantenimiento</html>',
+		);
+
+		$r = CCMCK_Coordinadora::quote( $this->args_de_juguete() );
+
+		$this->assertFalse( (bool) $r['ok'] );
+		$this->assertSame( 'api', $r['fallo'] );
+	}
+
+	/**
+	 * El transient evita la segunda llamada.
+	 *
+	 * Es la mitad de la arquitectura: si el cache no sirviera, adelantar la
+	 * cotizacion al `before` del metodo oficial la haria DOS veces por
+	 * peticion en vez de ninguna.
+	 */
+	public function test_el_transient_evita_la_segunda_llamada(): void {
+		$this->reset_http_y_transients();
+		$GLOBALS['ccmck_test_http']['queue'][] = $this->respuesta_ok();
+
+		$a = CCMCK_Coordinadora::quote( $this->args_de_juguete() );
+		$llamadas_tras_la_primera = $GLOBALS['ccmck_test_http']['calls'];
+		$b = CCMCK_Coordinadora::quote( $this->args_de_juguete() );
+
+		$this->assertSame( $llamadas_tras_la_primera, $GLOBALS['ccmck_test_http']['calls'], 'La segunda no puede salir a la red.' );
+		$this->assertSame( $a['flete_total'], $b['flete_total'] );
+	}
+
+	/* =====================================================================
+	   EL PUENTE, EJECUTADO DE VERDAD
+
+	   Los tests de arriba prueban las piezas sueltas. Estos recorren la cadena
+	   completa —antes_del_oficial() -> intercepta_http() -> despues_del_oficial()—
+	   porque el defecto que mas caro sale aqui no esta en ninguna pieza: esta en
+	   que la ventana se abra cuando no debe, o se quede abierta.
+	   ===================================================================== */
+
+	/** Metodo de envio de juguete con la unica propiedad que mira el puente. */
+	private function metodo( string $id ): object {
+		return new class( $id ) {
+			public string $id;
+			public function __construct( string $id ) { $this->id = $id; }
+			public function get_instance_id() { return 0; }
+		};
+	}
+
+	private const URL_OFICIAL = 'https://wc-backend-dot-cm-integraciones.uk.r.appspot.com/api/coordinadoraWs/CalculateShipping';
+
+	/**
+	 * Prepara el mundo: ajustes con credenciales, transients limpios y la
+	 * respuesta que dara nuestra API.
+	 */
+	/**
+	 * @param float $peso Distingue el carrito entre tests A PROPOSITO.
+	 *
+	 * `quote_memo()` guarda el resultado en un static con la clave de cache del
+	 * paquete. En produccion eso es por peticion —proceso nuevo cada vez— pero
+	 * en la suite el proceso vive, asi que dos tests con el MISMO carrito
+	 * comparten resultado y el segundo mide lo que hizo el primero. Cada
+	 * escenario usa un peso distinto para tener su propia clave.
+	 */
+	private function escenario( bool $puente, $respuesta, float $peso = 21 ): array {
+		$GLOBALS['ccmck_test_transients'] = array();
+		$GLOBALS['ccmck_test_http'] = array( 'calls' => 0, 'queue' => array() );
+		if ( null !== $respuesta ) { $GLOBALS['ccmck_test_http']['queue'][] = $respuesta; }
+
+		$GLOBALS['ccmck_test_options'] = $GLOBALS['ccmck_test_options'] ?? array();
+		$GLOBALS['ccmck_test_options']['ccmck_settings'] = array(
+			'coordinadora_enabled' => true,
+			'coordinadora_apikey'  => 'k',
+			'coordinadora_clave'   => 'c',
+			'coordinadora_nit'     => '901677789',
+			'coordinadora_origin'  => '08001000',
+		);
+		$GLOBALS['ccmck_test_options']['ccmck_coordinadora_puente'] = $puente;
+
+		return $this->paquete( array( $this->prod( $peso, 47, 50, 11 ) ) );
+	}
+
+	/** Forma real de la respuesta de Cotizador.cotizar, la misma que usa CoordinadoraTest. */
+	private function respuesta_ok(): array {
+		return array(
+			'response' => array( 'code' => 200 ),
+			'body'     => '{"jsonrpc":"2.0","id":0,"error":null,"result":{"flete_total":15700,"dias_entrega":"2"}}',
+		);
+	}
+
+	/** Con el puente APAGADO nunca se corta, ni siquiera esa URL. */
+	public function test_puente_apagado_nunca_corta(): void {
+		$paq = $this->escenario( false, $this->respuesta_ok(), 21 );
+
+		CCMCK_Coordinadora::antes_del_oficial( $paq, $this->metodo( 'coordinadora' ) );
+		$r = CCMCK_Coordinadora::intercepta_http( false, array(), self::URL_OFICIAL );
+
+		$this->assertFalse( $r, 'Sin puente, la peticion del oficial tiene que pasar.' );
+		$this->assertSame( 0, $GLOBALS['ccmck_test_http']['calls'], 'Y no debe cotizar por adelantado.' );
+	}
+
+	/** Con cotizacion buena se corta SOLO la URL de cotizacion del oficial. */
+	public function test_con_cotizacion_buena_corta_solo_esa_url(): void {
+		$paq = $this->escenario( true, $this->respuesta_ok(), 22 );
+
+		CCMCK_Coordinadora::antes_del_oficial( $paq, $this->metodo( 'coordinadora' ) );
+
+		$cortado = CCMCK_Coordinadora::intercepta_http( false, array(), self::URL_OFICIAL );
+		$this->assertIsArray( $cortado );
+		$this->assertSame( 204, $cortado['response']['code'] );
+
+		// Todo lo demas pasa intacto, incluida NUESTRA propia API.
+		foreach ( array(
+			'https://ws.coordinadora.com/ags/1.5/server.php',
+			'https://wc-backend-dot-cm-integraciones.uk.r.appspot.com/api/coordinadoraWs/calculateSameDayShipping',
+			'https://dashboard-pubsub-dot-cm-integraciones.uk.r.appspot.com/pubsub-publishers/woocommerce',
+		) as $url ) {
+			$this->assertFalse( CCMCK_Coordinadora::intercepta_http( false, array(), $url ), $url );
+		}
+	}
+
+	/**
+	 * Cerrada la ventana, la MISMA URL vuelve a pasar.
+	 *
+	 * Sin esto, una ventana que se quedara abierta cortaria cotizaciones
+	 * legitimas del oficial durante el resto de la peticion.
+	 */
+	public function test_tras_cerrar_la_ventana_la_misma_url_vuelve_a_pasar(): void {
+		$paq = $this->escenario( true, $this->respuesta_ok(), 23 );
+
+		CCMCK_Coordinadora::antes_del_oficial( $paq, $this->metodo( 'coordinadora' ) );
+		$this->assertIsArray( CCMCK_Coordinadora::intercepta_http( false, array(), self::URL_OFICIAL ) );
+
+		CCMCK_Coordinadora::despues_del_oficial( $paq, $this->metodo( 'coordinadora' ) );
+		$this->assertFalse( CCMCK_Coordinadora::intercepta_http( false, array(), self::URL_OFICIAL ) );
+	}
+
+	/** Un corte de red nuestro NO puede cortar al oficial: es el respaldo. */
+	public function test_timeout_nuestro_no_corta_al_oficial(): void {
+		$paq = $this->escenario( true, new WP_Error( 'http_request_failed', 'cURL error 28' ), 24 );
+
+		CCMCK_Coordinadora::antes_del_oficial( $paq, $this->metodo( 'coordinadora' ) );
+
+		$this->assertFalse( CCMCK_Coordinadora::intercepta_http( false, array(), self::URL_OFICIAL ) );
+	}
+
+	/** Un error de la API nuestra tampoco: mismo motivo. */
+	public function test_error_de_api_nuestro_no_corta_al_oficial(): void {
+		$paq = $this->escenario( true, array( 'response' => array( 'code' => 200 ), 'body' => '<html>mantenimiento</html>' ), 25 );
+
+		CCMCK_Coordinadora::antes_del_oficial( $paq, $this->metodo( 'coordinadora' ) );
+
+		$this->assertFalse( CCMCK_Coordinadora::intercepta_http( false, array(), self::URL_OFICIAL ) );
+	}
+
+	/** Si el preflight declina, no cotizamos NI cortamos: el oficial manda. */
+	public function test_preflight_inelegible_no_cotiza_ni_corta(): void {
+		$this->escenario( true, $this->respuesta_ok(), 26 );
+		// Producto sin peso -> motivo sin_peso
+		$paq = $this->paquete( array( $this->prod( 0, 47, 50, 11 ) ) );
+
+		CCMCK_Coordinadora::antes_del_oficial( $paq, $this->metodo( 'coordinadora' ) );
+
+		$this->assertSame( 0, $GLOBALS['ccmck_test_http']['calls'], 'No debe salir a la red si no somos elegibles.' );
+		$this->assertFalse( CCMCK_Coordinadora::intercepta_http( false, array(), self::URL_OFICIAL ) );
+	}
+
+	/** Otro metodo de envio no abre la ventana ni dispara nuestra cotizacion. */
+	public function test_otro_metodo_no_abre_la_ventana(): void {
+		$paq = $this->escenario( true, $this->respuesta_ok(), 27 );
+
+		CCMCK_Coordinadora::antes_del_oficial( $paq, $this->metodo( 'jem_table_rate' ) );
+
+		$this->assertSame( 0, $GLOBALS['ccmck_test_http']['calls'] );
+		$this->assertFalse( CCMCK_Coordinadora::intercepta_http( false, array(), self::URL_OFICIAL ) );
+	}
+
+	/* ---- Contadores: «se le dejo correr» != «entrego tarifa» ---- */
+
+	public function test_detecta_la_tarifa_del_oficial_por_clave(): void {
+		$this->assertTrue( CCMCK_Coordinadora::hay_tarifa_oficial( array( 'coordinadora:3' => (object) array() ) ) );
+	}
+
+	public function test_no_confunde_la_nuestra_con_la_del_oficial(): void {
+		$this->assertFalse( CCMCK_Coordinadora::hay_tarifa_oficial( array( 'ccmck_coordinadora' => (object) array() ) ) );
+		$this->assertFalse( CCMCK_Coordinadora::hay_tarifa_oficial( array( 'ccmck_local_pickup' => (object) array() ) ) );
+		$this->assertFalse( CCMCK_Coordinadora::hay_tarifa_oficial( array() ) );
+	}
 }
