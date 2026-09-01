@@ -76,4 +76,18 @@ final class GuiasSweepTest extends TestCase {
 		$this->assertFalse( $r['ok'] );
 		$this->assertNotSame( '', $r['reason'] );
 	}
+
+	/** El motivo de descarte viaja al barredor para que pueda distinguir "ya está" de "se rindió". */
+	public function test_motivos_son_estables_y_distinguibles(): void {
+		$motivos = array();
+		$motivos[] = CCMCK_Guias::sweep_decision( $this->ctx( array( 'status' => 'failed' ) ) )['reason'];
+		$motivos[] = CCMCK_Guias::sweep_decision( $this->ctx( array( 'shipping_ids' => array( 'flat_rate:3' ) ) ) )['reason'];
+		$motivos[] = CCMCK_Guias::sweep_decision( $this->ctx( array( 'existing_guia' => 'X' ) ) )['reason'];
+		$motivos[] = CCMCK_Guias::sweep_decision( $this->ctx( array( 'minutos' => 1 ) ) )['reason'];
+		$motivos[] = CCMCK_Guias::sweep_decision( $this->ctx( array( 'intentos' => 99 ) ) )['reason'];
+
+		// Cinco motivos, cinco cadenas distintas: el barredor alerta solo con una.
+		$this->assertCount( 5, array_unique( $motivos ) );
+		$this->assertContains( 'agotados los reintentos', $motivos );
+	}
 }

@@ -1061,6 +1061,11 @@ final class CCMCK_Guias {
             'callback'            => array( __CLASS__, 'rest_generate' ),
             'permission_callback' => array( __CLASS__, 'rest_permission' ),
         ) );
+        register_rest_route( 'ccmck/v1', '/barrer-guia', array(
+            'methods'             => 'POST',
+            'callback'            => array( __CLASS__, 'rest_sweep' ),
+            'permission_callback' => array( __CLASS__, 'rest_permission' ),
+        ) );
         register_rest_route( 'ccmck/v1', '/rotulo', array(
             'methods'             => 'GET',
             'callback'            => array( __CLASS__, 'rest_rotulo' ),
@@ -1207,6 +1212,75 @@ final class CCMCK_Guias {
             'tracking_url' => (string) $order->get_meta( self::META_URL ),
             'modalidad'    => $ce ? 'flete_contra_entrega' : 'prepago',
             'flete_ce'     => $result['flete_ce'] ?? null,
+        ) );
+    }
+
+    /**
+     * POST /wp-json/ccmck/v1/barrer-guia {order_id} — reintento del barredor.
+     *
+     * Separado de `/generar-guia` a propósito: aquel pasa `manual:true` y se
+     * salta el guard de transportadora, cosa que un proceso automático no debe
+     * hacer nunca. Aquí el guard se respeta.
+     *
+     * Idempotente: si el pedido ya tiene guía responde `skipped` sin tocar nada.
+     */
+    public static function rest_sweep( $request ) {
+        $order_id = absint( $request['order_id'] ?? 0 );
+        $order    = $order_id ? wc_get_order( $order_id ) : null;
+        if ( ! $order ) {
+            return new WP_Error( 'ccmck_not_found', 'Pedido no encontrado.', array( 'status' => 404 ) );
+        }
+
+        $pagado   = $order->get_date_paid();
+        $minutos  = $pagado ? (int) floor( ( time() - $pagado->getTimestamp() ) / 60 ) : 0;
+        $intentos = (int) $order->get_meta( self::META_INTENTOS );
+
+        $check = self::sweep_decision( array(
+            'status'        => (string) $order->get_status(),
+            'shipping_ids'  => self::order_shipping_ids( $order ),
+            'existing_guia' => (string) $order->get_meta( self::META_GUIA ),
+            'minutos'       => $minutos,
+            'intentos'      => $intentos,
+        ) );
+
+        if ( ! $check['ok'] ) {
+            return rest_ensure_response( array(
+                'ok'       => false,
+                'skipped'  => true,
+                'reason'   => $check['reason'],
+                'intentos' => $intentos,
+            ) );
+        }
+
+        // El contador sube ANTES de intentar: si la petición muere a mitad —que es
+        // justamente el fallo que este barredor cubre— el intento igual queda contado
+        // y el pedido no se reintenta para siempre.
+        $intentos++;
+        $order->update_meta_data( self::META_INTENTOS, (string) $intentos );
+        $order->save();
+
+        $ce     = self::ce_requested( '', self::order_shipping_ids( $order ), (string) $order->get_meta( self::META_MODALIDAD ) );
+        $result = self::generate_for_order( $order, array( 'contra_entrega' => $ce ) );
+
+        if ( ! $result['ok'] ) {
+            $order->add_order_note( sprintf(
+                'Barredor de guías: intento %d de %d falló (%s).',
+                $intentos,
+                self::SWEEP_MAX_INTENTOS,
+                $result['error']
+            ) );
+            return new WP_Error( 'ccmck_failed', $result['error'], array( 'status' => 422 ) );
+        }
+
+        $order->add_order_note( sprintf(
+            'Guía generada por el barredor en el intento %d (el camino automático no la había creado).',
+            $intentos
+        ) );
+
+        return rest_ensure_response( array(
+            'ok'       => true,
+            'guia'     => (string) $order->get_meta( self::META_GUIA ),
+            'intentos' => $intentos,
         ) );
     }
 
