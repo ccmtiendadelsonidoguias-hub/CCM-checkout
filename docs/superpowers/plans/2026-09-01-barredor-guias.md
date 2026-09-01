@@ -649,6 +649,87 @@ ssh -o ConnectTimeout=25 ccm-web 'cd domains/ccmtiendadelsonido.com/public_html;
 
 Esperado: `{"ok":false,"skipped":true,"reason":"el pedido ya tiene guía","intentos":0}`. **No debe crear una segunda guía.**
 
+- [ ] **Paso 9: Verificar que el correo de alerta REALMENTE llega (antes de dar por bueno el despliegue)**
+
+I4: nadie ha comprobado nunca que el correo de "se rindió" salga de n8n y
+llegue a la bandeja. **Requiere que la credencial SMTP del nodo "Email vigía
+guías" esté configurada en n8n** — si no lo está, este paso lo revela ANTES
+de depender de ella en producción, no después de que un pedido real se
+quede pagado y sin guía en silencio.
+
+Las URLs de "WC processing recientes" y "Barrer guía" están fijas a
+`ccmtiendadelsonido.com` (producción): un pedido de `dev` nunca entra por la
+consulta a WooCommerce del workflow, así que no basta con forzar el pedido y
+esperar 15 minutos. La prueba se hace en dos mitades: el endpoint PHP se
+prueba contra dev, sin tocar producción (9.1-9.2), y el envío del correo se
+prueba ejecutando manualmente solo la cola del workflow en el editor de n8n
+con los datos que ese pedido real produciría (9.3).
+
+9.1. En dev, listar pedidos `processing` y elegir uno con envío Coordinadora
+(comprobar en wp-admin → Pedidos si no se sabe de memoria cuál `<ID>` lo es):
+
+```bash
+ssh -o ConnectTimeout=25 ccm-web 'cd domains/ccmtiendadelsonido.com/public_html/dev; wp post list --post_type=shop_order --post_status=wc-processing --posts_per_page=20 --format=table --fields=ID,post_date'
+```
+
+Forzar en ese pedido (`<ID>`) el contador de intentos al máximo
+(`CCMCK_Guias::SWEEP_MAX_INTENTOS` = 3) y limpiar guía/alerta de pruebas
+anteriores, para que `sweep_decision()` lo reporte como "agotados los
+reintentos" en el primer barrido (almacenamiento clásico: los pedidos son
+`post` de WooCommerce, así que `wp post meta` opera directo sobre ellos):
+
+```bash
+ssh -o ConnectTimeout=25 ccm-web 'cd domains/ccmtiendadelsonido.com/public_html/dev; wp post meta update <ID> _ccmck_guia_intentos 3; wp post meta delete <ID> _coordinadora_tracking_number; wp post meta delete <ID> _ccmck_guia_alerta_enviada; wp post meta get <ID> _ccmck_guia_intentos'
+```
+
+Esperado: `3`.
+
+9.2. Ejecutar la pasada a mano contra dev, con el secreto de dev:
+
+```bash
+ssh -o ConnectTimeout=25 ccm-web 'cd domains/ccmtiendadelsonido.com/public_html/dev; SEC=$(wp eval "echo CCMCK_Settings::get(\"guias_api_secret\",\"\");" 2>/dev/null | tail -1); curl -s -X POST "https://ccmtiendadelsonido.com/dev/wp-json/ccmck/v1/barrer-guia" -H "Content-Type: application/json" -H "x-ccmck-secret: $SEC" -d "{\"order_id\":<ID>}"'
+```
+
+Esperado: `{"ok":false,"skipped":true,"reason":"agotados los reintentos","intentos":3,"order_id":<ID>,"alerta_enviada":false}`.
+`alerta_enviada:false` confirma que es la primera vez — la corrección I2
+(`sweep_alerta_decision()`) acaba de marcar `_ccmck_guia_alerta_enviada` en
+el pedido. Repetir el mismo curl una segunda vez debe devolver
+`"alerta_enviada":true`: así se comprueba también que un segundo aviso NO se
+repetiría — justo lo que I2 corrige.
+
+9.3. En el editor de n8n, abrir `cwGuiaSweep01`. En el nodo "Resumen", usar
+"Pin data" para fijar manualmente un item de salida que reproduzca lo que
+esa pasada real habría resumido:
+
+```json
+[{ "revisados": 1, "generadas": 0, "guias": [], "rendidos": 1, "fallos": 0,
+   "max_intentos": 3, "detalle_rendidos": [ { "intentos": 3, "order_id": "<ID>" } ],
+   "detalle_fallos": [], "consulta_fallida": false, "motivo_consulta": "",
+   "pagina_llena": false }]
+```
+
+y pulsar "Execute step" en "¿Hay que avisar?" y luego en "Email vigía guías"
+(o "Execute workflow" desde "Resumen" hacia adelante, con el pin activo).
+Esto evita depender de que dev sea visible para la consulta a WooCommerce
+del workflow (fija a producción) y prueba justo la parte que I4 señala como
+nunca comprobada: el envío real por SMTP, no solo que el nodo no marque
+error.
+
+Esperado: "Email vigía guías" termina en verde (sin error de SMTP) y llega
+un correo a `ia@ccmtiendadelsonido.com` con asunto "Barredor de guías: 1
+pedido(s) sin rótulo tras agotar reintentos". Si el nodo falla o el correo
+no aparece en la bandeja en unos minutos (revisar spam), la credencial SMTP
+de n8n no está configurada o está mal — corregirla ANTES de confiar en esta
+alerta en producción, y ANTES de dar el Paso 5 por bueno.
+
+9.4. Quitar el pin del nodo "Resumen" (para que la próxima ejecución real
+del workflow vuelva a usar datos en vivo) y limpiar el pedido de prueba en
+dev:
+
+```bash
+ssh -o ConnectTimeout=25 ccm-web 'cd domains/ccmtiendadelsonido.com/public_html/dev; wp post meta delete <ID> _ccmck_guia_intentos; wp post meta delete <ID> _ccmck_guia_alerta_enviada'
+```
+
 ---
 
 ## Lo que este plan NO hace, y por qué

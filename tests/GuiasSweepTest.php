@@ -183,4 +183,40 @@ final class GuiasSweepTest extends TestCase {
 		$this->assertSame( 0, CCMCK_Guias::sweep_minutos( $futuro, null, self::SWEEP_AHORA ) );
 		$this->assertSame( 0, CCMCK_Guias::sweep_minutos( null, $futuro, self::SWEEP_AHORA ) );
 	}
+
+	// -- sweep_alerta_decision() (I2) -------------------------------------
+	//
+	// AT-MOST-ONCE: el correo de "se rindió" debe salir una sola vez por
+	// pedido. La decisión (¿marcar? ¿qué responder?) se prueba aquí, pura y
+	// sin WooCommerce; rest_sweep() solo aplica el efecto (escribir la meta).
+
+	/** Primera vez que el pedido se rinde: hay que marcar y el workflow debe avisar. */
+	public function test_alerta_se_marca_la_primera_vez_que_se_rinde(): void {
+		$r = CCMCK_Guias::sweep_alerta_decision( 'agotados los reintentos', '' );
+		$this->assertTrue( $r['marcar'] );
+		$this->assertFalse( $r['alerta_enviada'] );
+	}
+
+	/** Ya se había avisado: no se vuelve a marcar (ya está) y el workflow NO debe avisar otra vez. */
+	public function test_alerta_no_se_repite_si_ya_se_habia_avisado(): void {
+		$r = CCMCK_Guias::sweep_alerta_decision( 'agotados los reintentos', (string) time() );
+		$this->assertFalse( $r['marcar'] );
+		$this->assertTrue( $r['alerta_enviada'] );
+	}
+
+	/** Un espacio en blanco no es "ya avisado": mismo criterio que existing_guia. */
+	public function test_alerta_meta_en_blanco_no_cuenta_como_ya_avisado(): void {
+		$r = CCMCK_Guias::sweep_alerta_decision( 'agotados los reintentos', '   ' );
+		$this->assertTrue( $r['marcar'] );
+		$this->assertFalse( $r['alerta_enviada'] );
+	}
+
+	/** Cualquier otro motivo de descarte (gracia, otra transportadora, etc.) no toca esta meta. */
+	public function test_alerta_no_se_marca_para_otros_motivos_de_descarte(): void {
+		foreach ( array( 'demasiado reciente', 'el pedido ya tiene guía', 'envío con otra transportadora', 'generación en curso (lock)', '' ) as $motivo ) {
+			$r = CCMCK_Guias::sweep_alerta_decision( $motivo, '' );
+			$this->assertFalse( $r['marcar'], "motivo '$motivo' no debe marcar la alerta" );
+			$this->assertFalse( $r['alerta_enviada'], "motivo '$motivo' no debe reportar alerta enviada" );
+		}
+	}
 }

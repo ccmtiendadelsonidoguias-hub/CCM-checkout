@@ -28,6 +28,28 @@ final class CCMCK_Guias {
     const META_INTENTOS = '_ccmck_guia_intentos';
 
     /**
+     * Marca que YA se avisó por correo de que este pedido se rindió (agotó
+     * los reintentos del barredor). AT-MOST-ONCE: sin esto, cada pasada del
+     * cron (cada 15 min) repite el correo mientras el pedido siga sin guía
+     * —unos 96 correos al día por pedido atascado—, hasta que quien los
+     * recibe silencia la alerta y volvemos al silencio original que este
+     * barredor existe para romper.
+     *
+     * Nota para quien venga después: esto NO resuelve la segunda mitad del
+     * problema. Un pedido rendido sigue sin escribirse en `on_processing()`
+     * ni en ningún otro camino automático, así que su `date_modified` deja
+     * de refrescarse; sale de la ventana de 48h que usa el nodo "Ventana
+     * 48h" del workflow de n8n (`docs/n8n/cwGuiaSweep01.import-ready.json`)
+     * y, a partir de ahí, el barredor deja de mirarlo para siempre —vuelve
+     * a quedar en silencio, solo que ya avisado una vez. Arreglarlo de
+     * verdad exige una consulta aparte en n8n, sin `modified_after`, sobre
+     * pedidos con esta meta puesta y sin guía. Deliberadamente no se
+     * implementa aquí: es un nodo/consulta nuevo en el workflow, no un
+     * cambio de esta clase, y este arreglo solo cierra el ruido del correo.
+     */
+    const META_ALERTA_ENVIADA = '_ccmck_guia_alerta_enviada';
+
+    /**
      * Minutos de gracia antes de que el barredor toque un pedido.
      *
      * El camino normal (`on_processing`) debe tener su oportunidad primero: sin
@@ -134,6 +156,27 @@ final class CCMCK_Guias {
             return array( 'ok' => false, 'reason' => 'agotados los reintentos' );
         }
         return array( 'ok' => true, 'reason' => '' );
+    }
+
+    /**
+     * ¿`rest_sweep()` debe marcar la alerta de "se rindió" y avisar por
+     * primera vez? PURA. Aísla la decisión AT-MOST-ONCE del efecto (escribir
+     * la meta en el pedido) para poder probarla sin WooCommerce.
+     *
+     * @param string $reason              Motivo devuelto por sweep_decision().
+     * @param string $meta_alerta_actual  Valor crudo de la meta META_ALERTA_ENVIADA en el pedido.
+     * @return array{marcar:bool, alerta_enviada:bool}
+     *   marcar: true si rest_sweep() debe escribir la meta ahora (primera vez
+     *   que este pedido se rinde). alerta_enviada: lo que debe viajar en la
+     *   respuesta REST — true si YA se había avisado antes de esta llamada,
+     *   para que el workflow de n8n no vuelva a contar este pedido en el correo.
+     */
+    public static function sweep_alerta_decision( string $reason, string $meta_alerta_actual ): array {
+        if ( 'agotados los reintentos' !== $reason ) {
+            return array( 'marcar' => false, 'alerta_enviada' => false );
+        }
+        $ya_avisado = '' !== trim( $meta_alerta_actual );
+        return array( 'marcar' => ! $ya_avisado, 'alerta_enviada' => $ya_avisado );
     }
 
     /**
@@ -1302,6 +1345,11 @@ final class CCMCK_Guias {
      * viva — la protección real contra la doble guía la da, sobre todo, el
      * guard de `existing_guia` en sweep_decision() una vez la primera llamada
      * termine y guarde la guía, no el candado por sí solo.
+     *
+     * Cuando el pedido se rinde ('agotados los reintentos'), la respuesta
+     * lleva `alerta_enviada`: true si YA se había avisado por correo en una
+     * pasada anterior (ver sweep_alerta_decision() y META_ALERTA_ENVIADA). El
+     * workflow de n8n solo debe avisar cuando viene en false.
      */
     public static function rest_sweep( $request ) {
         $order_id = absint( $request['order_id'] ?? 0 );
@@ -1331,12 +1379,22 @@ final class CCMCK_Guias {
         ) );
 
         if ( ! $check['ok'] ) {
+            // Cuando el motivo es 'agotados los reintentos', este pedido acaba de
+            // "rendirse" (o ya se había rendido en una pasada anterior). La meta
+            // AT-MOST-ONCE decide si el workflow de n8n debe avisar por correo
+            // (primera vez) o callarse (ya avisado) — ver sweep_alerta_decision().
+            $alerta = self::sweep_alerta_decision( $check['reason'], (string) $order->get_meta( self::META_ALERTA_ENVIADA ) );
+            if ( $alerta['marcar'] ) {
+                $order->update_meta_data( self::META_ALERTA_ENVIADA, (string) time() );
+                $order->save();
+            }
             return rest_ensure_response( array(
-                'ok'       => false,
-                'skipped'  => true,
-                'reason'   => $check['reason'],
-                'intentos' => $intentos,
-                'order_id' => $order_id,
+                'ok'             => false,
+                'skipped'        => true,
+                'reason'         => $check['reason'],
+                'intentos'       => $intentos,
+                'order_id'       => $order_id,
+                'alerta_enviada' => $alerta['alerta_enviada'],
             ) );
         }
 
