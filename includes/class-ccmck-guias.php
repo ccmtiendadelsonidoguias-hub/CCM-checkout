@@ -24,6 +24,47 @@ final class CCMCK_Guias {
     const META_MODALIDAD  = '_ccm_flete_modalidad';
     /** Conversación de Chatwoot que originó la venta (la pone el botón Venta). */
     const META_CONVERSACION = '_ccm_conversation';
+    /** Intentos que lleva el barredor sobre este pedido. */
+    const META_INTENTOS = '_ccmck_guia_intentos';
+
+    /**
+     * Marca que YA se avisó por correo de que este pedido se rindió (agotó
+     * los reintentos del barredor). AT-MOST-ONCE: sin esto, cada pasada del
+     * cron (cada 15 min) repite el correo mientras el pedido siga sin guía
+     * —unos 96 correos al día por pedido atascado—, hasta que quien los
+     * recibe silencia la alerta y volvemos al silencio original que este
+     * barredor existe para romper.
+     *
+     * Nota para quien venga después: esto NO resuelve la segunda mitad del
+     * problema. Un pedido rendido sigue sin escribirse en `on_processing()`
+     * ni en ningún otro camino automático, así que su `date_modified` deja
+     * de refrescarse; sale de la ventana de 48h que usa el nodo "Ventana
+     * 48h" del workflow de n8n (`docs/n8n/cwGuiaSweep01.import-ready.json`)
+     * y, a partir de ahí, el barredor deja de mirarlo para siempre —vuelve
+     * a quedar en silencio, solo que ya avisado una vez. Arreglarlo de
+     * verdad exige una consulta aparte en n8n, sin `modified_after`, sobre
+     * pedidos con esta meta puesta y sin guía. Deliberadamente no se
+     * implementa aquí: es un nodo/consulta nuevo en el workflow, no un
+     * cambio de esta clase, y este arreglo solo cierra el ruido del correo.
+     */
+    const META_ALERTA_ENVIADA = '_ccmck_guia_alerta_enviada';
+
+    /**
+     * Minutos de gracia antes de que el barredor toque un pedido.
+     *
+     * El camino normal (`on_processing`) debe tener su oportunidad primero: sin
+     * gracia, el barredor competiría con él y ambos llamarían a Coordinadora.
+     */
+    const SWEEP_GRACIA_MIN = 10;
+
+    /**
+     * Cuántas veces reintenta el barredor antes de rendirse.
+     *
+     * Un pedido con defecto permanente —producto sin peso, dirección incompleta—
+     * no se arregla reintentando: sin tope martillearía el WS cada 15 minutos y
+     * llenaría el pedido de notas.
+     */
+    const SWEEP_MAX_INTENTOS = 3;
 
     const ENDPOINT_PROD    = 'https://guias.coordinadora.com/ws/guias/1.6/server.php';
     const ENDPOINT_SANDBOX = 'https://sandbox.coordinadora.com/agw/ws/guias/1.6/server.php';
@@ -60,6 +101,111 @@ final class CCMCK_Guias {
             return array( 'ok' => false, 'reason' => 'generación en curso (lock)' );
         }
         return array( 'ok' => true, 'reason' => '' );
+    }
+
+    /**
+     * ¿Debe el barredor generar la guía de este pedido? PURA.
+     *
+     * Deliberadamente NO acepta `manual`: a diferencia de `/generar-guia`, el
+     * barredor jamás debe saltarse el guard de transportadora. Un pedido enviado
+     * por otra empresa no puede acabar con un rótulo de Coordinadora.
+     *
+     * Reutiliza should_generate() para los guards que comparten los dos
+     * caminos —apagado (`guias_enabled`), credenciales del WS y recogida
+     * local— en vez de repetirlos aquí. Sin esto el barredor podía generar
+     * guías con el interruptor «Generar guías automáticamente» apagado: el
+     * dueño lo desmarca porque despacha por otra empresa esa semana, el hook
+     * automático deja de generar, y quince minutos después el barredor
+     * generaba igual, sin forma de pararlo desde WordPress. Encima de esos
+     * guards compartidos añade los propios del barredor: estado, gracia en
+     * minutos e intentos agotados.
+     *
+     * @param array $ctx {enabled, usuario, clave, status, shipping_ids, existing_guia, minutos, intentos}
+     * @return array{ok:bool, reason:string}
+     */
+    public static function sweep_decision( array $ctx ): array {
+        // Sin 'manual': el guard de transportadora y el de recogida local de
+        // should_generate() siguen aplicando (a diferencia del botón manual).
+        $compartidos = self::should_generate( array(
+            'enabled'       => $ctx['enabled'] ?? false,
+            'usuario'       => $ctx['usuario'] ?? '',
+            'clave'         => $ctx['clave'] ?? '',
+            'shipping_ids'  => (array) ( $ctx['shipping_ids'] ?? array() ),
+            // Trim propio: un espacio en blanco no debe contar como guía
+            // existente (si no, el barredor se saltaría el pedido para
+            // siempre). should_generate() no trimea porque sus otros
+            // llamadores nunca reciben ese ruido; aquí sí puede venir del
+            // meta crudo del pedido.
+            'existing_guia' => trim( (string) ( $ctx['existing_guia'] ?? '' ) ),
+            // El candado se comprueba aparte, en rest_sweep(), DESPUÉS de esta
+            // decisión: un candado ajeno no es un intento fallido de este
+            // pedido, es que ya lo está atendiendo otra vía.
+            'has_lock'      => false,
+        ) );
+        if ( ! $compartidos['ok'] ) {
+            return $compartidos;
+        }
+
+        if ( 'processing' !== (string) ( $ctx['status'] ?? '' ) ) {
+            return array( 'ok' => false, 'reason' => 'no está en processing' );
+        }
+        if ( (int) ( $ctx['minutos'] ?? 0 ) < self::SWEEP_GRACIA_MIN ) {
+            return array( 'ok' => false, 'reason' => 'demasiado reciente' );
+        }
+        if ( (int) ( $ctx['intentos'] ?? 0 ) >= self::SWEEP_MAX_INTENTOS ) {
+            return array( 'ok' => false, 'reason' => 'agotados los reintentos' );
+        }
+        return array( 'ok' => true, 'reason' => '' );
+    }
+
+    /**
+     * ¿`rest_sweep()` debe marcar la alerta de "se rindió" y avisar por
+     * primera vez? PURA. Aísla la decisión AT-MOST-ONCE del efecto (escribir
+     * la meta en el pedido) para poder probarla sin WooCommerce.
+     *
+     * @param string $reason              Motivo devuelto por sweep_decision().
+     * @param string $meta_alerta_actual  Valor crudo de la meta META_ALERTA_ENVIADA en el pedido.
+     * @return array{marcar:bool, alerta_enviada:bool}
+     *   marcar: true si rest_sweep() debe escribir la meta ahora (primera vez
+     *   que este pedido se rinde). alerta_enviada: lo que debe viajar en la
+     *   respuesta REST — true si YA se había avisado antes de esta llamada,
+     *   para que el workflow de n8n no vuelva a contar este pedido en el correo.
+     */
+    public static function sweep_alerta_decision( string $reason, string $meta_alerta_actual ): array {
+        if ( 'agotados los reintentos' !== $reason ) {
+            return array( 'marcar' => false, 'alerta_enviada' => false );
+        }
+        $ya_avisado = '' !== trim( $meta_alerta_actual );
+        return array( 'marcar' => ! $ya_avisado, 'alerta_enviada' => $ya_avisado );
+    }
+
+    /**
+     * Minutos transcurridos desde que el pedido quedó listo para generar guía. PURA.
+     *
+     * Usa la fecha de pago; si no hay (get_date_paid() puede devolver null —
+     * pagos que no disparan ese hook, o el dato aún no propagado), cae a la de
+     * creación. Sin esta caída, un pedido sin fecha de pago se quedaba en 0
+     * minutos en cada pasada del barredor: nunca superaba la gracia, nunca subía
+     * el contador de intentos y nunca llegaba a 'agotados los reintentos' —la
+     * única cadena que dispara la alerta por correo—, así que quedaba barrido en
+     * silencio para siempre. Si tampoco hay fecha de creación, 0 (no hay nada de
+     * qué medir). Nunca negativo: un reloj desincronizado no debe dar minutos
+     * negativos, que colarían por debajo de cualquier umbral.
+     *
+     * Sin objetos de WooCommerce a propósito: el llamador convierte
+     * get_date_paid()/get_date_created() a timestamp (o null) antes de llamar,
+     * para poder probar esto sin cargar WordPress.
+     *
+     * @param int|null $ts_pagado Timestamp Unix de get_date_paid(), o null.
+     * @param int|null $ts_creado Timestamp Unix de get_date_created(), o null.
+     * @param int      $ahora     Timestamp Unix "ahora" (inyectado para poder probar).
+     */
+    public static function sweep_minutos( $ts_pagado, $ts_creado, $ahora ): int {
+        $ts = ( null !== $ts_pagado && $ts_pagado > 0 ) ? $ts_pagado : $ts_creado;
+        if ( null === $ts || $ts <= 0 ) {
+            return 0;
+        }
+        return max( 0, (int) floor( ( (int) $ahora - (int) $ts ) / 60 ) );
     }
 
     /**
@@ -525,6 +671,11 @@ final class CCMCK_Guias {
      * éxito guarda metas + notas y dispara el aviso de WhatsApp; en fallo
      * loguea y devuelve el motivo (el llamador decide cómo presentarlo).
      *
+     * `$opts['timeout']` es opcional: si no viene, `rpc()` usa su propio
+     * valor por defecto (15 s, el mismo de siempre para el hook automático y
+     * el botón manual). Solo el barredor lo pasa explícito (60 s): corre en
+     * segundo plano, no dentro del cobro del cliente.
+     *
      * @return array{ok:bool, error:string}
      */
     private static function generate_for_order( $order, array $opts = array() ): array {
@@ -586,7 +737,9 @@ final class CCMCK_Guias {
             'detalle'      => $detalle,
         ) );
 
-        $response = self::rpc( 'Guias.generarGuia', $params );
+        $response = isset( $opts['timeout'] )
+            ? self::rpc( 'Guias.generarGuia', $params, (int) $opts['timeout'] )
+            : self::rpc( 'Guias.generarGuia', $params );
         if ( is_wp_error( $response ) ) {
             self::log( 'Guía pedido #' . $order_id . ' HTTP: ' . $response->get_error_message() );
             return array( 'ok' => false, 'error' => 'error de conexión con el WS de guías (' . $response->get_error_message() . ')' );
@@ -1013,6 +1166,11 @@ final class CCMCK_Guias {
             'callback'            => array( __CLASS__, 'rest_generate' ),
             'permission_callback' => array( __CLASS__, 'rest_permission' ),
         ) );
+        register_rest_route( 'ccmck/v1', '/barrer-guia', array(
+            'methods'             => 'POST',
+            'callback'            => array( __CLASS__, 'rest_sweep' ),
+            'permission_callback' => array( __CLASS__, 'rest_permission' ),
+        ) );
         register_rest_route( 'ccmck/v1', '/rotulo', array(
             'methods'             => 'GET',
             'callback'            => array( __CLASS__, 'rest_rotulo' ),
@@ -1159,6 +1317,169 @@ final class CCMCK_Guias {
             'tracking_url' => (string) $order->get_meta( self::META_URL ),
             'modalidad'    => $ce ? 'flete_contra_entrega' : 'prepago',
             'flete_ce'     => $result['flete_ce'] ?? null,
+        ) );
+    }
+
+    /**
+     * POST /wp-json/ccmck/v1/barrer-guia {order_id} — reintento del barredor.
+     *
+     * Separado de `/generar-guia` a propósito: aquel pasa `manual:true` y se
+     * salta el guard de transportadora, cosa que un proceso automático no debe
+     * hacer nunca. Aquí el guard se respeta —delegado en sweep_decision(), que
+     * a su vez reutiliza should_generate() para el apagado (`guias_enabled`),
+     * las credenciales del WS y la recogida local, igual que on_processing().
+     *
+     * Minutos transcurridos: se miden desde get_date_paid() y, si falta, caen
+     * a get_date_created() (ver sweep_minutos()) — sin esa caída un pedido sin
+     * fecha de pago quedaba invisible para el barredor para siempre.
+     *
+     * Candado compartido con on_processing()/ajax_generate()/rest_generate():
+     * si otra vía está generando la guía de este pedido ahora mismo, el
+     * barredor se aparta en vez de competir por el mismo envío.
+     *
+     * "Idempotente" con matiz, no en absoluto: si el pedido ya tiene guía
+     * responde `skipped` sin tocar nada, pero esa idempotencia se apoya en un
+     * transient de 60 s. Si generate_for_order() sigue en curso pasado ese
+     * minuto, el candado ya caducó y una pasada siguiente del cron podría
+     * volver a intentar el mismo pedido mientras la primera llamada sigue
+     * viva — la protección real contra la doble guía la da, sobre todo, el
+     * guard de `existing_guia` en sweep_decision() una vez la primera llamada
+     * termine y guarde la guía, no el candado por sí solo.
+     *
+     * Cuando el pedido se rinde ('agotados los reintentos'), la respuesta
+     * lleva `alerta_enviada`: true si YA se había avisado por correo en una
+     * pasada anterior (ver sweep_alerta_decision() y META_ALERTA_ENVIADA). El
+     * workflow de n8n solo debe avisar cuando viene en false.
+     */
+    public static function rest_sweep( $request ) {
+        $order_id = absint( $request['order_id'] ?? 0 );
+        $order    = $order_id ? wc_get_order( $order_id ) : null;
+        if ( ! $order ) {
+            return new WP_Error( 'ccmck_not_found', 'Pedido no encontrado.', array( 'status' => 404, 'order_id' => $order_id ) );
+        }
+
+        $pagado   = $order->get_date_paid();
+        $creado   = $order->get_date_created();
+        $minutos  = self::sweep_minutos(
+            $pagado ? $pagado->getTimestamp() : null,
+            $creado ? $creado->getTimestamp() : null,
+            time()
+        );
+        $intentos = (int) $order->get_meta( self::META_INTENTOS );
+
+        $check = self::sweep_decision( array(
+            'enabled'       => (bool) CCMCK_Settings::get( 'guias_enabled', false ),
+            'usuario'       => (string) CCMCK_Settings::get( 'guias_usuario', '' ),
+            'clave'         => (string) CCMCK_Settings::get( 'guias_clave', '' ),
+            'status'        => (string) $order->get_status(),
+            'shipping_ids'  => self::order_shipping_ids( $order ),
+            'existing_guia' => (string) $order->get_meta( self::META_GUIA ),
+            'minutos'       => $minutos,
+            'intentos'      => $intentos,
+        ) );
+
+        if ( ! $check['ok'] ) {
+            // Cuando el motivo es 'agotados los reintentos', este pedido acaba de
+            // "rendirse" (o ya se había rendido en una pasada anterior). La meta
+            // AT-MOST-ONCE decide si el workflow de n8n debe avisar por correo
+            // (primera vez) o callarse (ya avisado) — ver sweep_alerta_decision().
+            $alerta = self::sweep_alerta_decision( $check['reason'], (string) $order->get_meta( self::META_ALERTA_ENVIADA ) );
+            if ( $alerta['marcar'] ) {
+                $order->update_meta_data( self::META_ALERTA_ENVIADA, (string) time() );
+                $order->save();
+            }
+            return rest_ensure_response( array(
+                'ok'             => false,
+                'skipped'        => true,
+                'reason'         => $check['reason'],
+                'intentos'       => $intentos,
+                'order_id'       => $order_id,
+                'alerta_enviada' => $alerta['alerta_enviada'],
+            ) );
+        }
+
+        // Mismo candado que on_processing()/ajax_generate()/rest_generate(): si otra
+        // vía está generando la guía de este pedido ahora mismo (típico: el barredor
+        // lo alcanza justo porque algo falló, y a la vez un asesor pulsa "generar
+        // guía" en el admin), el barredor se aparta en vez de competir por el mismo
+        // envío — dos llamadas simultáneas ya produjeron dos guías para el mismo
+        // pedido, que hubo que anular a mano en el portal de Coordinadora. Se
+        // consulta DESPUÉS de sweep_decision() y ANTES de subir el contador: un
+        // candado ajeno no es un intento fallido de este pedido, es que ya lo está
+        // atendiendo otra vía; el pedido vuelve en la siguiente pasada del cron,
+        // cuando el candado (60 s) ya se habrá liberado.
+        if ( false !== get_transient( 'ccmck_guia_lock_' . $order_id ) ) {
+            return rest_ensure_response( array(
+                'ok'       => false,
+                'skipped'  => true,
+                'reason'   => 'generación en curso (lock)',
+                'intentos' => $intentos,
+                'order_id' => $order_id,
+            ) );
+        }
+        set_transient( 'ccmck_guia_lock_' . $order_id, 1, 60 );
+
+        // El contador sube ANTES de intentar: si la petición muere a mitad —que es
+        // justamente el fallo que este barredor cubre— el intento igual queda contado
+        // y el pedido no se reintenta para siempre.
+        $intentos++;
+        $order->update_meta_data( self::META_INTENTOS, (string) $intentos );
+        $order->save();
+
+        $ce = self::ce_requested( '', self::order_shipping_ids( $order ), (string) $order->get_meta( self::META_MODALIDAD ) );
+        // 60 s en vez de los 15 por defecto: el barredor corre en segundo
+        // plano (cron cada 15 min), no dentro del cobro del cliente, así que
+        // puede esperar más a que Coordinadora conteste. Dos de los tres
+        // pedidos que motivaron este barredor fallaron con "cURL error 28:
+        // Operation timed out after 15002 milliseconds".
+        $result = self::generate_for_order( $order, array( 'contra_entrega' => $ce, 'timeout' => 60 ) );
+
+        if ( ! $result['ok'] ) {
+            delete_transient( 'ccmck_guia_lock_' . $order_id );
+
+            // Un timeout NO dice que Coordinadora no creó la remesa: dice que no
+            // contestó a tiempo. Reintentar a ciegas puede crear una segunda guía
+            // para el mismo envío, y el cliente recibe por WhatsApp el número de
+            // la segunda mientras el paquete puede salir con la primera. Ante esa
+            // duda el barredor deja de tocar el pedido: agota los intentos de
+            // golpe para que la próxima pasada lo reporte como 'agotados los
+            // reintentos' (la cadena que dispara la alerta) y deja una nota
+            // pidiendo comprobar el portal antes de generar otra. Un rechazo
+            // normal del servicio (dirección incompleta, producto sin peso) no
+            // entra por este camino y sigue reintentando como siempre: eso no
+            // crea nada al otro lado de Coordinadora.
+            if ( false !== stripos( $result['error'], 'error de conexión' ) ) {
+                $intentos = self::SWEEP_MAX_INTENTOS;
+                $order->update_meta_data( self::META_INTENTOS, (string) $intentos );
+                $order->save();
+                $order->add_order_note(
+                    'Barredor de guías: fallo de conexión con el WS de Coordinadora (' . $result['error'] . '). '
+                    . 'PUEDE EXISTIR UNA GUÍA en el portal aunque aquí no se confirmó su creación: '
+                    . 'comprobar en el portal de Coordinadora ANTES de generar otra a mano. '
+                    . 'El barredor deja de reintentar este pedido automáticamente.'
+                );
+            } else {
+                $order->add_order_note( sprintf(
+                    'Barredor de guías: intento %d de %d falló (%s).',
+                    $intentos,
+                    self::SWEEP_MAX_INTENTOS,
+                    $result['error']
+                ) );
+            }
+
+            return new WP_Error( 'ccmck_failed', $result['error'], array( 'status' => 422, 'order_id' => $order_id ) );
+        }
+
+        $order->add_order_note( sprintf(
+            'Guía generada por el barredor en el intento %d (el camino automático no la había creado).',
+            $intentos
+        ) );
+
+        return rest_ensure_response( array(
+            'ok'       => true,
+            'guia'     => (string) $order->get_meta( self::META_GUIA ),
+            'intentos' => $intentos,
+            'order_id' => $order_id,
         ) );
     }
 
