@@ -485,4 +485,224 @@ final class CartShippingTest extends TestCase {
 		};
 		$this->assertStringContainsString( 'Gratis', CCMCK_Cart_Shipping::etiqueta_opcion( 'Recogida local', $sinCoste ) );
 	}
+
+	/* =====================================================================
+	   Preflight: ¿puede CCMCK cotizar este paquete?
+
+	   Existe para que el metodo oficial de Coordinadora NO salga a la red
+	   cuando nuestra cotizacion va a funcionar. Medido en dev: su llamada
+	   cuesta ~843 ms de HTTP y su tarifa la borra apply_quote() despues.
+
+	   `rates()` tiene que usar ESTA funcion, no una copia de las reglas: si se
+	   duplican, un dia el puente bloquea al oficial creyendo que podemos
+	   cotizar cuando no, y el cliente se queda sin flete.
+	   ===================================================================== */
+
+	/** Producto de juguete con la forma que lee items_from_package(). */
+	private function prod( float $peso, float $largo, float $ancho, float $alto ): object {
+		return new class( $peso, $largo, $ancho, $alto ) {
+			public function __construct( private float $p, private float $l, private float $a, private float $h ) {}
+			public function get_id() { return 0; }
+			public function get_weight() { return $this->p; }
+			public function get_length() { return $this->l; }
+			public function get_width() { return $this->a; }
+			public function get_height() { return $this->h; }
+		};
+	}
+
+	private function paquete( array $productos, string $ciudad = 'BARRANQUILLA (ATL) (08001000)' ): array {
+		$contents = array();
+		foreach ( $productos as $i => $p ) {
+			$contents[ 'k' . $i ] = array( 'quantity' => 1, 'data' => $p );
+		}
+		return array( 'contents' => $contents, 'destination' => array( 'city' => $ciudad ) );
+	}
+
+	public function test_paquete_completo_es_elegible(): void {
+		$r = CCMCK_Coordinadora::preflight(
+			$this->paquete( array( $this->prod( 21, 47, 50, 11 ) ) ),
+			true, 'apikey', 'clave'
+		);
+		$this->assertTrue( $r['elegible'] );
+		$this->assertSame( '', $r['motivo'] );
+	}
+
+	public function test_apagado_no_es_elegible(): void {
+		$r = CCMCK_Coordinadora::preflight(
+			$this->paquete( array( $this->prod( 21, 47, 50, 11 ) ) ),
+			false, 'apikey', 'clave'
+		);
+		$this->assertFalse( $r['elegible'] );
+		$this->assertSame( 'apagado', $r['motivo'] );
+	}
+
+	public function test_sin_credenciales_no_es_elegible(): void {
+		$p = $this->paquete( array( $this->prod( 21, 47, 50, 11 ) ) );
+		$this->assertSame( 'sin_credenciales', CCMCK_Coordinadora::preflight( $p, true, '', 'clave' )['motivo'] );
+		$this->assertSame( 'sin_credenciales', CCMCK_Coordinadora::preflight( $p, true, 'apikey', '' )['motivo'] );
+	}
+
+	public function test_carrito_sin_contenido_no_es_elegible(): void {
+		$r = CCMCK_Coordinadora::preflight( $this->paquete( array() ), true, 'apikey', 'clave' );
+		$this->assertFalse( $r['elegible'] );
+		$this->assertSame( 'sin_contenido', $r['motivo'] );
+	}
+
+	/**
+	 * Peso y dimensiones se distinguen a proposito.
+	 *
+	 * Son dos contadores separados (`ccmck_fallback_missing_weight` y
+	 * `ccmck_fallback_missing_dimensions`) porque son dos problemas de catalogo
+	 * distintos y se arreglan por vias distintas. Un solo contador
+	 * «faltan datos» no diria a quien avisar.
+	 */
+	public function test_sin_peso_dice_sin_peso(): void {
+		$r = CCMCK_Coordinadora::preflight(
+			$this->paquete( array( $this->prod( 0, 47, 50, 11 ) ) ),
+			true, 'apikey', 'clave'
+		);
+		$this->assertSame( 'sin_peso', $r['motivo'] );
+	}
+
+	public function test_sin_dimensiones_dice_sin_dimensiones(): void {
+		foreach ( array( array( 0, 50, 11 ), array( 47, 0, 11 ), array( 47, 50, 0 ) ) as $d ) {
+			$r = CCMCK_Coordinadora::preflight(
+				$this->paquete( array( $this->prod( 21, $d[0], $d[1], $d[2] ) ) ),
+				true, 'apikey', 'clave'
+			);
+			$this->assertSame( 'sin_dimensiones', $r['motivo'] );
+		}
+	}
+
+	/** Basta UN producto incompleto para caer al fallback: se cotiza el paquete entero. */
+	public function test_un_solo_producto_incompleto_tumba_el_paquete(): void {
+		$r = CCMCK_Coordinadora::preflight(
+			$this->paquete( array( $this->prod( 21, 47, 50, 11 ), $this->prod( 21, 47, 50, 0 ) ) ),
+			true, 'apikey', 'clave'
+		);
+		$this->assertFalse( $r['elegible'] );
+		$this->assertSame( 'sin_dimensiones', $r['motivo'] );
+	}
+
+	public function test_sin_dane_no_es_elegible(): void {
+		foreach ( array( '', 'BARRANQUILLA', 'BARRANQUILLA (ATL) (08001)' ) as $ciudad ) {
+			$r = CCMCK_Coordinadora::preflight(
+				$this->paquete( array( $this->prod( 21, 47, 50, 11 ) ), $ciudad ),
+				true, 'apikey', 'clave'
+			);
+			$this->assertFalse( $r['elegible'], 'ciudad: ' . $ciudad );
+			$this->assertSame( 'sin_dane', $r['motivo'] );
+		}
+	}
+
+	/** El motivo mapea a UN contador y solo uno. Sin este mapa la telemetria miente. */
+	public function test_cada_motivo_tiene_su_contador(): void {
+		$this->assertSame( 'ccmck_fallback_missing_weight',     CCMCK_Coordinadora::contador_de_motivo( 'sin_peso' ) );
+		$this->assertSame( 'ccmck_fallback_missing_dimensions', CCMCK_Coordinadora::contador_de_motivo( 'sin_dimensiones' ) );
+		$this->assertSame( 'ccmck_fallback_missing_dane',       CCMCK_Coordinadora::contador_de_motivo( 'sin_dane' ) );
+		$this->assertNull( CCMCK_Coordinadora::contador_de_motivo( 'apagado' ) );
+		$this->assertNull( CCMCK_Coordinadora::contador_de_motivo( '' ) );
+	}
+
+	/* =====================================================================
+	   El puente: match EXACTO de host y ruta.
+	   ===================================================================== */
+
+	public function test_solo_intercepta_la_url_de_cotizacion(): void {
+		$cotiza = 'https://wc-backend-dot-cm-integraciones.uk.r.appspot.com/api/coordinadoraWs/CalculateShipping';
+		$this->assertTrue( CCMCK_Coordinadora::es_url_de_cotizacion_oficial( $cotiza ) );
+	}
+
+	/**
+	 * Las otras URLs del plugin oficial NO se tocan.
+	 *
+	 * Publica eventos y webhooks por el mismo dominio; interceptarlos romperia
+	 * guias y sincronizacion de pedidos sin que nada lo avise.
+	 */
+	public function test_no_intercepta_guias_webhooks_ni_same_day(): void {
+		foreach ( array(
+			'https://wc-backend-dot-cm-integraciones.uk.r.appspot.com/api/coordinadoraWs/calculateSameDayShipping',
+			'https://dashboard-pubsub-dot-cm-integraciones.uk.r.appspot.com/pubsub-publishers/woocommerce',
+			'https://dashboard-shopify-woocommerce-backend-dot-cm-integraciones.uk.r.appspot.com/api/events',
+			'https://ws.coordinadora.com/ags/1.5/server.php',
+			'https://wc.coordinadora.com/admin/orders',
+		) as $url ) {
+			$this->assertFalse( CCMCK_Coordinadora::es_url_de_cotizacion_oficial( $url ), $url );
+		}
+	}
+
+	/** Un host parecido no cuenta: el match es de host completo, no de subcadena. */
+	public function test_no_le_vale_un_host_parecido(): void {
+		foreach ( array(
+			'https://evil.com/api/coordinadoraWs/CalculateShipping',
+			'https://wc-backend-dot-cm-integraciones.uk.r.appspot.com.evil.com/api/coordinadoraWs/CalculateShipping',
+			'http://wc-backend-dot-cm-integraciones.uk.r.appspot.com/api/coordinadoraWs/CalculateShippingExtra',
+		) as $url ) {
+			$this->assertFalse( CCMCK_Coordinadora::es_url_de_cotizacion_oficial( $url ), $url );
+		}
+	}
+
+	/**
+	 * La respuesta sintetica NO puede ser un WP_Error.
+	 *
+	 * El plugin oficial registra `is_wp_error` con nivel ERROR en el log de
+	 * WooCommerce. Abortar con WP_Error meteria un error falso por cada
+	 * calculo de carrito y taparia los errores de verdad. Con un 204 el plugin
+	 * solo escribe una linea de nivel info y devuelve false sin tarifa.
+	 */
+	public function test_la_respuesta_sintetica_es_204_no_un_error(): void {
+		$r = CCMCK_Coordinadora::respuesta_sintetica();
+		$this->assertIsArray( $r );
+		$this->assertSame( 204, $r['response']['code'] );
+		$this->assertSame( '', $r['body'] );
+		$this->assertArrayNotHasKey( 'errors', $r );
+	}
+
+	/**
+	 * Las dos condiciones del corte, por separado.
+	 *
+	 * Fuera de la ventana del metodo oficial NO se corta nada, ni siquiera esa
+	 * URL: si la ventana se quedara abierta por un fallo, el filtro seguiria
+	 * siendo inofensivo para el resto del sitio, pero cortaria cotizaciones
+	 * legitimas del oficial. Por eso se prueban las dos mitades.
+	 */
+	public function test_fuera_de_la_ventana_no_corta_nada(): void {
+		$cotiza = 'https://wc-backend-dot-cm-integraciones.uk.r.appspot.com/api/coordinadoraWs/CalculateShipping';
+		$this->assertFalse( CCMCK_Coordinadora::debe_interceptar( false, $cotiza ) );
+	}
+
+	public function test_dentro_de_la_ventana_solo_corta_esa_url(): void {
+		$cotiza = 'https://wc-backend-dot-cm-integraciones.uk.r.appspot.com/api/coordinadoraWs/CalculateShipping';
+		$this->assertTrue( CCMCK_Coordinadora::debe_interceptar( true, $cotiza ) );
+		// Nuestra propia cotizacion NO se corta: seria dispararnos al pie.
+		$this->assertFalse( CCMCK_Coordinadora::debe_interceptar( true, 'https://ws.coordinadora.com/ags/1.5/server.php' ) );
+		// Ni las guias ni los webhooks.
+		$this->assertFalse( CCMCK_Coordinadora::debe_interceptar( true, 'https://dashboard-pubsub-dot-cm-integraciones.uk.r.appspot.com/pubsub-publishers/woocommerce' ) );
+	}
+
+	/**
+	 * `rates()` no puede tener su propia copia de las reglas.
+	 *
+	 * Es el riesgo mas caro de esta arquitectura: si las reglas se duplican y
+	 * una de las dos copias cambia, el puente bloquea la cotizacion del plugin
+	 * oficial creyendo que nosotros podemos cotizar cuando no, y el cliente se
+	 * queda sin flete. No lanza error: simplemente no hay tarifa.
+	 *
+	 * Se afirma sobre el codigo fuente porque el arnes no carga WooCommerce y
+	 * `rates()` no se puede invocar aqui.
+	 */
+	public function test_rates_no_duplica_las_reglas_del_preflight(): void {
+		$src   = file_get_contents( __DIR__ . '/../includes/class-ccmck-coordinadora.php' );
+		$ini   = strpos( $src, 'public static function rates(' );
+		$this->assertNotFalse( $ini );
+		$fin   = strpos( $src, 'public static function puente_activo(', $ini );
+		$cuerpo = substr( $src, $ini, ( false === $fin ? strlen( $src ) : $fin ) - $ini );
+
+		$this->assertStringContainsString( 'self::preflight(', $cuerpo, 'rates() tiene que llamar a preflight().' );
+		// Las comprobaciones de catalogo viven SOLO en preflight().
+		$this->assertStringNotContainsString( "'weight'", $cuerpo );
+		$this->assertStringNotContainsString( "'largo'", $cuerpo );
+		$this->assertStringNotContainsString( "'alto'", $cuerpo );
+		$this->assertStringNotContainsString( 'dane_from_city', $cuerpo );
+	}
 }
