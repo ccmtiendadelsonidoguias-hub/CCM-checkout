@@ -1,0 +1,129 @@
+{
+  "id": "cwGuiaSweep01",
+  "name": "CW Guía - Barredor processing sin guía (15min)",
+  "nodes": [
+    {
+      "parameters": { "rule": { "interval": [ { "field": "minutes", "minutesInterval": 15 } ] } },
+      "id": "a1000000-0000-4000-8000-000000000001",
+      "name": "Cada 15 min",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [ -260, 300 ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// pedidos processing modificados en las ultimas 48h (misma ventana que cwFacturaSweep01)\nconst d = new Date(Date.now() - 48*3600*1000);\nconst pad = n => String(n).padStart(2,'0');\nconst iso = d.getUTCFullYear()+'-'+pad(d.getUTCMonth()+1)+'-'+pad(d.getUTCDate())+'T'+pad(d.getUTCHours())+':'+pad(d.getUTCMinutes())+':'+pad(d.getUTCSeconds());\nreturn [{ json: { modified_after: iso } }];"
+      },
+      "id": "a1000000-0000-4000-8000-000000000002",
+      "name": "Ventana 48h",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [ -40, 300 ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "url": "={{ 'https://ccmtiendadelsonido.com/wp-json/wc/v3/orders?status=processing&per_page=40&modified_after=' + $json.modified_after }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "wooCommerceApi",
+        "options": { "timeout": 30000, "response": { "response": { "neverError": true, "fullResponse": true, "responseFormat": "json" } } }
+      },
+      "id": "a1000000-0000-4000-8000-000000000003",
+      "name": "WC processing recientes",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [ 180, 300 ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Candidatos: Coordinadora, sin guia y fuera de la gracia.\n// El filtro se repite aqui aunque el endpoint tambien decida: asi no se\n// dispara una peticion por cada pedido sano cada 15 minutos.\n// Corre en modo \"once for all items\": $json resolveria al primer item por\n// casualidad (no por contrato), asi que se usa $input.first().json explicito.\n//\n// C3: ademas clasifica la consulta a WC en tres situaciones y las propaga\n// para que Resumen pueda avisar cuando el barredor se quedo ciego, no solo\n// cuando hay pedidos rendidos. Si no hay candidatos reales (consulta sana\n// vacia, o consulta fallida) devuelve un unico item \"de estado\" con\n// order_id:null -- Barrer guia lo llama igual (Coordinadora responde 404\n// \"Pedido no encontrado\", inofensivo, y Resumen lo excluye de revisados y\n// fallos) solo para que Resumen corra; ver alwaysOutputData en este nodo,\n// que cubre ademas el caso de que el codigo truene antes de este return.\nconst GRACIA_MIN = 10;\nconst inputJson = $input.first().json;\nconst statusCode = inputJson ? inputJson.statusCode : undefined;\nconst body = inputJson ? inputJson.body : undefined;\nconst esLista = Array.isArray(body);\n// consulta fallida: HTTP distinto de 200, o el body no es la lista de\n// pedidos que espera WooCommerce (credencial ausente, 401/500, el WAF del\n// hosting devolviendo HTML, etc.) -- sin este chequeo esa lista vacia por\n// defecto se confunde con \"sin candidatos\" (sano) y la pasada queda muda.\nconst consultaFallida = 200 !== statusCode || !esLista;\nconst list = esLista ? body : [];\n// I3: la pagina vino llena (per_page=40): puede haber pedidos mas antiguos\n// -- justo los que mas llevan sin guia -- fuera de esta pagina.\nconst paginaLlena = esLista && list.length >= 40;\nconst out = [];\nif (!consultaFallida) {\n  for (const o of list) {\n    if (!o || o.status !== 'processing') continue;\n    const ship = (o.shipping_lines || []).map(s => String(s.method_id || '') + ' ' + String(s.method_title || ''));\n    if (!ship.some(s => s.toLowerCase().indexOf('coordinadora') !== -1)) continue;\n    const meta = {};\n    for (const m of (o.meta_data || [])) meta[m.key] = m.value;\n    if (String(meta['_coordinadora_tracking_number'] || '').trim() !== '') continue;\n    // Fecha base para medir la gracia: pagado; si falta, creado -- mismo\n    // criterio que sweep_minutos() en includes/class-ccmck-guias.php. Sin esta\n    // caida, un pedido sin date_paid_gmt se descartaba aqui para siempre: nunca\n    // llegaba al endpoint, nunca acumulaba intentos, nunca alcanzaba el motivo\n    // 'agotados los reintentos' y por tanto nunca disparaba el aviso por correo\n    // -- quedaba pagado, sin rotulo y en silencio para siempre.\n    const fechaBase = o.date_paid_gmt || o.date_created_gmt;\n    if (!fechaBase) continue;\n    const base = Date.parse(fechaBase + 'Z');\n    if (!base) continue;\n    const minutos = Math.floor((Date.now() - base) / 60000);\n    if (minutos < GRACIA_MIN) continue;\n    out.push({ json: { order_id: o.id, numero: o.number, minutos, total: o.total, consulta_fallida: false, motivo_consulta: '', pagina_llena: paginaLlena } });\n  }\n}\nif (out.length > 0) return out;\n// Sin candidatos reales (consulta sana y vacia, o consulta fallida): un\n// unico item de estado para que Resumen sepa por que, y para que el resto\n// de la cadena corra (ver alwaysOutputData en este nodo).\nreturn [{ json: {\n  order_id: null,\n  consulta_fallida: consultaFallida,\n  motivo_consulta: consultaFallida ? ('HTTP ' + (statusCode || 0) + (esLista ? '' : ', body no es una lista de pedidos')) : '',\n  pagina_llena: paginaLlena,\n} }];"
+      },
+      "id": "a1000000-0000-4000-8000-000000000004",
+      "name": "Candidatos sin guía",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [ 400, 300 ],
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://ccmtiendadelsonido.com/wp-json/ccmck/v1/barrer-guia",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [
+          { "name": "Content-Type", "value": "application/json" },
+          { "name": "x-ccmck-secret", "value": "={{ $env.CCMCK_GUIAS_SECRET }}" }
+        ] },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ order_id: $json.order_id }) }}",
+        "options": {
+          "timeout": 90000,
+          "response": { "response": { "neverError": true, "fullResponse": true, "responseFormat": "json" } },
+          "batching": { "batch": { "batchSize": 1, "batchInterval": 3000 } }
+        }
+      },
+      "id": "a1000000-0000-4000-8000-000000000005",
+      "name": "Barrer guía",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [ 620, 300 ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Resume la pasada y separa a quien merece correo -- lo que se rindio por\n// primera vez (I2), mas dos motivos nuevos que propaga \"Candidatos sin guia\"\n// (C3, I3): que la consulta a WC haya fallado, o que la pagina haya venido\n// llena. En los tres casos el barredor puede estar ciego a pedidos reales y\n// hay que decirlo, no callarlo.\nconst MAX_INTENTOS = 3;   // igual que CCMCK_Guias::SWEEP_MAX_INTENTOS\nconst all = $input.all();\n// Candidatos de la pasada anterior, en el MISMO orden en que entraron a\n// \"Barrer guia\" (no hay filtro entre medias): sirve para recuperar el\n// order_id cuando la respuesta no trae body (fallo de red real, ver abajo),\n// y para leer el estado de la consulta que propaga ese nodo (C3/I3).\n// pairedItem.item es el indice de origen que mantiene n8n aunque el request\n// falle; el indice del bucle es solo el respaldo si por lo que sea no viene.\nconst candidatos = $('Candidatos sin guía').all();\n\n// Estado de la consulta a WC: viene identico en cada candidato real, o solo\n// en el item placeholder (order_id:null) cuando no hubo ninguno -- basta\n// mirar el primero.\nconst estadoConsulta = candidatos[0] ? candidatos[0].json : {};\nconst consultaFallida = !!estadoConsulta.consulta_fallida;\nconst motivoConsulta = String(estadoConsulta.motivo_consulta || '');\nconst paginaLlena = !!estadoConsulta.pagina_llena;\n\nlet revisados = 0;\nconst hechas = [];\nconst rendidos = [];\nconst fallos = [];\nfor (let i = 0; i < all.length; i++) {\n  const it = all[i];\n  const j = it.json || {};\n  const origenIdx = (it.pairedItem && typeof it.pairedItem.item === 'number') ? it.pairedItem.item : i;\n  const candidato = candidatos[origenIdx] && candidatos[origenIdx].json;\n  // El item placeholder (order_id:null) llega hasta \"Barrer guia\" para que\n  // este nodo corra sin candidatos reales (alwaysOutputData en \"Candidatos\n  // sin guia\"), pero no es un pedido: su 404 no es un fallo real, ya se\n  // reporta arriba via consultaFallida/paginaLlena. Se excluye tambien de\n  // \"revisados\": cero pedidos reales se miraron en esta pasada.\n  if (candidato && candidato.order_id === null) continue;\n  revisados++;\n  const orderIdCandidato = candidato ? candidato.order_id : undefined;\n  // Con onError: continueRegularOutput, un fallo de red real (timeout, DNS,\n  // conexion rechazada -- no un HTTP 4xx/5xx, que neverError ya deja pasar\n  // como respuesta normal) llega aqui como { error: \"...\" }, sin body ni\n  // statusCode. Sin este chequeo no cae en ninguna rama de abajo: se pierde\n  // en silencio y solo cuenta en \"revisados\". Aqui el silencio no es exito.\n  if (j.error !== undefined && j.body === undefined) {\n    fallos.push({ cod: 0, error: String(j.error).slice(0, 120), order_id: orderIdCandidato });\n    continue;\n  }\n  const b = j.body || {};\n  const cod = j.statusCode || 0;\n  if (b.ok === true) { hechas.push(b.guia); continue; }\n  if (b.skipped === true) {\n    // I2: solo cuenta como \"rendido\" (y por tanto dispara correo) la\n    // primera vez -- si alerta_enviada viene true, rest_sweep() ya marco la\n    // meta _ccmck_guia_alerta_enviada en una pasada anterior y el correo ya\n    // salio; repetirlo aqui son los ~96 correos/dia que motivaron este fix.\n    if (b.reason === 'agotados los reintentos' && b.alerta_enviada !== true) {\n      rendidos.push({ intentos: b.intentos, order_id: b.order_id !== undefined ? b.order_id : orderIdCandidato });\n    }\n    continue;\n  }\n  if (cod >= 400) {\n    // rest_sweep() manda order_id como 3er argumento de WP_Error; WordPress\n    // lo anida bajo \"data\" al convertirlo a respuesta REST.\n    const orderIdFallo = (b && b.data && b.data.order_id !== undefined) ? b.data.order_id : orderIdCandidato;\n    fallos.push({ cod, error: String((b && b.message) || '').slice(0, 120), order_id: orderIdFallo });\n  }\n}\nreturn [{ json: {\n  revisados,\n  generadas: hechas.length,\n  guias: hechas,\n  rendidos: rendidos.length,\n  fallos: fallos.length,\n  max_intentos: MAX_INTENTOS,\n  detalle_rendidos: rendidos.slice(0, 5),\n  detalle_fallos: fallos.slice(0, 5),\n  consulta_fallida: consultaFallida,\n  motivo_consulta: motivoConsulta,\n  pagina_llena: paginaLlena,\n} }];"
+      },
+      "id": "a1000000-0000-4000-8000-000000000006",
+      "name": "Resumen",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [ 840, 300 ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": { "options": { "caseSensitive": true, "version": 2 }, "combinator": "or", "conditions": [
+          { "id": "c1", "operator": { "type": "number", "operation": "gt" }, "leftValue": "={{ $json.rendidos }}", "rightValue": 0 },
+          { "id": "c2", "operator": { "type": "number", "operation": "gt" }, "leftValue": "={{ $json.fallos }}", "rightValue": 0 },
+          { "id": "c3", "operator": { "type": "boolean", "operation": "true", "singleValue": true }, "leftValue": "={{ $json.consulta_fallida }}", "rightValue": "" },
+          { "id": "c4", "operator": { "type": "boolean", "operation": "true", "singleValue": true }, "leftValue": "={{ $json.pagina_llena }}", "rightValue": "" }
+        ] },
+        "options": {}
+      },
+      "id": "a1000000-0000-4000-8000-000000000007",
+      "name": "¿Hay que avisar?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [ 1060, 420 ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "fromEmail": "ia@ccmtiendadelsonido.com",
+        "toEmail": "ia@ccmtiendadelsonido.com",
+        "subject": "=Barredor de guías: {{ $json.consulta_fallida ? 'NO PUDO CONSULTAR los pedidos' : ($json.rendidos > 0 ? ($json.rendidos + ' pedido(s) sin rótulo tras agotar reintentos') : ($json.pagina_llena ? 'página de WooCommerce llena, puede haber pedidos sin revisar' : ($json.fallos + ' fallo(s) en esta pasada'))) }}",
+        "emailFormat": "text",
+        "text": "={{ $json.consulta_fallida ? ('ALERTA: el barredor NO PUDO CONSULTAR los pedidos en WooCommerce (' + $json.motivo_consulta + '). Esta pasada no revisó nada: puede haber pedidos pagados sin guía sin que el barredor se entere. Revisar credenciales del WS de WooCommerce y si el WAF del hosting está bloqueando la petición.') : '' }}\n{{ $json.pagina_llena ? 'AVISO: la consulta a WooCommerce vino con la página llena (40 pedidos). Puede haber pedidos más antiguos -justo los que más llevan sin guía- fuera de esta pasada: conviene paginar o acortar la ventana de 48h.' : '' }}\nPedidos que agotaron los {{ $json.max_intentos }} reintentos (avisados por primera vez en esta pasada): {{ $json.rendidos }}\nFallos en esta pasada: {{ $json.fallos }}\nGeneradas correctamente: {{ $json.generadas }}\nRevisados: {{ $json.revisados }}\n\nDetalle de rendidos (order_id, intentos): {{ JSON.stringify($json.detalle_rendidos) }}\nDetalle de fallos: {{ JSON.stringify($json.detalle_fallos) }}\n\nEstos pedidos estan pagados y SIN guia. Hay que generarla a mano o corregir el producto/direccion."
+      },
+      "id": "a1000000-0000-4000-8000-000000000008",
+      "name": "Email vigía guías",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [ 1280, 420 ],
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "Cada 15 min":            { "main": [ [ { "node": "Ventana 48h", "type": "main", "index": 0 } ] ] },
+    "Ventana 48h":            { "main": [ [ { "node": "WC processing recientes", "type": "main", "index": 0 } ] ] },
+    "WC processing recientes":{ "main": [ [ { "node": "Candidatos sin guía", "type": "main", "index": 0 } ] ] },
+    "Candidatos sin guía":    { "main": [ [ { "node": "Barrer guía", "type": "main", "index": 0 } ] ] },
+    "Barrer guía":            { "main": [ [ { "node": "Resumen", "type": "main", "index": 0 } ] ] },
+    "Resumen":                { "main": [ [ { "node": "¿Hay que avisar?", "type": "main", "index": 0 } ] ] },
+    "¿Hay que avisar?":       { "main": [ [ { "node": "Email vigía guías", "type": "main", "index": 0 } ], [] ] }
+  },
+  "settings": { "executionOrder": "v1" }
+}
