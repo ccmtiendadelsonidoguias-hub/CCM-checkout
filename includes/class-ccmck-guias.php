@@ -24,6 +24,25 @@ final class CCMCK_Guias {
     const META_MODALIDAD  = '_ccm_flete_modalidad';
     /** Conversación de Chatwoot que originó la venta (la pone el botón Venta). */
     const META_CONVERSACION = '_ccm_conversation';
+    /** Intentos que lleva el barredor sobre este pedido. */
+    const META_INTENTOS = '_ccmck_guia_intentos';
+
+    /**
+     * Minutos de gracia antes de que el barredor toque un pedido.
+     *
+     * El camino normal (`on_processing`) debe tener su oportunidad primero: sin
+     * gracia, el barredor competiría con él y ambos llamarían a Coordinadora.
+     */
+    const SWEEP_GRACIA_MIN = 10;
+
+    /**
+     * Cuántas veces reintenta el barredor antes de rendirse.
+     *
+     * Un pedido con defecto permanente —producto sin peso, dirección incompleta—
+     * no se arregla reintentando: sin tope martillearía el WS cada 15 minutos y
+     * llenaría el pedido de notas.
+     */
+    const SWEEP_MAX_INTENTOS = 3;
 
     const ENDPOINT_PROD    = 'https://guias.coordinadora.com/ws/guias/1.6/server.php';
     const ENDPOINT_SANDBOX = 'https://sandbox.coordinadora.com/agw/ws/guias/1.6/server.php';
@@ -58,6 +77,35 @@ final class CCMCK_Guias {
         }
         if ( ! empty( $ctx['has_lock'] ) ) {
             return array( 'ok' => false, 'reason' => 'generación en curso (lock)' );
+        }
+        return array( 'ok' => true, 'reason' => '' );
+    }
+
+    /**
+     * ¿Debe el barredor generar la guía de este pedido? PURA.
+     *
+     * Deliberadamente NO acepta `manual`: a diferencia de `/generar-guia`, el
+     * barredor jamás debe saltarse el guard de transportadora. Un pedido enviado
+     * por otra empresa no puede acabar con un rótulo de Coordinadora.
+     *
+     * @param array $ctx {status, shipping_ids, existing_guia, minutos, intentos}
+     * @return array{ok:bool, reason:string}
+     */
+    public static function sweep_decision( array $ctx ): array {
+        if ( 'processing' !== (string) ( $ctx['status'] ?? '' ) ) {
+            return array( 'ok' => false, 'reason' => 'no está en processing' );
+        }
+        if ( ! self::is_coordinadora( (array) ( $ctx['shipping_ids'] ?? array() ) ) ) {
+            return array( 'ok' => false, 'reason' => 'envío con otra transportadora' );
+        }
+        if ( '' !== trim( (string) ( $ctx['existing_guia'] ?? '' ) ) ) {
+            return array( 'ok' => false, 'reason' => 'el pedido ya tiene guía' );
+        }
+        if ( (int) ( $ctx['minutos'] ?? 0 ) < self::SWEEP_GRACIA_MIN ) {
+            return array( 'ok' => false, 'reason' => 'demasiado reciente' );
+        }
+        if ( (int) ( $ctx['intentos'] ?? 0 ) >= self::SWEEP_MAX_INTENTOS ) {
+            return array( 'ok' => false, 'reason' => 'agotados los reintentos' );
         }
         return array( 'ok' => true, 'reason' => '' );
     }
