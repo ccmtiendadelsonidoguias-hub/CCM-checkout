@@ -3,12 +3,24 @@
   "name": "CW Guía - Barredor processing sin guía (15min)",
   "nodes": [
     {
-      "parameters": { "rule": { "interval": [ { "field": "minutes", "minutesInterval": 15 } ] } },
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
       "id": "a1000000-0000-4000-8000-000000000001",
       "name": "Cada 15 min",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [ -260, 300 ]
+      "position": [
+        -260,
+        300
+      ]
     },
     {
       "parameters": {
@@ -18,7 +30,10 @@
       "name": "Ventana 48h",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [ -40, 300 ],
+      "position": [
+        -40,
+        300
+      ],
       "onError": "continueRegularOutput"
     },
     {
@@ -26,14 +41,32 @@
         "url": "={{ 'https://ccmtiendadelsonido.com/wp-json/wc/v3/orders?status=processing&per_page=40&modified_after=' + $json.modified_after }}",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "wooCommerceApi",
-        "options": { "timeout": 30000, "response": { "response": { "neverError": true, "fullResponse": true, "responseFormat": "json" } } }
+        "options": {
+          "timeout": 30000,
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true,
+              "responseFormat": "json"
+            }
+          }
+        }
       },
       "id": "a1000000-0000-4000-8000-000000000003",
       "name": "WC processing recientes",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [ 180, 300 ],
-      "onError": "continueRegularOutput"
+      "position": [
+        180,
+        300
+      ],
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "wooCommerceApi": {
+          "id": "KTLQfIHhnNeZXi8d",
+          "name": "Woo Staging"
+        }
+      }
     },
     {
       "parameters": {
@@ -43,7 +76,10 @@
       "name": "Candidatos sin guía",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [ 400, 300 ],
+      "position": [
+        400,
+        300
+      ],
       "onError": "continueRegularOutput",
       "alwaysOutputData": true
     },
@@ -52,25 +88,51 @@
         "method": "POST",
         "url": "https://ccmtiendadelsonido.com/wp-json/ccmck/v1/barrer-guia",
         "sendHeaders": true,
-        "headerParameters": { "parameters": [
-          { "name": "Content-Type", "value": "application/json" },
-          { "name": "x-ccmck-secret", "value": "={{ $env.CCMCK_GUIAS_SECRET }}" }
-        ] },
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ order_id: $json.order_id }) }}",
         "options": {
           "timeout": 90000,
-          "response": { "response": { "neverError": true, "fullResponse": true, "responseFormat": "json" } },
-          "batching": { "batch": { "batchSize": 1, "batchInterval": 3000 } }
-        }
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true,
+              "responseFormat": "json"
+            }
+          },
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 3000
+            }
+          }
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
       },
       "id": "a1000000-0000-4000-8000-000000000005",
       "name": "Barrer guía",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [ 620, 300 ],
-      "onError": "continueRegularOutput"
+      "position": [
+        620,
+        300
+      ],
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "ccmckGuiasSecret01",
+          "name": "ccmckGuiasSecret01"
+        }
+      }
     },
     {
       "parameters": {
@@ -80,24 +142,71 @@
       "name": "Resumen",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [ 840, 300 ],
+      "position": [
+        840,
+        300
+      ],
       "onError": "continueRegularOutput"
     },
     {
       "parameters": {
-        "conditions": { "options": { "caseSensitive": true, "version": 2 }, "combinator": "or", "conditions": [
-          { "id": "c1", "operator": { "type": "number", "operation": "gt" }, "leftValue": "={{ $json.rendidos }}", "rightValue": 0 },
-          { "id": "c2", "operator": { "type": "number", "operation": "gt" }, "leftValue": "={{ $json.fallos }}", "rightValue": 0 },
-          { "id": "c3", "operator": { "type": "boolean", "operation": "true", "singleValue": true }, "leftValue": "={{ $json.consulta_fallida }}", "rightValue": "" },
-          { "id": "c4", "operator": { "type": "boolean", "operation": "true", "singleValue": true }, "leftValue": "={{ $json.pagina_llena }}", "rightValue": "" }
-        ] },
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "version": 2
+          },
+          "combinator": "or",
+          "conditions": [
+            {
+              "id": "c1",
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              },
+              "leftValue": "={{ $json.rendidos }}",
+              "rightValue": 0
+            },
+            {
+              "id": "c2",
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              },
+              "leftValue": "={{ $json.fallos }}",
+              "rightValue": 0
+            },
+            {
+              "id": "c3",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "leftValue": "={{ $json.consulta_fallida }}",
+              "rightValue": ""
+            },
+            {
+              "id": "c4",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "leftValue": "={{ $json.pagina_llena }}",
+              "rightValue": ""
+            }
+          ]
+        },
         "options": {}
       },
       "id": "a1000000-0000-4000-8000-000000000007",
       "name": "¿Hay que avisar?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [ 1060, 420 ],
+      "position": [
+        1060,
+        420
+      ],
       "onError": "continueRegularOutput"
     },
     {
@@ -112,18 +221,101 @@
       "name": "Email vigía guías",
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
-      "position": [ 1280, 420 ],
-      "onError": "continueRegularOutput"
+      "position": [
+        1280,
+        420
+      ],
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "smtp": {
+          "id": "Et4sVbtbRZwXQB3v",
+          "name": "SMTP account"
+        }
+      }
     }
   ],
   "connections": {
-    "Cada 15 min":            { "main": [ [ { "node": "Ventana 48h", "type": "main", "index": 0 } ] ] },
-    "Ventana 48h":            { "main": [ [ { "node": "WC processing recientes", "type": "main", "index": 0 } ] ] },
-    "WC processing recientes":{ "main": [ [ { "node": "Candidatos sin guía", "type": "main", "index": 0 } ] ] },
-    "Candidatos sin guía":    { "main": [ [ { "node": "Barrer guía", "type": "main", "index": 0 } ] ] },
-    "Barrer guía":            { "main": [ [ { "node": "Resumen", "type": "main", "index": 0 } ] ] },
-    "Resumen":                { "main": [ [ { "node": "¿Hay que avisar?", "type": "main", "index": 0 } ] ] },
-    "¿Hay que avisar?":       { "main": [ [ { "node": "Email vigía guías", "type": "main", "index": 0 } ], [] ] }
+    "Cada 15 min": {
+      "main": [
+        [
+          {
+            "node": "Ventana 48h",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ventana 48h": {
+      "main": [
+        [
+          {
+            "node": "WC processing recientes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WC processing recientes": {
+      "main": [
+        [
+          {
+            "node": "Candidatos sin guía",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Candidatos sin guía": {
+      "main": [
+        [
+          {
+            "node": "Barrer guía",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Barrer guía": {
+      "main": [
+        [
+          {
+            "node": "Resumen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resumen": {
+      "main": [
+        [
+          {
+            "node": "¿Hay que avisar?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Hay que avisar?": {
+      "main": [
+        [
+          {
+            "node": "Email vigía guías",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    }
   },
-  "settings": { "executionOrder": "v1" }
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false
 }
