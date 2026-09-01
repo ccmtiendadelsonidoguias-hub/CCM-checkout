@@ -6,6 +6,11 @@ final class GuiasSweepTest extends TestCase {
 	/** Contexto de un pedido que SÍ debe barrerse; cada prueba cambia una cosa. */
 	private function ctx( array $over = array() ): array {
 		return array_merge( array(
+			// Guards compartidos con should_generate() (C1): sin estos tres,
+			// sweep_decision() bloquearía TODO por defecto.
+			'enabled'       => true,
+			'usuario'       => 'ccmtienda.ws',
+			'clave'         => 'x',
 			'status'        => 'processing',
 			'shipping_ids'  => array( 'ccmck_coordinadora' ),
 			'existing_guia' => '',
@@ -44,6 +49,49 @@ final class GuiasSweepTest extends TestCase {
 	public function test_guia_en_blanco_no_cuenta_como_guia(): void {
 		$r = CCMCK_Guias::sweep_decision( $this->ctx( array( 'existing_guia' => '   ' ) ) );
 		$this->assertTrue( $r['ok'] );
+	}
+
+	// -- C1: guards delegados en should_generate() ------------------------
+	//
+	// El dueño puede desmarcar "Generar guías automáticamente" (guias_enabled)
+	// porque despacha por otra empresa esa semana. El hook automático obedece
+	// ese apagado; sin esta delegación el barredor lo ignoraba por completo y
+	// generaba guías de todos los pedidos igual, sin forma de pararlo desde
+	// WordPress.
+
+	public function test_no_barre_con_generacion_automatica_apagada(): void {
+		$r = CCMCK_Guias::sweep_decision( $this->ctx( array( 'enabled' => false ) ) );
+		$this->assertFalse( $r['ok'] );
+		$this->assertSame( 'generación de guías desactivada', $r['reason'] );
+	}
+
+	public function test_no_barre_sin_usuario_del_ws(): void {
+		$r = CCMCK_Guias::sweep_decision( $this->ctx( array( 'usuario' => '' ) ) );
+		$this->assertFalse( $r['ok'] );
+		$this->assertSame( 'faltan credenciales del WS de guías', $r['reason'] );
+	}
+
+	public function test_no_barre_sin_clave_del_ws(): void {
+		$r = CCMCK_Guias::sweep_decision( $this->ctx( array( 'clave' => '' ) ) );
+		$this->assertFalse( $r['ok'] );
+		$this->assertSame( 'faltan credenciales del WS de guías', $r['reason'] );
+	}
+
+	/** Recogida local: el barredor tampoco debe rescatarla (a diferencia del botón manual). */
+	public function test_no_barre_pedidos_de_recogida_local(): void {
+		$r = CCMCK_Guias::sweep_decision( $this->ctx( array( 'shipping_ids' => array( 'local_pickup' ) ) ) );
+		$this->assertFalse( $r['ok'] );
+		$this->assertSame( 'pedido con recogida local', $r['reason'] );
+	}
+
+	/** El guard de transportadora del barredor NUNCA se salta, ni con `manual` colado en el ctx. */
+	public function test_ignora_manual_si_alguien_lo_cuela_en_el_contexto(): void {
+		$r = CCMCK_Guias::sweep_decision( $this->ctx( array(
+			'manual'       => true,
+			'shipping_ids' => array( 'flat_rate:3' ),
+		) ) );
+		$this->assertFalse( $r['ok'] );
+		$this->assertSame( 'envío con otra transportadora', $r['reason'] );
 	}
 
 	/** Gracia: el camino normal tiene su oportunidad antes de que entre el barredor. */

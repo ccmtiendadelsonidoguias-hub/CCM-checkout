@@ -88,18 +88,44 @@ final class CCMCK_Guias {
      * barredor jamás debe saltarse el guard de transportadora. Un pedido enviado
      * por otra empresa no puede acabar con un rótulo de Coordinadora.
      *
-     * @param array $ctx {status, shipping_ids, existing_guia, minutos, intentos}
+     * Reutiliza should_generate() para los guards que comparten los dos
+     * caminos —apagado (`guias_enabled`), credenciales del WS y recogida
+     * local— en vez de repetirlos aquí. Sin esto el barredor podía generar
+     * guías con el interruptor «Generar guías automáticamente» apagado: el
+     * dueño lo desmarca porque despacha por otra empresa esa semana, el hook
+     * automático deja de generar, y quince minutos después el barredor
+     * generaba igual, sin forma de pararlo desde WordPress. Encima de esos
+     * guards compartidos añade los propios del barredor: estado, gracia en
+     * minutos e intentos agotados.
+     *
+     * @param array $ctx {enabled, usuario, clave, status, shipping_ids, existing_guia, minutos, intentos}
      * @return array{ok:bool, reason:string}
      */
     public static function sweep_decision( array $ctx ): array {
+        // Sin 'manual': el guard de transportadora y el de recogida local de
+        // should_generate() siguen aplicando (a diferencia del botón manual).
+        $compartidos = self::should_generate( array(
+            'enabled'       => $ctx['enabled'] ?? false,
+            'usuario'       => $ctx['usuario'] ?? '',
+            'clave'         => $ctx['clave'] ?? '',
+            'shipping_ids'  => (array) ( $ctx['shipping_ids'] ?? array() ),
+            // Trim propio: un espacio en blanco no debe contar como guía
+            // existente (si no, el barredor se saltaría el pedido para
+            // siempre). should_generate() no trimea porque sus otros
+            // llamadores nunca reciben ese ruido; aquí sí puede venir del
+            // meta crudo del pedido.
+            'existing_guia' => trim( (string) ( $ctx['existing_guia'] ?? '' ) ),
+            // El candado se comprueba aparte, en rest_sweep(), DESPUÉS de esta
+            // decisión: un candado ajeno no es un intento fallido de este
+            // pedido, es que ya lo está atendiendo otra vía.
+            'has_lock'      => false,
+        ) );
+        if ( ! $compartidos['ok'] ) {
+            return $compartidos;
+        }
+
         if ( 'processing' !== (string) ( $ctx['status'] ?? '' ) ) {
             return array( 'ok' => false, 'reason' => 'no está en processing' );
-        }
-        if ( ! self::is_coordinadora( (array) ( $ctx['shipping_ids'] ?? array() ) ) ) {
-            return array( 'ok' => false, 'reason' => 'envío con otra transportadora' );
-        }
-        if ( '' !== trim( (string) ( $ctx['existing_guia'] ?? '' ) ) ) {
-            return array( 'ok' => false, 'reason' => 'el pedido ya tiene guía' );
         }
         if ( (int) ( $ctx['minutos'] ?? 0 ) < self::SWEEP_GRACIA_MIN ) {
             return array( 'ok' => false, 'reason' => 'demasiado reciente' );
@@ -602,6 +628,11 @@ final class CCMCK_Guias {
      * éxito guarda metas + notas y dispara el aviso de WhatsApp; en fallo
      * loguea y devuelve el motivo (el llamador decide cómo presentarlo).
      *
+     * `$opts['timeout']` es opcional: si no viene, `rpc()` usa su propio
+     * valor por defecto (15 s, el mismo de siempre para el hook automático y
+     * el botón manual). Solo el barredor lo pasa explícito (60 s): corre en
+     * segundo plano, no dentro del cobro del cliente.
+     *
      * @return array{ok:bool, error:string}
      */
     private static function generate_for_order( $order, array $opts = array() ): array {
@@ -663,7 +694,9 @@ final class CCMCK_Guias {
             'detalle'      => $detalle,
         ) );
 
-        $response = self::rpc( 'Guias.generarGuia', $params );
+        $response = isset( $opts['timeout'] )
+            ? self::rpc( 'Guias.generarGuia', $params, (int) $opts['timeout'] )
+            : self::rpc( 'Guias.generarGuia', $params );
         if ( is_wp_error( $response ) ) {
             self::log( 'Guía pedido #' . $order_id . ' HTTP: ' . $response->get_error_message() );
             return array( 'ok' => false, 'error' => 'error de conexión con el WS de guías (' . $response->get_error_message() . ')' );
@@ -1249,15 +1282,32 @@ final class CCMCK_Guias {
      *
      * Separado de `/generar-guia` a propósito: aquel pasa `manual:true` y se
      * salta el guard de transportadora, cosa que un proceso automático no debe
-     * hacer nunca. Aquí el guard se respeta.
+     * hacer nunca. Aquí el guard se respeta —delegado en sweep_decision(), que
+     * a su vez reutiliza should_generate() para el apagado (`guias_enabled`),
+     * las credenciales del WS y la recogida local, igual que on_processing().
      *
-     * Idempotente: si el pedido ya tiene guía responde `skipped` sin tocar nada.
+     * Minutos transcurridos: se miden desde get_date_paid() y, si falta, caen
+     * a get_date_created() (ver sweep_minutos()) — sin esa caída un pedido sin
+     * fecha de pago quedaba invisible para el barredor para siempre.
+     *
+     * Candado compartido con on_processing()/ajax_generate()/rest_generate():
+     * si otra vía está generando la guía de este pedido ahora mismo, el
+     * barredor se aparta en vez de competir por el mismo envío.
+     *
+     * "Idempotente" con matiz, no en absoluto: si el pedido ya tiene guía
+     * responde `skipped` sin tocar nada, pero esa idempotencia se apoya en un
+     * transient de 60 s. Si generate_for_order() sigue en curso pasado ese
+     * minuto, el candado ya caducó y una pasada siguiente del cron podría
+     * volver a intentar el mismo pedido mientras la primera llamada sigue
+     * viva — la protección real contra la doble guía la da, sobre todo, el
+     * guard de `existing_guia` en sweep_decision() una vez la primera llamada
+     * termine y guarde la guía, no el candado por sí solo.
      */
     public static function rest_sweep( $request ) {
         $order_id = absint( $request['order_id'] ?? 0 );
         $order    = $order_id ? wc_get_order( $order_id ) : null;
         if ( ! $order ) {
-            return new WP_Error( 'ccmck_not_found', 'Pedido no encontrado.', array( 'status' => 404 ) );
+            return new WP_Error( 'ccmck_not_found', 'Pedido no encontrado.', array( 'status' => 404, 'order_id' => $order_id ) );
         }
 
         $pagado   = $order->get_date_paid();
@@ -1270,6 +1320,9 @@ final class CCMCK_Guias {
         $intentos = (int) $order->get_meta( self::META_INTENTOS );
 
         $check = self::sweep_decision( array(
+            'enabled'       => (bool) CCMCK_Settings::get( 'guias_enabled', false ),
+            'usuario'       => (string) CCMCK_Settings::get( 'guias_usuario', '' ),
+            'clave'         => (string) CCMCK_Settings::get( 'guias_clave', '' ),
             'status'        => (string) $order->get_status(),
             'shipping_ids'  => self::order_shipping_ids( $order ),
             'existing_guia' => (string) $order->get_meta( self::META_GUIA ),
@@ -1283,6 +1336,7 @@ final class CCMCK_Guias {
                 'skipped'  => true,
                 'reason'   => $check['reason'],
                 'intentos' => $intentos,
+                'order_id' => $order_id,
             ) );
         }
 
@@ -1302,6 +1356,7 @@ final class CCMCK_Guias {
                 'skipped'  => true,
                 'reason'   => 'generación en curso (lock)',
                 'intentos' => $intentos,
+                'order_id' => $order_id,
             ) );
         }
         set_transient( 'ccmck_guia_lock_' . $order_id, 1, 60 );
@@ -1313,18 +1368,48 @@ final class CCMCK_Guias {
         $order->update_meta_data( self::META_INTENTOS, (string) $intentos );
         $order->save();
 
-        $ce     = self::ce_requested( '', self::order_shipping_ids( $order ), (string) $order->get_meta( self::META_MODALIDAD ) );
-        $result = self::generate_for_order( $order, array( 'contra_entrega' => $ce ) );
+        $ce = self::ce_requested( '', self::order_shipping_ids( $order ), (string) $order->get_meta( self::META_MODALIDAD ) );
+        // 60 s en vez de los 15 por defecto: el barredor corre en segundo
+        // plano (cron cada 15 min), no dentro del cobro del cliente, así que
+        // puede esperar más a que Coordinadora conteste. Dos de los tres
+        // pedidos que motivaron este barredor fallaron con "cURL error 28:
+        // Operation timed out after 15002 milliseconds".
+        $result = self::generate_for_order( $order, array( 'contra_entrega' => $ce, 'timeout' => 60 ) );
 
         if ( ! $result['ok'] ) {
             delete_transient( 'ccmck_guia_lock_' . $order_id );
-            $order->add_order_note( sprintf(
-                'Barredor de guías: intento %d de %d falló (%s).',
-                $intentos,
-                self::SWEEP_MAX_INTENTOS,
-                $result['error']
-            ) );
-            return new WP_Error( 'ccmck_failed', $result['error'], array( 'status' => 422 ) );
+
+            // Un timeout NO dice que Coordinadora no creó la remesa: dice que no
+            // contestó a tiempo. Reintentar a ciegas puede crear una segunda guía
+            // para el mismo envío, y el cliente recibe por WhatsApp el número de
+            // la segunda mientras el paquete puede salir con la primera. Ante esa
+            // duda el barredor deja de tocar el pedido: agota los intentos de
+            // golpe para que la próxima pasada lo reporte como 'agotados los
+            // reintentos' (la cadena que dispara la alerta) y deja una nota
+            // pidiendo comprobar el portal antes de generar otra. Un rechazo
+            // normal del servicio (dirección incompleta, producto sin peso) no
+            // entra por este camino y sigue reintentando como siempre: eso no
+            // crea nada al otro lado de Coordinadora.
+            if ( false !== stripos( $result['error'], 'error de conexión' ) ) {
+                $intentos = self::SWEEP_MAX_INTENTOS;
+                $order->update_meta_data( self::META_INTENTOS, (string) $intentos );
+                $order->save();
+                $order->add_order_note(
+                    'Barredor de guías: fallo de conexión con el WS de Coordinadora (' . $result['error'] . '). '
+                    . 'PUEDE EXISTIR UNA GUÍA en el portal aunque aquí no se confirmó su creación: '
+                    . 'comprobar en el portal de Coordinadora ANTES de generar otra a mano. '
+                    . 'El barredor deja de reintentar este pedido automáticamente.'
+                );
+            } else {
+                $order->add_order_note( sprintf(
+                    'Barredor de guías: intento %d de %d falló (%s).',
+                    $intentos,
+                    self::SWEEP_MAX_INTENTOS,
+                    $result['error']
+                ) );
+            }
+
+            return new WP_Error( 'ccmck_failed', $result['error'], array( 'status' => 422, 'order_id' => $order_id ) );
         }
 
         $order->add_order_note( sprintf(
@@ -1336,6 +1421,7 @@ final class CCMCK_Guias {
             'ok'       => true,
             'guia'     => (string) $order->get_meta( self::META_GUIA ),
             'intentos' => $intentos,
+            'order_id' => $order_id,
         ) );
     }
 
