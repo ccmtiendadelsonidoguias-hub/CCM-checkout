@@ -58,6 +58,13 @@ final class GuiasSweepTest extends TestCase {
 		$this->assertTrue( $r['ok'] );
 	}
 
+	/** Borde inmediatamente inferior al límite: un minuto antes, todavía NO se barre. */
+	public function test_justo_debajo_del_limite_de_la_gracia_no_se_barre(): void {
+		$r = CCMCK_Guias::sweep_decision( $this->ctx( array( 'minutos' => CCMCK_Guias::SWEEP_GRACIA_MIN - 1 ) ) );
+		$this->assertFalse( $r['ok'] );
+		$this->assertSame( 'demasiado reciente', $r['reason'] );
+	}
+
 	/** Sin tope, un pedido con defecto permanente martillea a Coordinadora cada 15 min. */
 	public function test_se_rinde_tras_agotar_los_intentos(): void {
 		$r = CCMCK_Guias::sweep_decision( $this->ctx( array( 'intentos' => CCMCK_Guias::SWEEP_MAX_INTENTOS ) ) );
@@ -89,5 +96,43 @@ final class GuiasSweepTest extends TestCase {
 		// Cinco motivos, cinco cadenas distintas: el barredor alerta solo con una.
 		$this->assertCount( 5, array_unique( $motivos ) );
 		$this->assertContains( 'agotados los reintentos', $motivos );
+	}
+
+	// -- sweep_minutos() -------------------------------------------------
+	//
+	// PURA y sin WooCommerce: si get_date_paid() es null, rest_sweep() no debe
+	// quedarse en 0 minutos para siempre (eso deja al pedido invisible para el
+	// barredor de por vida). Ancla de tiempo fija ($ahora) para no depender del
+	// reloj del runner.
+
+	private const SWEEP_AHORA = 1893456000;
+
+	public function test_minutos_con_fecha_de_pago_normal(): void {
+		$pagado = self::SWEEP_AHORA - ( 45 * 60 );
+		$this->assertSame( 45, CCMCK_Guias::sweep_minutos( $pagado, null, self::SWEEP_AHORA ) );
+	}
+
+	/** Sin fecha de pago pero con fecha de creación: debe usar la de creación. */
+	public function test_minutos_sin_fecha_de_pago_usa_la_de_creacion(): void {
+		$creado = self::SWEEP_AHORA - ( 20 * 60 );
+		$this->assertSame( 20, CCMCK_Guias::sweep_minutos( null, $creado, self::SWEEP_AHORA ) );
+	}
+
+	/** Sin ninguna de las dos marcas: 0, no un error ni un pedido invisible. */
+	public function test_minutos_sin_pago_ni_creacion_da_cero(): void {
+		$this->assertSame( 0, CCMCK_Guias::sweep_minutos( null, null, self::SWEEP_AHORA ) );
+	}
+
+	/** Un pago no positivo (0) cuenta como "no hay fecha de pago": cae a creación. */
+	public function test_minutos_pago_no_positivo_cae_a_creacion(): void {
+		$creado = self::SWEEP_AHORA - ( 10 * 60 );
+		$this->assertSame( 10, CCMCK_Guias::sweep_minutos( 0, $creado, self::SWEEP_AHORA ) );
+	}
+
+	/** Marcas futuras (reloj desincronizado) nunca deben dar minutos negativos. */
+	public function test_minutos_nunca_es_negativo_con_marcas_futuras(): void {
+		$futuro = self::SWEEP_AHORA + 3600;
+		$this->assertSame( 0, CCMCK_Guias::sweep_minutos( $futuro, null, self::SWEEP_AHORA ) );
+		$this->assertSame( 0, CCMCK_Guias::sweep_minutos( null, $futuro, self::SWEEP_AHORA ) );
 	}
 }

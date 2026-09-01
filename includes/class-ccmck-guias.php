@@ -111,6 +111,35 @@ final class CCMCK_Guias {
     }
 
     /**
+     * Minutos transcurridos desde que el pedido quedó listo para generar guía. PURA.
+     *
+     * Usa la fecha de pago; si no hay (get_date_paid() puede devolver null —
+     * pagos que no disparan ese hook, o el dato aún no propagado), cae a la de
+     * creación. Sin esta caída, un pedido sin fecha de pago se quedaba en 0
+     * minutos en cada pasada del barredor: nunca superaba la gracia, nunca subía
+     * el contador de intentos y nunca llegaba a 'agotados los reintentos' —la
+     * única cadena que dispara la alerta por correo—, así que quedaba barrido en
+     * silencio para siempre. Si tampoco hay fecha de creación, 0 (no hay nada de
+     * qué medir). Nunca negativo: un reloj desincronizado no debe dar minutos
+     * negativos, que colarían por debajo de cualquier umbral.
+     *
+     * Sin objetos de WooCommerce a propósito: el llamador convierte
+     * get_date_paid()/get_date_created() a timestamp (o null) antes de llamar,
+     * para poder probar esto sin cargar WordPress.
+     *
+     * @param int|null $ts_pagado Timestamp Unix de get_date_paid(), o null.
+     * @param int|null $ts_creado Timestamp Unix de get_date_created(), o null.
+     * @param int      $ahora     Timestamp Unix "ahora" (inyectado para poder probar).
+     */
+    public static function sweep_minutos( $ts_pagado, $ts_creado, $ahora ): int {
+        $ts = ( null !== $ts_pagado && $ts_pagado > 0 ) ? $ts_pagado : $ts_creado;
+        if ( null === $ts || $ts <= 0 ) {
+            return 0;
+        }
+        return max( 0, (int) floor( ( (int) $ahora - (int) $ts ) / 60 ) );
+    }
+
+    /**
      * ¿El envío es con Coordinadora? PURO. Cubre las dos variantes que existen en
      * pedidos reales ('ccmck_coordinadora' y el legado 'coordinadora'). Un pedido sin
      * línea de envío devuelve false: sin método no hay despacho que rotular, y el
@@ -1232,7 +1261,12 @@ final class CCMCK_Guias {
         }
 
         $pagado   = $order->get_date_paid();
-        $minutos  = $pagado ? (int) floor( ( time() - $pagado->getTimestamp() ) / 60 ) : 0;
+        $creado   = $order->get_date_created();
+        $minutos  = self::sweep_minutos(
+            $pagado ? $pagado->getTimestamp() : null,
+            $creado ? $creado->getTimestamp() : null,
+            time()
+        );
         $intentos = (int) $order->get_meta( self::META_INTENTOS );
 
         $check = self::sweep_decision( array(
@@ -1252,6 +1286,26 @@ final class CCMCK_Guias {
             ) );
         }
 
+        // Mismo candado que on_processing()/ajax_generate()/rest_generate(): si otra
+        // vía está generando la guía de este pedido ahora mismo (típico: el barredor
+        // lo alcanza justo porque algo falló, y a la vez un asesor pulsa "generar
+        // guía" en el admin), el barredor se aparta en vez de competir por el mismo
+        // envío — dos llamadas simultáneas ya produjeron dos guías para el mismo
+        // pedido, que hubo que anular a mano en el portal de Coordinadora. Se
+        // consulta DESPUÉS de sweep_decision() y ANTES de subir el contador: un
+        // candado ajeno no es un intento fallido de este pedido, es que ya lo está
+        // atendiendo otra vía; el pedido vuelve en la siguiente pasada del cron,
+        // cuando el candado (60 s) ya se habrá liberado.
+        if ( false !== get_transient( 'ccmck_guia_lock_' . $order_id ) ) {
+            return rest_ensure_response( array(
+                'ok'       => false,
+                'skipped'  => true,
+                'reason'   => 'generación en curso (lock)',
+                'intentos' => $intentos,
+            ) );
+        }
+        set_transient( 'ccmck_guia_lock_' . $order_id, 1, 60 );
+
         // El contador sube ANTES de intentar: si la petición muere a mitad —que es
         // justamente el fallo que este barredor cubre— el intento igual queda contado
         // y el pedido no se reintenta para siempre.
@@ -1263,6 +1317,7 @@ final class CCMCK_Guias {
         $result = self::generate_for_order( $order, array( 'contra_entrega' => $ce ) );
 
         if ( ! $result['ok'] ) {
+            delete_transient( 'ccmck_guia_lock_' . $order_id );
             $order->add_order_note( sprintf(
                 'Barredor de guías: intento %d de %d falló (%s).',
                 $intentos,
