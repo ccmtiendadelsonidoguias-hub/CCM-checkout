@@ -1015,3 +1015,92 @@
 		transition: none;
 	}
 }
+
+/* ==========================================================================
+   Avisos de éxito del carrito (`.woocommerce-message`)
+   ==========================================================================
+   Llegaba con el cromo nativo de WooCommerce y se veía como tal: banda gris
+   #f6f5f8 de borde a borde, barra verde oliva #8fae1b de 3px arriba, texto
+   gris #515151 y un check de su fuente de iconos. Mismo problema que ya se
+   arregló para el carrito vacío: la pantalla más nativa de la tienda al lado
+   de un carrito rediseñado.
+
+   Decisiones, y por qué:
+
+   · NEUTRO, NO VERDE. La paleta de la tienda no tiene verde, y el único color
+     con carga es el rojo, que significa error. Un «Carrito actualizado.» no es
+     una noticia: el cliente acaba de hacerlo él. Se lee como confirmación
+     tranquila —tinta sobre blanco con filete— en vez de como alerta.
+   · La marca de verificación se dibuja con dos bordes girados y `currentColor`,
+     no con la fuente de iconos de WooCommerce ni con un SVG incrustado: hereda
+     el color del texto y no fija ningún hex que luego se desincronice del token.
+   · Radio 10 y filete de `--ccm-linea`, que es el lenguaje de las tarjetas del
+     carrito, para que el aviso pertenezca a la página y no flote encima.
+   · PADDING HORIZONTAL 16px, no 18. Medido: `ul.ccmck-cart__items` usa 16px,
+     así que con 16 el texto del aviso cae en la misma vertical que el nombre de
+     los productos de debajo en vez de dos píxeles adentro. (El resumen usa 24,
+     pero es otro bloque y no está pegado al aviso.)
+   · FONDO `--ccm-tile`, NO blanco. Primero se probó blanco y quedaba invisible:
+     medido, el `body` del carrito es blanco y la tarjeta de producto también, y
+     el filete de #ececec no basta para contener nada sobre ese fondo. El tile
+     (#f6f6f6) le da cuerpo sin introducir color ni subir el tono de urgencia.
+   · `role="alert"` y `tabindex="-1"` los pone WooCommerce y aquí no se tocan:
+     es lo que hace que un lector de pantalla lo anuncie al repintar.
+
+   Esta hoja se encola solo si `is_cart()`, así que estos selectores no alcanzan
+   los avisos del resto de la tienda.
+   ========================================================================== */
+
+.woocommerce .woocommerce-message {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	margin: 0 0 20px;
+	padding: 14px 16px;
+	border: 1px solid var(--ccm-linea);
+	border-top-width: 1px;                 /* mata la barra verde de 3px */
+	border-radius: 10px;
+	background: var(--ccm-tile);
+	color: var(--ccm-tinta);
+	font-size: 15px;
+	font-weight: 600;
+	line-height: 1.4;
+	letter-spacing: -0.01em;
+	list-style: none;
+}
+
+/* El check. WooCommerce lo posiciona en absoluto y reserva 56px de padding
+   izquierdo; aquí vuelve al flujo para que el flex lo alinee. */
+.woocommerce .woocommerce-message::before {
+	content: "";
+	position: static;
+	flex: 0 0 auto;
+	width: 6px;
+	height: 11px;
+	margin: -3px 2px 0 2px;
+	border: solid currentColor;
+	border-width: 0 2px 2px 0;
+	transform: rotate(45deg);
+	font-family: inherit;                  /* suelta la fuente de iconos */
+	color: inherit;
+}
+
+/* Entrada breve: el aviso aparece al repintar el carrito y conviene que se
+   note sin pedir atención. Se respeta quien pidió no ver movimiento. */
+@media ( prefers-reduced-motion: no-preference ) {
+	.woocommerce .woocommerce-message {
+		animation: ccmck-aviso-entra .22s cubic-bezier( .2, 0, .13, 1 ) both;
+	}
+}
+
+@keyframes ccmck-aviso-entra {
+	from { opacity: 0; transform: translateY( -4px ); }
+	to   { opacity: 1; transform: none; }
+}
+
+/* Algunos avisos traen un botón dentro («Ver carrito» cuando se añade desde
+   otra página). Se manda al final para que el texto siga leyéndose primero. */
+.woocommerce .woocommerce-message .button {
+	margin-left: auto;
+	flex: 0 0 auto;
+}
