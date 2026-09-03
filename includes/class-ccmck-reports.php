@@ -24,17 +24,38 @@ defined( 'ABSPATH' ) || exit;
 
 final class CCMCK_Reports {
 
-    const META_ORIGEN = '_ccm_origen';
-    const ORIGEN_BOT  = 'chatwoot_venta';
+    const META_ORIGEN  = '_ccm_origen';
+    const ORIGEN_BOT   = 'chatwoot_venta';
+    /** Meta nueva (2026-09-03): 'asesor' cuando la venta la atribuye un asesor, 'bot' si la cerró el bot. */
+    const META_CANAL   = '_ccm_canal_venta';
+    const CANAL_ASESOR = 'asesor';
+    /** Meta con el id de vendedor de Alegra que escribe el botón Venta. */
+    const META_SELLER  = '_ccm_alegra_seller_id';
+
+    const SCOPE_EXCLUDE_ALL = 'exclude_all'; // pestaña Ventas: fuera TODO lo del chat
+    const SCOPE_ONLY_BOT    = 'only_bot';    // pestaña Ventas del bot
+    const SCOPE_ONLY_ASESOR = 'only_asesor'; // pestaña Ventas asesores
 
     /**
-     * Mientras es true, filter_report_query() invierte el filtro: en vez de
-     * excluir las ventas del bot, incluye SÓLO esas. Lo activa render_bot_report()
-     * justo antes de delegar en el WC_Report_Sales_By_Date de WooCommerce (mismo
-     * gráfico/CSV que "Ventas"), y lo apaga apenas termina — así el resto de
-     * pestañas (Ventas, Clientes, Stock, Impuestos) siguen excluyendo como antes.
+     * Qué subconjunto cuenta el informe clásico mientras se pinta. Lo cambian
+     * render_bot_report() / render_asesores_report() justo antes de delegar en
+     * WC_Report_Sales_By_Date y lo devuelven a EXCLUDE_ALL al terminar, así el
+     * resto de pestañas (Ventas, Clientes, Stock, Impuestos) siguen excluyendo.
      */
-    private static $scope_only_bot = false;
+    private static string $scope = self::SCOPE_EXCLUDE_ALL;
+
+    /** Con SCOPE_ONLY_ASESOR: id de vendedor Alegra a filtrar ('' = todos). Solo dígitos. */
+    private static string $vendedor = '';
+
+    /**
+     * Fija scope y vendedor. Scope desconocido → EXCLUDE_ALL; vendedor se limpia a
+     * dígitos para que jamás llegue nada raro al SQL (igual pasa por prepare()). PURO.
+     */
+    public static function set_scope( string $scope, string $vendedor = '' ): void {
+        $validos        = array( self::SCOPE_EXCLUDE_ALL, self::SCOPE_ONLY_BOT, self::SCOPE_ONLY_ASESOR );
+        self::$scope    = in_array( $scope, $validos, true ) ? $scope : self::SCOPE_EXCLUDE_ALL;
+        self::$vendedor = preg_replace( '/\D+/', '', $vendedor );
+    }
 
     /**
      * Rango de fechas del informe, con la misma semántica que
@@ -92,11 +113,10 @@ final class CCMCK_Reports {
     }
 
     /**
-     * Subquery reusada por el filtro del informe y por bot_totals(): IDs de
-     * pedido con la meta del bot. Ya viene escapada por $wpdb->prepare(), así
-     * que se puede insertar tal cual en el WHERE de otra query.
+     * IDs de pedido creados por el botón Venta (bot o asesor). Ya viene escapada
+     * por $wpdb->prepare(), se inserta tal cual en otro WHERE.
      */
-    private static function bot_orders_subquery(): string {
+    public static function chat_orders_subquery(): string {
         global $wpdb;
         return $wpdb->prepare(
             "SELECT ccm_org.post_id FROM {$wpdb->postmeta} AS ccm_org
@@ -107,11 +127,41 @@ final class CCMCK_Reports {
     }
 
     /**
-     * Filtra el informe clásico por origen del pedido. Se engancha a
+     * IDs de pedido atribuidos a un asesor (meta _ccm_canal_venta = asesor), y si
+     * $vendedor no está vacío, solo los de ese vendedor de Alegra.
+     */
+    public static function asesor_orders_subquery( string $vendedor = '' ): string {
+        global $wpdb;
+        $sql = $wpdb->prepare(
+            "SELECT ccm_can.post_id FROM {$wpdb->postmeta} AS ccm_can
+              WHERE ccm_can.meta_key = %s AND ccm_can.meta_value = %s",
+            self::META_CANAL,
+            self::CANAL_ASESOR
+        );
+        $vendedor = preg_replace( '/\D+/', '', $vendedor );
+        if ( '' !== $vendedor ) {
+            $sql .= $wpdb->prepare(
+                " AND ccm_can.post_id IN ( SELECT ccm_sel.post_id FROM {$wpdb->postmeta} AS ccm_sel
+                                            WHERE ccm_sel.meta_key = %s AND ccm_sel.meta_value = %s )",
+                self::META_SELLER,
+                $vendedor
+            );
+        }
+        return $sql;
+    }
+
+    /**
+     * IDs del bot = pedidos del chat que NO son de asesor. Los pedidos anteriores a
+     * 2026-09-03 no tienen _ccm_canal_venta y por eso cuentan como bot: es lo que
+     * fueron (todos llevaban vendedor 9).
+     */
+    public static function bot_orders_subquery(): string {
+        return self::chat_orders_subquery() . ' AND ccm_org.post_id NOT IN ( ' . self::asesor_orders_subquery() . ' )';
+    }
+
+    /**
+     * Filtra el informe clásico según el scope activo. Se engancha a
      * woocommerce_reports_get_order_report_query, que recibe la query ya armada.
-     * Por defecto EXCLUYE las ventas del bot (pestaña "Ventas" normal); mientras
-     * $scope_only_bot esté activo, hace lo contrario: sólo esas ventas (pestaña
-     * "Ventas del bot").
      *
      * @param array $query Partes SQL del informe (select/from/where/…).
      * @return array
@@ -120,8 +170,17 @@ final class CCMCK_Reports {
         if ( ! is_array( $query ) ) {
             return $query;
         }
-        $operador        = self::$scope_only_bot ? 'IN' : 'NOT IN';
-        $query['where']  = ( $query['where'] ?? '' ) . ' AND posts.ID ' . $operador . ' ( ' . self::bot_orders_subquery() . ' ) ';
+        switch ( self::$scope ) {
+            case self::SCOPE_ONLY_BOT:
+                $clausula = ' AND posts.ID IN ( ' . self::bot_orders_subquery() . ' ) ';
+                break;
+            case self::SCOPE_ONLY_ASESOR:
+                $clausula = ' AND posts.ID IN ( ' . self::asesor_orders_subquery( self::$vendedor ) . ' ) ';
+                break;
+            default:
+                $clausula = ' AND posts.ID NOT IN ( ' . self::chat_orders_subquery() . ' ) ';
+        }
+        $query['where'] = ( $query['where'] ?? '' ) . $clausula;
         return $query;
     }
 
@@ -260,10 +319,10 @@ final class CCMCK_Reports {
             }
             include_once $archivo;
         }
-        self::$scope_only_bot = true;
-        $reporte               = new WC_Report_Sales_By_Date();
+        self::set_scope( self::SCOPE_ONLY_BOT );
+        $reporte = new WC_Report_Sales_By_Date();
         $reporte->output_report();
-        self::$scope_only_bot = false;
+        self::set_scope( self::SCOPE_EXCLUDE_ALL );
     }
 
     public static function init(): void {

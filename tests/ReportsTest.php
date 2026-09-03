@@ -90,32 +90,66 @@ final class ReportsTest extends TestCase {
         $this->assertStringContainsString( 'NOT IN', $q['where'] );
     }
 
-    // --- pestaña "Ventas del bot": el filtro se invierte mientras está activa ---
+    // --- scopes: Ventas excluye todo el chat; bot y asesores son subconjuntos disjuntos ---
 
-    /** Prende/apaga $scope_only_bot como lo hace render_bot_report(), sin cargar WC_Report_Sales_By_Date. */
-    private function set_scope_only_bot( bool $on ): void {
-        $prop = new ReflectionProperty( CCMCK_Reports::class, 'scope_only_bot' );
-        $prop->setAccessible( true );
-        $prop->setValue( null, $on );
-    }
-
-    public function test_scope_only_bot_invierte_el_filtro(): void {
+    public function test_scope_only_bot_incluye_solo_pedidos_del_bot(): void {
         $GLOBALS['wpdb'] = new CCMCK_Fake_Wpdb();
         try {
-            $this->set_scope_only_bot( true );
+            CCMCK_Reports::set_scope( CCMCK_Reports::SCOPE_ONLY_BOT );
             $q = CCMCK_Reports::filter_report_query( array( 'where' => '' ) );
             $this->assertStringContainsString( 'posts.ID IN (', $q['where'] );
-            $this->assertStringNotContainsString( 'NOT IN', $q['where'] );
+            $this->assertStringContainsString( "'chatwoot_venta'", $q['where'] );
+            // bot = chat que NO es asesor: la subquery de asesor va dentro con NOT IN
+            $this->assertStringContainsString( "'_ccm_canal_venta'", $q['where'] );
+            $this->assertStringContainsString( "'asesor'", $q['where'] );
+            $this->assertStringContainsString( 'NOT IN', $q['where'] );
+            $this->assertSame( substr_count( $q['where'], '(' ), substr_count( $q['where'], ')' ) );
         } finally {
-            $this->set_scope_only_bot( false );
+            CCMCK_Reports::set_scope( CCMCK_Reports::SCOPE_EXCLUDE_ALL );
         }
+    }
+
+    public function test_scope_only_asesor_incluye_solo_asesores(): void {
+        $GLOBALS['wpdb'] = new CCMCK_Fake_Wpdb();
+        try {
+            CCMCK_Reports::set_scope( CCMCK_Reports::SCOPE_ONLY_ASESOR );
+            $q = CCMCK_Reports::filter_report_query( array( 'where' => '' ) );
+            $this->assertStringContainsString( 'posts.ID IN (', $q['where'] );
+            $this->assertStringContainsString( "'_ccm_canal_venta'", $q['where'] );
+            $this->assertStringContainsString( "'asesor'", $q['where'] );
+            $this->assertStringNotContainsString( "'chatwoot_venta'", $q['where'], 'asesor se define por canal, no por origen' );
+            $this->assertStringNotContainsString( '_ccm_alegra_seller_id', $q['where'], 'sin vendedor no filtra por vendedor' );
+        } finally {
+            CCMCK_Reports::set_scope( CCMCK_Reports::SCOPE_EXCLUDE_ALL );
+        }
+    }
+
+    public function test_scope_only_asesor_filtra_por_vendedor(): void {
+        $GLOBALS['wpdb'] = new CCMCK_Fake_Wpdb();
+        try {
+            CCMCK_Reports::set_scope( CCMCK_Reports::SCOPE_ONLY_ASESOR, '3' );
+            $q = CCMCK_Reports::filter_report_query( array( 'where' => '' ) );
+            $this->assertStringContainsString( "'_ccm_alegra_seller_id'", $q['where'] );
+            $this->assertStringContainsString( "'3'", $q['where'] );
+        } finally {
+            CCMCK_Reports::set_scope( CCMCK_Reports::SCOPE_EXCLUDE_ALL );
+        }
+    }
+
+    public function test_set_scope_rechaza_valores_raros(): void {
+        $GLOBALS['wpdb'] = new CCMCK_Fake_Wpdb();
+        CCMCK_Reports::set_scope( 'lo-que-sea', '3; DROP TABLE' );
+        $q = CCMCK_Reports::filter_report_query( array( 'where' => '' ) );
+        // Un scope desconocido cae al comportamiento por defecto (excluir todo el chat).
+        $this->assertStringContainsString( 'posts.ID NOT IN (', $q['where'] );
+        $this->assertStringNotContainsString( 'DROP', $q['where'] );
     }
 
     public function test_scope_vuelve_a_excluir_por_defecto(): void {
         $GLOBALS['wpdb'] = new CCMCK_Fake_Wpdb();
-        // Tras cualquier prueba anterior, el estado por defecto (pestaña "Ventas") sigue excluyendo.
         $q = CCMCK_Reports::filter_report_query( array( 'where' => '' ) );
         $this->assertStringContainsString( 'posts.ID NOT IN (', $q['where'] );
+        $this->assertStringNotContainsString( "'_ccm_canal_venta'", $q['where'], 'Ventas excluye por origen, no por canal' );
     }
 
     public function test_register_tab_agrega_ventas_del_bot_sin_tocar_las_demas(): void {
