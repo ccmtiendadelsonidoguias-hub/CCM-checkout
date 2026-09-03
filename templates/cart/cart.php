@@ -21,7 +21,22 @@ do_action( 'woocommerce_before_cart' ); ?>
 	<form class="woocommerce-cart-form ccmck-cart__form" action="<?php echo esc_url( wc_get_cart_url() ); ?>" method="post">
 		<?php do_action( 'woocommerce_before_cart_table' ); ?>
 
-		<ul class="ccmck-cart__items">
+		<?php
+		/*
+		 * La clase `woocommerce-cart-form__contents` es OBLIGATORIA, aunque esto sea
+		 * un <ul> y no el <tbody> del núcleo. `cart.js` de WooCommerce 10.7.0 la usa
+		 * en dos sitios y sin ella los dos se caen en silencio:
+		 *
+		 *   cart_submit()   línea 551: `if ( 0 === $form.find(...).length ) return;`
+		 *                   -> ningún cambio de cantidad llega nunca al servidor
+		 *   update_wc_div() línea 122: busca este nodo para saber qué reemplazar
+		 *                   cuando el carrito se queda vacío
+		 *
+		 * Medido: con la clase, un cambio de cantidad son 1 petición y 0 recargas;
+		 * sin ella, el núcleo no interviene.
+		 */
+		?>
+		<ul class="ccmck-cart__items woocommerce-cart-form__contents">
 
 			<?php /* Cabecera de columnas. Va como <li> porque esta dentro de un <ul>;
 			         se oculta en movil, donde las columnas se apilan. */ ?>
@@ -148,7 +163,12 @@ do_action( 'woocommerce_before_cart' ); ?>
 						<?php echo apply_filters( 'woocommerce_cart_item_subtotal', WC()->cart->get_product_subtotal( $_product, $cart_item['quantity'] ), $cart_item, $cart_item_key ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 					</span>
 
-					<span class="ccmck-item__remove">
+					<?php
+					// `product-remove` es el gancho del núcleo: escucha en
+					// `.woocommerce-cart-form .product-remove > a`. El <a> tiene que
+					// seguir siendo HIJO DIRECTO de este span o el selector no entra.
+					?>
+					<span class="ccmck-item__remove product-remove">
 						<?php
 						echo apply_filters( // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 							'woocommerce_cart_item_remove_link',
