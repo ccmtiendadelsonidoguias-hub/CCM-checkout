@@ -185,33 +185,26 @@ final class CCMCK_Reports {
     }
 
     /**
-     * Cuántas ventas del bot cayeron en el rango y cuánto suman. Se calcula con
-     * las mismas tablas y estados que el informe, para que el número que se
-     * muestra sea exactamente lo que se excluyó/incluyó.
+     * Cuenta y suma los pedidos cuyo ID está en $subquery, con las mismas tablas y
+     * estados que el informe, para que la cifra sea exactamente lo excluido/incluido.
      *
      * @return array{n:int, total:float}
      */
-    public static function bot_totals( string $desde, string $hasta ): array {
+    private static function totals_for( string $subquery, string $desde, string $hasta ): array {
         global $wpdb;
         $estados      = self::order_statuses();
         $placeholders = implode( ',', array_fill( 0, count( $estados ), '%s' ) );
-        $args         = array_merge(
-            array( self::META_ORIGEN, self::ORIGEN_BOT ),
-            $estados,
-            array( $desde . ' 00:00:00', $hasta . ' 23:59:59' )
-        );
-        $row = $wpdb->get_row(
+        $args         = array_merge( $estados, array( $desde . ' 00:00:00', $hasta . ' 23:59:59' ) );
+        $row          = $wpdb->get_row(
             $wpdb->prepare(
                 "SELECT COUNT(DISTINCT posts.ID) AS n,
                         COALESCE( SUM( ccm_tot.meta_value + 0 ), 0 ) AS total
                    FROM {$wpdb->posts} AS posts
-                   INNER JOIN {$wpdb->postmeta} AS ccm_org
-                           ON ccm_org.post_id = posts.ID
-                          AND ccm_org.meta_key = %s AND ccm_org.meta_value = %s
                    LEFT JOIN {$wpdb->postmeta} AS ccm_tot
                           ON ccm_tot.post_id = posts.ID
                          AND ccm_tot.meta_key = '_order_total'
                   WHERE posts.post_type = 'shop_order'
+                    AND posts.ID IN ( {$subquery} )
                     AND posts.post_status IN ( {$placeholders} )
                     AND posts.post_date >= %s AND posts.post_date <= %s",
                 $args
@@ -221,6 +214,19 @@ final class CCMCK_Reports {
         return array(
             'n'     => (int) ( $row['n'] ?? 0 ),
             'total' => (float) ( $row['total'] ?? 0 ),
+        );
+    }
+
+    /**
+     * Totales del chat en el rango, separados: 'bot' y 'asesor'. Son disjuntos por
+     * construcción (bot = chat que no es asesor), así que su suma es todo el chat.
+     *
+     * @return array{bot:array{n:int,total:float}, asesor:array{n:int,total:float}}
+     */
+    public static function chat_totals( string $desde, string $hasta ): array {
+        return array(
+            'bot'    => self::totals_for( self::bot_orders_subquery(), $desde, $hasta ),
+            'asesor' => self::totals_for( self::asesor_orders_subquery(), $desde, $hasta ),
         );
     }
 
@@ -259,21 +265,30 @@ final class CCMCK_Reports {
         // phpcs:enable WordPress.Security.NonceVerification.Recommended
 
         list( $desde, $hasta ) = self::range_dates( $range, $start, $end, (int) current_time( 'timestamp' ) );
-        $bot = self::bot_totals( $desde, $hasta );
+        $t = self::chat_totals( $desde, $hasta );
+
+        $parte = static function ( string $titulo, array $tot, string $tab ): string {
+            return sprintf(
+                '<strong>%s</strong> %s — <a href="%s">%s</a>',
+                esc_html( $titulo ),
+                wp_kses_post( sprintf(
+                    /* translators: 1: número de pedidos, 2: total */
+                    _n( '%1$s pedido · %2$s', '%1$s pedidos · %2$s', $tot['n'], 'ccm-checkout' ),
+                    number_format_i18n( $tot['n'] ),
+                    wc_price( $tot['total'] )
+                ) ),
+                esc_url( admin_url( 'admin.php?page=wc-reports&tab=' . $tab ) ),
+                esc_html__( 'verlas', 'ccm-checkout' )
+            );
+        };
 
         printf(
-            '<div class="notice notice-info"><p><strong>%s</strong> %s <em>(%s → %s)</em> — <a href="%s">%s</a></p></div>',
-            esc_html__( 'Ventas del bot excluidas de este informe:', 'ccm-checkout' ),
-            wp_kses_post( sprintf(
-                /* translators: 1: número de pedidos, 2: total */
-                _n( '%1$s pedido · %2$s', '%1$s pedidos · %2$s', $bot['n'], 'ccm-checkout' ),
-                number_format_i18n( $bot['n'] ),
-                wc_price( $bot['total'] )
-            ) ),
+            '<div class="notice notice-info"><p>%s <em>(%s → %s)</em>: %s &nbsp;|&nbsp; %s</p></div>',
+            esc_html__( 'Excluidas de este informe', 'ccm-checkout' ),
             esc_html( $desde ),
             esc_html( $hasta ),
-            esc_url( admin_url( 'admin.php?page=wc-reports&tab=ccmck_bot' ) ),
-            esc_html__( 'verlas', 'ccm-checkout' )
+            $parte( __( 'Ventas del bot:', 'ccm-checkout' ), $t['bot'], 'ccmck_bot' ),          // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+            $parte( __( 'Ventas asesores:', 'ccm-checkout' ), $t['asesor'], 'ccmck_asesores' )  // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
         );
     }
 

@@ -27,6 +27,21 @@ final class CCMCK_Fake_Wpdb {
         }
         return $out;
     }
+
+    /** Último SQL recibido y filas a devolver, para probar qué se consulta sin base real. */
+    public array $sqls    = array();
+    public array $row     = array( 'n' => 0, 'total' => 0 );
+    public array $results = array();
+
+    public function get_row( $sql, $output = ARRAY_A ) {
+        $this->sqls[] = $sql;
+        return $this->row;
+    }
+
+    public function get_results( $sql, $output = ARRAY_A ) {
+        $this->sqls[] = $sql;
+        return $this->results;
+    }
 }
 
 final class ReportsTest extends TestCase {
@@ -173,5 +188,30 @@ final class ReportsTest extends TestCase {
 
     public function test_register_tab_no_rompe_con_entrada_rara(): void {
         $this->assertSame( 'no-soy-array', CCMCK_Reports::register_tab( 'no-soy-array' ) );
+    }
+
+    // --- chat_totals: lo que el aviso de "Ventas" dice que excluyó, en dos cifras ---
+
+    public function test_chat_totals_consulta_bot_y_asesor_por_separado(): void {
+        $wpdb            = new CCMCK_Fake_Wpdb();
+        $wpdb->row       = array( 'n' => '4', 'total' => '1250000.50' );
+        $GLOBALS['wpdb'] = $wpdb;
+
+        $t = CCMCK_Reports::chat_totals( '2026-09-01', '2026-09-03' );
+
+        $this->assertSame( array( 'bot', 'asesor' ), array_keys( $t ) );
+        $this->assertSame( 4, $t['bot']['n'] );
+        $this->assertSame( 1250000.5, $t['asesor']['total'] );
+        $this->assertCount( 2, $wpdb->sqls, 'una consulta por subconjunto' );
+        // La del bot excluye asesores; la de asesores va por canal.
+        $this->assertStringContainsString( 'NOT IN', $wpdb->sqls[0] );
+        $this->assertStringContainsString( "'asesor'", $wpdb->sqls[1] );
+        $this->assertStringNotContainsString( 'NOT IN', $wpdb->sqls[1] );
+        foreach ( $wpdb->sqls as $sql ) {
+            $this->assertStringContainsString( "'2026-09-01 00:00:00'", $sql );
+            $this->assertStringContainsString( "'2026-09-03 23:59:59'", $sql );
+            $this->assertStringContainsString( "'wc-completed'", $sql, 'mismos estados que el informe' );
+            $this->assertStringContainsString( '_order_total', $sql );
+        }
     }
 }
