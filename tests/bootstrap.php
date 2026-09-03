@@ -261,6 +261,22 @@ if ( ! function_exists( 'wp_remote_retrieve_response_code' ) ) {
     }
 }
 
+if ( ! function_exists( 'wc_price' ) ) {
+    function wc_price( $v ) {
+        return '$' . number_format( (float) $v, 0, ',', '.' );
+    }
+}
+if ( ! function_exists( 'number_format_i18n' ) ) {
+    function number_format_i18n( $n, $d = 0 ) {
+        return number_format( (float) $n, $d, ',', '.' );
+    }
+}
+if ( ! function_exists( 'current_time' ) ) {
+    function current_time( $type ) {
+        return time();
+    }
+}
+
 require_once dirname( __DIR__ ) . '/includes/class-ccmck-cart-shipping.php';
 require_once dirname( __DIR__ ) . '/includes/class-ccmck-cart-ajax.php';
 require_once dirname( __DIR__ ) . '/includes/class-ccmck-side-cart-notices.php';

@@ -214,4 +214,67 @@ final class ReportsTest extends TestCase {
             $this->assertStringContainsString( '_order_total', $sql );
         }
     }
+
+    // --- pestaña "Ventas asesores" ---
+
+    public function test_vendedor_param_solo_digitos(): void {
+        $this->assertSame( '3', CCMCK_Reports::vendedor_param( array( 'vendedor' => '3' ) ) );
+        $this->assertSame( '3', CCMCK_Reports::vendedor_param( array( 'vendedor' => ' 3; DROP ' ) ) );
+        $this->assertSame( '', CCMCK_Reports::vendedor_param( array( 'vendedor' => 'todos' ) ) );
+        $this->assertSame( '', CCMCK_Reports::vendedor_param( array() ) );
+    }
+
+    public function test_resumen_por_vendedor_agrupa_y_ordena(): void {
+        $wpdb            = new CCMCK_Fake_Wpdb();
+        $wpdb->results   = array(
+            array( 'vendedor_id' => '4', 'vendedor' => 'Farid Sanchez', 'n' => '2', 'total' => '300000' ),
+            array( 'vendedor_id' => '3', 'vendedor' => 'Heider Arrieta', 'n' => '5', 'total' => '900000' ),
+        );
+        $GLOBALS['wpdb'] = $wpdb;
+
+        $filas = CCMCK_Reports::resumen_por_vendedor( '2026-09-01', '2026-09-30' );
+
+        $this->assertSame( array( '3', '4' ), array_column( $filas, 'vendedor_id' ), 'ordenado por total desc' );
+        $this->assertSame( 5, $filas[0]['n'] );
+        $this->assertSame( 900000.0, $filas[0]['total'] );
+        $sql = $wpdb->sqls[0];
+        $this->assertStringContainsString( "'_ccm_canal_venta'", $sql );
+        $this->assertStringContainsString( "'_ccm_alegra_seller_id'", $sql );
+        $this->assertStringContainsString( "'_ccm_alegra_seller_nombre'", $sql );
+        $this->assertStringContainsString( 'GROUP BY', $sql );
+        $this->assertStringContainsString( "'2026-09-30 23:59:59'", $sql );
+    }
+
+    public function test_resumen_markup_suma_y_escapa(): void {
+        $html = CCMCK_Reports::resumen_markup( array(
+            array( 'vendedor_id' => '3', 'vendedor' => 'Heider <b>A</b>', 'n' => 5, 'total' => 900000.0 ),
+            array( 'vendedor_id' => '4', 'vendedor' => 'Farid', 'n' => 2, 'total' => 300000.0 ),
+        ) );
+        $this->assertStringContainsString( 'Heider &lt;b&gt;A&lt;/b&gt;', $html, 'nombre escapado' );
+        $this->assertStringContainsString( '>7<', $html, 'suma de pedidos' );
+        $this->assertStringContainsString( wc_price( 1200000.0 ), $html, 'suma de totales' );
+        $this->assertSame( '', CCMCK_Reports::resumen_markup( array() ), 'sin filas, sin tabla' );
+    }
+
+    public function test_vendedor_select_markup_marca_el_actual_y_conserva_el_rango(): void {
+        $filas = array(
+            array( 'vendedor_id' => '3', 'vendedor' => 'Heider', 'n' => 1, 'total' => 1.0 ),
+            array( 'vendedor_id' => '4', 'vendedor' => 'Farid', 'n' => 1, 'total' => 1.0 ),
+        );
+        $html = CCMCK_Reports::vendedor_select_markup( $filas, '4', array( 'range' => 'month', 'page' => 'wc-reports', 'tab' => 'ccmck_asesores' ) );
+        $this->assertStringContainsString( '<option value="4" selected', $html );
+        $this->assertStringNotContainsString( '<option value="3" selected', $html );
+        $this->assertStringContainsString( '<option value="">', $html, 'opción Todos' );
+        $this->assertStringContainsString( 'name="range" value="month"', $html );
+        $this->assertStringContainsString( 'name="tab" value="ccmck_asesores"', $html );
+        $this->assertStringNotContainsString( 'name="vendedor" value=', $html, 'vendedor va en el select, no en hidden' );
+    }
+
+    public function test_register_tab_agrega_ventas_asesores(): void {
+        $reports = CCMCK_Reports::register_tab( array( 'orders' => array( 'title' => 'Orders' ) ) );
+        $this->assertArrayHasKey( 'ccmck_asesores', $reports );
+        $this->assertSame( array( 'CCMCK_Reports', 'render_asesores_report' ), $reports['ccmck_asesores']['reports']['main']['callback'] );
+        $this->assertArrayHasKey( 'ccmck_bot', $reports, 'la del bot sigue' );
+        $this->assertArrayHasKey( 'orders', $reports );
+    }
 }

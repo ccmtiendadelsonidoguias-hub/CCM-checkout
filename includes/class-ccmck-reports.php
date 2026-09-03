@@ -314,6 +314,17 @@ final class CCMCK_Reports {
                 ),
             ),
         );
+        $reports['ccmck_asesores'] = array(
+            'title'   => __( 'Ventas asesores', 'ccm-checkout' ),
+            'reports' => array(
+                'main' => array(
+                    'title'       => __( 'Ventas asesores', 'ccm-checkout' ),
+                    'description' => '',
+                    'hide_title'  => true,
+                    'callback'    => array( __CLASS__, 'render_asesores_report' ),
+                ),
+            ),
+        );
         return $reports;
     }
 
@@ -335,6 +346,147 @@ final class CCMCK_Reports {
             include_once $archivo;
         }
         self::set_scope( self::SCOPE_ONLY_BOT );
+        $reporte = new WC_Report_Sales_By_Date();
+        $reporte->output_report();
+        self::set_scope( self::SCOPE_EXCLUDE_ALL );
+    }
+
+    /** Vendedor pedido por GET, limpio a dígitos ('' = todos). PURO. */
+    public static function vendedor_param( array $get ): string {
+        return preg_replace( '/\D+/', '', (string) ( $get['vendedor'] ?? '' ) );
+    }
+
+    /**
+     * Pedidos y total por vendedor entre las ventas de asesores del rango. Mismas
+     * tablas y estados que el informe. Ordenado por total desc.
+     *
+     * @return array<int, array{vendedor_id:string, vendedor:string, n:int, total:float}>
+     */
+    public static function resumen_por_vendedor( string $desde, string $hasta ): array {
+        global $wpdb;
+        $estados      = self::order_statuses();
+        $placeholders = implode( ',', array_fill( 0, count( $estados ), '%s' ) );
+        $args         = array_merge(
+            array( self::META_SELLER, '_ccm_alegra_seller_nombre' ),
+            $estados,
+            array( $desde . ' 00:00:00', $hasta . ' 23:59:59' )
+        );
+        $filas = $wpdb->get_results(
+            $wpdb->prepare(
+                "SELECT COALESCE( ccm_sel.meta_value, '' ) AS vendedor_id,
+                        COALESCE( MAX( ccm_nom.meta_value ), '' ) AS vendedor,
+                        COUNT(DISTINCT posts.ID) AS n,
+                        COALESCE( SUM( ccm_tot.meta_value + 0 ), 0 ) AS total
+                   FROM {$wpdb->posts} AS posts
+                   LEFT JOIN {$wpdb->postmeta} AS ccm_sel ON ccm_sel.post_id = posts.ID AND ccm_sel.meta_key = %s
+                   LEFT JOIN {$wpdb->postmeta} AS ccm_nom ON ccm_nom.post_id = posts.ID AND ccm_nom.meta_key = %s
+                   LEFT JOIN {$wpdb->postmeta} AS ccm_tot ON ccm_tot.post_id = posts.ID AND ccm_tot.meta_key = '_order_total'
+                  WHERE posts.post_type = 'shop_order'
+                    AND posts.ID IN ( " . self::asesor_orders_subquery() . " )
+                    AND posts.post_status IN ( {$placeholders} )
+                    AND posts.post_date >= %s AND posts.post_date <= %s
+                  GROUP BY ccm_sel.meta_value
+                  ORDER BY total DESC",
+                $args
+            ),
+            ARRAY_A
+        );
+        $out = array();
+        foreach ( (array) $filas as $f ) {
+            $out[] = array(
+                'vendedor_id' => (string) ( $f['vendedor_id'] ?? '' ),
+                'vendedor'    => (string) ( $f['vendedor'] ?? '' ),
+                'n'           => (int) ( $f['n'] ?? 0 ),
+                'total'       => (float) ( $f['total'] ?? 0 ),
+            );
+        }
+        usort( $out, static fn( $a, $b ) => $b['total'] <=> $a['total'] );
+        return $out;
+    }
+
+    /** Tabla resumen (vendedor · pedidos · total) con fila de suma. '' si no hay filas. PURO. */
+    public static function resumen_markup( array $filas ): string {
+        if ( ! $filas ) {
+            return '';
+        }
+        $n = 0;
+        $t = 0.0;
+        $tr = '';
+        foreach ( $filas as $f ) {
+            $n  += (int) $f['n'];
+            $t  += (float) $f['total'];
+            $tr .= sprintf(
+                '<tr><td>%s</td><td style="text-align:right">%d</td><td style="text-align:right">%s</td></tr>',
+                esc_html( '' !== $f['vendedor'] ? $f['vendedor'] : ( 'id ' . $f['vendedor_id'] ) ),
+                (int) $f['n'],
+                wc_price( (float) $f['total'] )
+            );
+        }
+        return '<table class="widefat striped" style="max-width:640px;margin:8px 0 16px">'
+            . '<thead><tr><th>' . esc_html__( 'Vendedor', 'ccm-checkout' ) . '</th>'
+            . '<th style="text-align:right">' . esc_html__( 'Pedidos', 'ccm-checkout' ) . '</th>'
+            . '<th style="text-align:right">' . esc_html__( 'Total', 'ccm-checkout' ) . '</th></tr></thead>'
+            . '<tbody>' . $tr . '</tbody>'
+            . '<tfoot><tr><th>' . esc_html__( 'Total asesores', 'ccm-checkout' ) . '</th>'
+            . '<th style="text-align:right">' . (int) $n . '</th>'
+            . '<th style="text-align:right">' . wc_price( $t ) . '</th></tr></tfoot></table>';
+    }
+
+    /**
+     * Formulario GET con el selector de vendedor; $hidden conserva page/tab/range/
+     * fechas para que al cambiar de vendedor no se pierda el rango. PURO.
+     */
+    public static function vendedor_select_markup( array $filas, string $actual, array $hidden ): string {
+        $h = '';
+        foreach ( $hidden as $k => $v ) {
+            if ( 'vendedor' === $k ) {
+                continue;
+            }
+            $h .= sprintf( '<input type="hidden" name="%s" value="%s">', esc_attr( (string) $k ), esc_attr( (string) $v ) );
+        }
+        $opts = '<option value="">' . esc_html__( 'Todos los asesores', 'ccm-checkout' ) . '</option>';
+        foreach ( $filas as $f ) {
+            $id    = (string) $f['vendedor_id'];
+            $opts .= sprintf(
+                '<option value="%s"%s>%s</option>',
+                esc_attr( $id ),
+                $id === $actual ? ' selected' : '',
+                esc_html( '' !== $f['vendedor'] ? $f['vendedor'] : ( 'id ' . $id ) )
+            );
+        }
+        return '<form method="get" style="margin:12px 0">' . $h
+            . '<label>' . esc_html__( 'Vendedor:', 'ccm-checkout' ) . ' <select name="vendedor" onchange="this.form.submit()">' . $opts . '</select></label>'
+            . '</form>';
+    }
+
+    /**
+     * Pinta "Ventas asesores": selector de vendedor + resumen + el mismo reporte
+     * "Ventas" de WooCommerce restringido a canal=asesor (y al vendedor elegido).
+     */
+    public static function render_asesores_report(): void {
+        if ( ! defined( 'WC_ABSPATH' ) ) {
+            return;
+        }
+        $archivo = WC_ABSPATH . 'includes/admin/reports/class-wc-report-sales-by-date.php';
+        if ( ! class_exists( 'WC_Report_Sales_By_Date' ) ) {
+            if ( ! file_exists( $archivo ) ) {
+                echo '<div class="notice notice-error"><p>' . esc_html__( 'No se pudo cargar el reporte de ventas de WooCommerce.', 'ccm-checkout' ) . '</p></div>';
+                return;
+            }
+            include_once $archivo;
+        }
+        // phpcs:disable WordPress.Security.NonceVerification.Recommended
+        $get      = array_map( static fn( $v ) => sanitize_text_field( wp_unslash( (string) $v ) ), $_GET );
+        // phpcs:enable WordPress.Security.NonceVerification.Recommended
+        $vendedor = self::vendedor_param( $get );
+        list( $desde, $hasta ) = self::range_dates( $get['range'] ?? 'month', $get['start_date'] ?? '', $get['end_date'] ?? '', (int) current_time( 'timestamp' ) );
+
+        $filas  = self::resumen_por_vendedor( $desde, $hasta );
+        $hidden = array_intersect_key( $get, array_flip( array( 'page', 'tab', 'report', 'range', 'start_date', 'end_date' ) ) );
+        echo self::vendedor_select_markup( $filas, $vendedor, $hidden ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- markup ya escapado dentro
+        echo self::resumen_markup( $filas );                              // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+
+        self::set_scope( self::SCOPE_ONLY_ASESOR, $vendedor );
         $reporte = new WC_Report_Sales_By_Date();
         $reporte->output_report();
         self::set_scope( self::SCOPE_EXCLUDE_ALL );
