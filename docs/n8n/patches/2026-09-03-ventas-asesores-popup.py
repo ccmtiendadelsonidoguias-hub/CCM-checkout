@@ -38,7 +38,7 @@ sub('var DKEY = "ccm_venta_draft_" + CONV;',
     'window.parent.postMessage("chatwoot-dashboard-app:fetch-info", "*");\n'
     '// stub SOLO para el arnes local (?__stub=1): no toca la API real\n'
     'if (new URLSearchParams(location.search).get("__stub") === "1") { var __f = window.fetch; window.fetch = function(u, o){ var b = {}; try { b = JSON.parse(o.body); } catch(e){}\n'
-    '  if (b.action === "prefill") { window.__ultimoPrefill = b; return Promise.resolve({ json: function(){ return { ok: true, cliente: {}, items: [], vendedor_id: 3, vendedor_nombre: "Heider Arrieta", ccosto_id: 3, ccosto_nombre: "Ventas Virtuales Personas CCM" }; } }); }\n'
+    '  if (b.action === "prefill") { window.__ultimoPrefill = b; return Promise.resolve({ json: function(){ return { ok: true, cliente: {}, items: [{ sku: "CCM1119", nombre: "Parlante de prueba", qty: 1, precio: 100000, product_id: 4601 }], vendedor_id: 3, vendedor_nombre: "Heider Arrieta", ccosto_id: 3, ccosto_nombre: "Ventas Virtuales Personas CCM" }; } }); }\n'
     '  return Promise.resolve({ json: function(){ return { ok: false }; } }); }; }', 'estado agente')
 
 # 3. fill(): precarga vendedor/ccosto de la respuesta
@@ -55,14 +55,9 @@ sub('    .catch(function(){ document.getElementById("sub").textContent = "No se 
     'document.getElementById("es_bot").onchange = toggleBot;', 'arranque espera agente')
 
 # 5. onsubmit: exigir vendedor y mandar es_bot + agente
-# Nota 2026-09-03: el chequeo de vendedor va ANTES del de items (no despues, como
-# sugeria literalmente el anclaje original) -- con items vacios (p.ej. tras un scan
-# sin resultados) el chequeo de items disparaba primero y el de vendedor nunca se
-# alcanzaba; visto al correr el arnes contra el HTML nuevo (docs/n8n/harness/
-# ventas_asesores_popup.html paso 5), que no anade ningun item antes de enviar.
 sub('  if (!items.length) { err.textContent = "Agrega al menos un producto con SKU."; return; }',
-    '  if (!document.getElementById("vendedor").value) { err.textContent = "Elige el vendedor (o marca que la venta la cerró el bot)."; return; }\n'
-    '  if (!items.length) { err.textContent = "Agrega al menos un producto con SKU."; return; }', 'submit exige vendedor')
+    '  if (!items.length) { err.textContent = "Agrega al menos un producto con SKU."; return; }\n'
+    '  if (!document.getElementById("vendedor").value) { err.textContent = "Elige el vendedor (o marca que la venta la cerró el bot)."; return; }', 'submit exige vendedor')
 sub('  form.vendedor_alegra_id = vsel.value;',
     '  form.vendedor_alegra_id = vsel.value;\n  form.es_bot = document.getElementById("es_bot").checked;', 'form es_bot')
 sub('body: JSON.stringify({action:"crear", conv:CONV, form:form})',
