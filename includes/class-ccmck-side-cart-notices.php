@@ -50,6 +50,22 @@ defined( 'ABSPATH' ) || exit;
  * Y solo en carrito y pago: en la ficha de producto o en el inicio el cajón SÍ
  * es la interfaz —se abre solo al añadir— y ahí quedarse los avisos es lo
  * correcto. En carrito y pago la interfaz es la página.
+ *
+ * ── ESTADO DESDE EL 3-SEP-2026 ──
+ *
+ * El cajón de terceros (`woocommerce-side-cart-premium`) se RETIRÓ y lo
+ * sustituye `ccm-drawer`, que NO consume la cola de avisos: pide su contenido
+ * por su propio endpoint y no llama a `print_notices_html()` ni a
+ * `wc_clear_notices()`.
+ *
+ * Con lo cual esta clase pasa a ser INERTE: guarda en el prio 9 y devuelve en
+ * el prio 11 exactamente lo mismo. No está roto, no sobra del todo.
+ *
+ * Por qué no se borra hoy: `unir()` deduplica, y esa deduplicación es lo que
+ * evita que el cliente vea dos veces el «no hay suficientes existencias» que
+ * WooCommerce regenera en `WC_Shortcode_Cart::output()`. Antes de retirarla
+ * hay que comprobar ESO en concreto: poner en el carrito más unidades de las
+ * que hay en stock y contar cuántas veces sale el aviso.
  */
 final class CCMCK_Side_Cart_Notices {
 
