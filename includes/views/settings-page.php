@@ -194,7 +194,7 @@ defined( 'ABSPATH' ) || exit;
         <td>
             <input type="text" id="ccmck-whatsapp-number" name="ccmck_settings[whatsapp_number]"
                    value="<?php echo esc_attr( $s['whatsapp_number'] ); ?>" class="regular-text">
-            <p class="description"><?php esc_html_e( 'Solo dígitos, con código de país. Ej: 573178119077', 'ccm-checkout' ); ?></p>
+            <p class="description"><?php esc_html_e( 'Solo dígitos, con código de país. Ej: 573246386432', 'ccm-checkout' ); ?></p>
         </td>
     </tr>
     <tr>

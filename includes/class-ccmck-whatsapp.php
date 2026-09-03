@@ -42,7 +42,7 @@ final class CCMCK_Whatsapp {
     /**
      * URL wa.me con el mensaje pre-escrito. PURO. Devuelve '' si no hay número.
      *
-     * @param string $number       Solo dígitos (ej. 573178119077).
+     * @param string $number       Solo dígitos (ej. 573246386432).
      * @param string $name         Nombre del cliente.
      * @param string $order_number Número visible del pedido.
      * @param string $host         Host del sitio (ej. ccmtiendadelsonido.com).

@@ -30,16 +30,16 @@ final class WhatsappTest extends TestCase {
     }
 
     public function test_build_wa_url_encodes_message(): void {
-        $url = CCMCK_Whatsapp::build_wa_url( '573178119077', 'Ana', '77', 'ccmtiendadelsonido.com' );
-        $this->assertStringStartsWith( 'https://wa.me/573178119077?text=', $url );
+        $url = CCMCK_Whatsapp::build_wa_url( '573246386432', 'Ana', '77', 'ccmtiendadelsonido.com' );
+        $this->assertStringStartsWith( 'https://wa.me/573246386432?text=', $url );
         $this->assertStringContainsString( rawurlencode( 'Hola, soy Ana.' ), $url );
         $this->assertStringContainsString( rawurlencode( '#77' ), $url );
         $this->assertStringNotContainsString( ' ', $url );
     }
 
     public function test_build_wa_url_strips_non_digits(): void {
-        $url = CCMCK_Whatsapp::build_wa_url( '+57 317 811-9077', 'Ana', '1', 'ccmtiendadelsonido.com' );
-        $this->assertStringStartsWith( 'https://wa.me/573178119077?text=', $url );
+        $url = CCMCK_Whatsapp::build_wa_url( '+57 324 638-6432', 'Ana', '1', 'ccmtiendadelsonido.com' );
+        $this->assertStringStartsWith( 'https://wa.me/573246386432?text=', $url );
     }
 
     public function test_build_wa_url_empty_number_returns_empty(): void {

@@ -22,7 +22,7 @@ final class CCMCK_Settings {
             'header_links'      => array(),
             'footer_links'      => array(),
             'whatsapp_enabled'  => true,
-            'whatsapp_number'   => '573178119077',
+            'whatsapp_number'   => '573246386432',
             'whatsapp_title'    => '¿Necesitas ayuda con tu pedido?',
             'whatsapp_subtitle' => 'Escríbenos por WhatsApp',
             'faq_enabled'       => true,
