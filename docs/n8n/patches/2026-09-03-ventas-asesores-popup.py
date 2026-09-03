@@ -23,7 +23,8 @@ sub('<select id="vendedor">\n<option value="9" selected>🤖 Bot CCM IA</option>
 sub('<select id="ccosto">\n<option value="10" selected>IA CCM</option>',
     '<select id="ccosto">\n<option value="">— Elegir —</option>\n<option value="10">IA CCM</option>', 'select ccosto')
 sub('<label>Vendedor</label>',
-    '<label>Vendedor <label style="font-weight:400;margin-left:8px"><input type="checkbox" id="es_bot"> 🤖 Venta cerrada por el bot</label></label>', 'casilla es_bot')
+    '<label for="vendedor">Vendedor</label> <label class="chkbot" style="font-weight:400;margin-left:8px;display:inline-flex;gap:4px;align-items:center"><input type="checkbox" id="es_bot"> 🤖 Venta cerrada por el bot</label>', 'casilla es_bot')
+sub('<option value="5">Camilo Caraballo</option>\n', '', 'vendedor 5 (nunca)')
 
 # 2. estado del agente + escucha de appContext + stub para el arnes
 sub('var DKEY = "ccm_venta_draft_" + CONV;',
@@ -31,13 +32,18 @@ sub('var DKEY = "ccm_venta_draft_" + CONV;',
     '// 2026-09-03: agente de Chatwoot (appContext) -> vendedor precargado por la API\n'
     'var AGENTE = null, AGENTE_VEND = null;\n'
     'function aplicarVendedor(v){ if (!v) return; if (v.vendedor_id) document.getElementById("vendedor").value = String(v.vendedor_id); if (v.ccosto_id) document.getElementById("ccosto").value = String(v.ccosto_id); }\n'
+    'var __antesBot = null;\n'
     'function toggleBot(){ var on = document.getElementById("es_bot").checked; var vs = document.getElementById("vendedor"), cs = document.getElementById("ccosto");\n'
-    '  if (on) { vs.value = "9"; cs.value = "10"; } else { vs.value = ""; cs.value = ""; aplicarVendedor(AGENTE_VEND); } vs.disabled = on; cs.disabled = on; }\n'
-    'window.addEventListener("message", function(ev){ var d; try { d = JSON.parse(ev.data); } catch(e){ return; }\n'
+    '  if (on) { __antesBot = { vendedor: vs.value, ccosto: cs.value }; vs.value = "9"; cs.value = "10"; }\n'
+    '  else { if (__antesBot) { vs.value = __antesBot.vendedor; cs.value = __antesBot.ccosto; } if (!vs.value || !cs.value) aplicarVendedor(AGENTE_VEND); }\n'
+    '  vs.disabled = on; cs.disabled = on; }\n'
+    'window.addEventListener("message", function(ev){\n'
+    '  if (ev.origin !== "https://chat.srv1590203.hstgr.cloud" && ["localhost","127.0.0.1"].indexOf(location.hostname) === -1) return;\n'
+    '  var d; try { d = JSON.parse(ev.data); } catch(e){ return; }\n'
     '  if (d && d.event === "appContext" && d.data && d.data.currentAgent) { AGENTE = { email: String(d.data.currentAgent.email || ""), name: String(d.data.currentAgent.name || "") }; } });\n'
     'window.parent.postMessage("chatwoot-dashboard-app:fetch-info", "*");\n'
     '// stub SOLO para el arnes local (?__stub=1): no toca la API real\n'
-    'if (new URLSearchParams(location.search).get("__stub") === "1") { var __f = window.fetch; window.fetch = function(u, o){ var b = {}; try { b = JSON.parse(o.body); } catch(e){}\n'
+    'if (["localhost","127.0.0.1"].indexOf(location.hostname) !== -1 && new URLSearchParams(location.search).get("__stub") === "1") { var __f = window.fetch; window.fetch = function(u, o){ var b = {}; try { b = JSON.parse(o.body); } catch(e){}\n'
     '  if (b.action === "prefill") { window.__ultimoPrefill = b; return Promise.resolve({ json: function(){ return { ok: true, cliente: {}, items: [{ sku: "CCM1119", nombre: "Parlante de prueba", qty: 1, precio: 100000, product_id: 4601 }], vendedor_id: 3, vendedor_nombre: "Heider Arrieta", ccosto_id: 3, ccosto_nombre: "Ventas Virtuales Personas CCM" }; } }); }\n'
     '  return Promise.resolve({ json: function(){ return { ok: false }; } }); }; }', 'estado agente')
 
@@ -53,6 +59,29 @@ sub('    .catch(function(){ document.getElementById("sub").textContent = "No se 
     '    .catch(function(){ document.getElementById("sub").textContent = "No se pudo precargar — llena manual."; fill({}); runScan(true); });\n}\n'
     'if (!draftRaw) { var __esperas = 0; (function esperarAgente(){ if (AGENTE || __esperas >= 15) return arrancar(); __esperas++; setTimeout(esperarAgente, 100); })(); }\n'
     'document.getElementById("es_bot").onchange = toggleBot;', 'arranque espera agente')
+
+# 4b. borrador: si el vendedor no quedo precargado, esperar el agente y precargarlo (sin pisar el borrador con fill())
+sub('    applyDraft(JSON.parse(draftRaw));\n'
+    '    document.getElementById("sub").textContent = "Conversación #"+CONV+" · revisa y completa antes de crear.";\n'
+    '    document.getElementById("f").style.display = "block";\n'
+    '    var db = document.getElementById("draft");',
+    '    applyDraft(JSON.parse(draftRaw));\n'
+    '    document.getElementById("sub").textContent = "Conversación #"+CONV+" · revisa y completa antes de crear.";\n'
+    '    document.getElementById("f").style.display = "block";\n'
+    '    if (document.getElementById("vendedor").value === "") {\n'
+    '      var __esperasD = 0;\n'
+    '      (function esperarAgenteDraft(){\n'
+    '        if (AGENTE || __esperasD >= 15) {\n'
+    '          fetch(API, {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({action:"prefill", conv:CONV, agente: AGENTE})})\n'
+    '            .then(function(r){ return r.json(); })\n'
+    '            .then(function(d){ AGENTE_VEND = { vendedor_id: d.vendedor_id, ccosto_id: d.ccosto_id }; if (!document.getElementById("es_bot").checked) aplicarVendedor(AGENTE_VEND); })\n'
+    '            .catch(function(){});\n'
+    '          return;\n'
+    '        }\n'
+    '        __esperasD++; setTimeout(esperarAgenteDraft, 100);\n'
+    '      })();\n'
+    '    }\n'
+    '    var db = document.getElementById("draft");', 'borrador precarga vendedor')
 
 # 5. onsubmit: exigir vendedor y mandar es_bot + agente
 sub('  if (!items.length) { err.textContent = "Agrega al menos un producto con SKU."; return; }',

@@ -31,5 +31,11 @@ f.addEventListener('load', () => setTimeout(() => {
   v.value = '';
   d.getElementById('f').dispatchEvent(new Event('submit', { cancelable: true }));
   log(/Elige el vendedor/.test(d.getElementById('err').textContent), 'sin vendedor no envía y avisa');
+  d.querySelector('label[for="vendedor"]').click();
+  log(b.checked === false, 'clic en Vendedor NO marca el bot');
+  d.querySelector('label.chkbot').click();
+  log(b.checked === true && v.value === '9', 'clic en el texto de la casilla marca el bot');
+  d.querySelector('label.chkbot').click();
+  log(b.checked === false && v.value === '3', 'segundo clic desmarca y restaura');
 }, 800));
 </script>
