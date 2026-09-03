@@ -1017,7 +1017,7 @@
 }
 
 /* ==========================================================================
-   Avisos de éxito del carrito (`.woocommerce-message`)
+   Avisos del carrito (`.woocommerce-message`, `-error`, `-info`)
    ==========================================================================
    Llegaba con el cromo nativo de WooCommerce y se veía como tal: banda gris
    #f6f5f8 de borde a borde, barra verde oliva #8fae1b de 3px arriba, texto
@@ -1051,14 +1051,19 @@
    los avisos del resto de la tienda.
    ========================================================================== */
 
-.woocommerce .woocommerce-message {
+/* La CARCASA es la misma para los tres. Lo que distingue un aviso de otro es
+   su marca, no su superficie: tres cajas distintas se leerían como tres
+   parches sueltos en vez de un sistema. */
+.woocommerce .woocommerce-message,
+.woocommerce .woocommerce-error,
+.woocommerce .woocommerce-info {
 	display: flex;
 	align-items: center;
 	gap: 12px;
 	margin: 0 0 20px;
 	padding: 14px 16px;
 	border: 1px solid var(--ccm-linea);
-	border-top-width: 1px;                 /* mata la barra verde de 3px */
+	border-top-width: 1px;                 /* mata la barra de 3px del nucleo */
 	border-radius: 10px;
 	background: var(--ccm-tile);
 	color: var(--ccm-tinta);
@@ -1088,7 +1093,9 @@
 /* Entrada breve: el aviso aparece al repintar el carrito y conviene que se
    note sin pedir atención. Se respeta quien pidió no ver movimiento. */
 @media ( prefers-reduced-motion: no-preference ) {
-	.woocommerce .woocommerce-message {
+	.woocommerce .woocommerce-message,
+	.woocommerce .woocommerce-error,
+	.woocommerce .woocommerce-info {
 		animation: ccmck-aviso-entra .22s cubic-bezier( .2, 0, .13, 1 ) both;
 	}
 }
@@ -1100,7 +1107,54 @@
 
 /* Algunos avisos traen un botón dentro («Ver carrito» cuando se añade desde
    otra página). Se manda al final para que el texto siga leyéndose primero. */
-.woocommerce .woocommerce-message .button {
+.woocommerce .woocommerce-message .button,
+.woocommerce .woocommerce-error .button,
+.woocommerce .woocommerce-info .button {
 	margin-left: auto;
 	flex: 0 0 auto;
+}
+
+/* --------------------------------------------------------------------------
+   Las diferencias entre los tres avisos
+
+   Escala de tres pasos, y cada paso dice algo verdadero:
+
+     éxito  → marca de verificación en tinta. Confirmación, no noticia.
+     info   → sin marca. Es información neutra; ponerle un icono la disfrazaría
+              de aviso y esta pantalla ya tiene bastantes cosas pidiendo turno.
+     error  → cruz y filete en `--ccm-rojo`. Aquí el color SÍ significa algo:
+              es el único color con carga de la paleta y quiere decir error.
+
+   El texto se queda en tinta también en el error: el rojo va en la marca y en
+   el filete, no en las letras, que es lo que hay que poder leer.
+   -------------------------------------------------------------------------- */
+
+/* La cruz: un signo «+» de dos degradados girado 45°. Sale de `currentColor`
+   igual que el check, así que no fija ningún hex ni necesita la fuente de
+   iconos ni un SVG incrustado. */
+.woocommerce .woocommerce-error::before {
+	content: "";
+	position: static;
+	flex: 0 0 auto;
+	width: 11px;
+	height: 11px;
+	margin: 0 1px;
+	border: 0;
+	background:
+		linear-gradient( currentColor, currentColor ) center / 11px 2px no-repeat,
+		linear-gradient( currentColor, currentColor ) center / 2px 11px no-repeat;
+	transform: rotate( 45deg );
+	font-family: inherit;
+	color: var( --ccm-rojo );
+}
+
+.woocommerce .woocommerce-error {
+	border-color: var( --ccm-rojo );
+}
+
+/* El informativo se queda sin marca. Hay que decirlo explícitamente porque
+   WooCommerce le pone un glifo de su fuente de iconos en `::before`, y sin
+   esto asomaría un cuadrado de fuente-que-no-cargó. */
+.woocommerce .woocommerce-info::before {
+	content: none;
 }
