@@ -224,6 +224,10 @@ final class ReportsTest extends TestCase {
         $this->assertSame( '', CCMCK_Reports::vendedor_param( array() ) );
     }
 
+    public function test_vendedor_param_ignora_arrays_sin_warning(): void {
+        $this->assertSame( '', CCMCK_Reports::vendedor_param( array( 'vendedor' => array( '1' ) ) ) );
+    }
+
     public function test_resumen_por_vendedor_agrupa_y_ordena(): void {
         $wpdb            = new CCMCK_Fake_Wpdb();
         $wpdb->results   = array(

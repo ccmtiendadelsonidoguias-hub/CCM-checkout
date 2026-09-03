@@ -353,7 +353,8 @@ final class CCMCK_Reports {
 
     /** Vendedor pedido por GET, limpio a dígitos ('' = todos). PURO. */
     public static function vendedor_param( array $get ): string {
-        return preg_replace( '/\D+/', '', (string) ( $get['vendedor'] ?? '' ) );
+        $v = $get['vendedor'] ?? '';
+        return preg_replace( '/\D+/', '', is_scalar( $v ) ? (string) $v : '' );
     }
 
     /**
@@ -476,7 +477,11 @@ final class CCMCK_Reports {
             include_once $archivo;
         }
         // phpcs:disable WordPress.Security.NonceVerification.Recommended
-        $get      = array_map( static fn( $v ) => sanitize_text_field( wp_unslash( (string) $v ) ), $_GET );
+        $claves = array( 'page', 'tab', 'report', 'range', 'start_date', 'end_date', 'vendedor' );
+        $get    = array();
+        foreach ( $claves as $k ) {
+            $get[ $k ] = isset( $_GET[ $k ] ) && is_scalar( $_GET[ $k ] ) ? sanitize_text_field( wp_unslash( (string) $_GET[ $k ] ) ) : '';
+        }
         // phpcs:enable WordPress.Security.NonceVerification.Recommended
         $vendedor = self::vendedor_param( $get );
         list( $desde, $hasta ) = self::range_dates( $get['range'] ?? 'month', $get['start_date'] ?? '', $get['end_date'] ?? '', (int) current_time( 'timestamp' ) );
