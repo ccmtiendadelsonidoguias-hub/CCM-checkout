@@ -982,7 +982,7 @@ print('OK nodos', len(w['nodes']))
 python3 docs/n8n/patches/2026-09-03-ventas-asesores-api.py /tmp/cwVentaApi01.json /tmp/cwVentaApi01.new.json
 node docs/n8n/harness/ventas_asesores_api.js /tmp/cwVentaApi01.new.json
 ```
-Esperado: `OK nodos 46` y `>>> todo verde` (13 checks).
+Esperado: `OK nodos 46` y `>>> todo verde` (15 checks).
 
 - [ ] **Step 6: Diff estructural**
 
@@ -1043,19 +1043,19 @@ db.get('select active,activeVersionId from workflow_entity where id=?',['cwVenta
 \"
 rm -f /root/cwVentaApi01.new.json; docker exec -u 0 n8n-n8n-1 rm -f /tmp/venta.new.json"
 ```
-Esperado: `publicado: active 1 nodos 46 | nuevos presentes: true` y `webhook registrado: [{"webhookPath":"ccm-venta-api-565cf6f228b2dfbe"}]`. Si el webhook sale `[]`, repetir deactivate/activate.
+Esperado: `publicado: active 1 nodos 46 | nuevos presentes: true` y `webhook registrado: [{"webhookPath":"ccm-venta-api-<token>"}]`. Si el webhook sale `[]`, repetir deactivate/activate.
 
 - [ ] **Step 3: Smoke real de `prefill` (no crea nada)**
 
 ```bash
-ssh root@2.24.202.75 "curl -s -X POST 'http://127.0.0.1:5678/webhook/ccm-venta-api-565cf6f228b2dfbe' -H 'Content-Type: application/json' -d '{\"action\":\"prefill\",\"conv\":\"35979\",\"agente\":{\"email\":\"heider@ccmtiendadelsonido.com\",\"name\":\"Heider\"}}' | python3 -c 'import sys,json; d=json.load(sys.stdin); print({k:d.get(k) for k in (\"ok\",\"vendedor_id\",\"vendedor_nombre\",\"ccosto_id\",\"ccosto_nombre\",\"agente_email\")})'"
+ssh root@2.24.202.75 "curl -s -X POST 'http://127.0.0.1:5678/webhook/ccm-venta-api-<token>' -H 'Content-Type: application/json' -d '{\"action\":\"prefill\",\"conv\":\"35979\",\"agente\":{\"email\":\"heider@ccmtiendadelsonido.com\",\"name\":\"Heider\"}}' | python3 -c 'import sys,json; d=json.load(sys.stdin); print({k:d.get(k) for k in (\"ok\",\"vendedor_id\",\"vendedor_nombre\",\"ccosto_id\",\"ccosto_nombre\",\"agente_email\")})'"
 ```
 Esperado: `{'ok': True, 'vendedor_id': 3, 'vendedor_nombre': 'Heider Arrieta', 'ccosto_id': 3, 'ccosto_nombre': 'Ventas Virtuales Personas CCM', 'agente_email': 'heider@ccmtiendadelsonido.com'}`.
 
 - [ ] **Step 4: Smoke del guard anti-fantasma (no debe crear pedido)**
 
 ```bash
-ssh root@2.24.202.75 "curl -s -X POST 'http://127.0.0.1:5678/webhook/ccm-venta-api-565cf6f228b2dfbe' -H 'Content-Type: application/json' -d '{\"action\":\"crear\",\"conv\":\"35979\",\"agente\":{\"email\":\"nadie@otro.com\"},\"form\":{\"nombre\":\"Prueba guard\",\"items\":[{\"sku\":\"CCM1119\",\"qty\":1}],\"entrega\":\"recogida\",\"vendedor_alegra_id\":\"\",\"centro_costo_id\":\"\"}}'"
+ssh root@2.24.202.75 "curl -s -X POST 'http://127.0.0.1:5678/webhook/ccm-venta-api-<token>' -H 'Content-Type: application/json' -d '{\"action\":\"crear\",\"conv\":\"35979\",\"agente\":{\"email\":\"nadie@otro.com\"},\"form\":{\"nombre\":\"Prueba guard\",\"items\":[{\"sku\":\"CCM1119\",\"qty\":1}],\"entrega\":\"recogida\",\"vendedor_alegra_id\":\"\",\"centro_costo_id\":\"\"}}'"
 ssh ccm-web 'cd ~/public_html && wp db query "select ID,post_status,post_date from wp_posts where post_type=\"shop_order\" and post_date >= date_sub(now(), interval 3 minute)" 2>/dev/null'
 ```
 Esperado: respuesta `{"ok":false,"error":"sin_vendedor: …"}`, **cero** pedidos nuevos en WooCommerce, y en la conversación 35979 una nota privada `Venta: sin_vendedor…` (comprobar en Chatwoot o con `select content from messages where conversation_id=(select id from conversations where display_id=35979) and private order by id desc limit 1`).
@@ -1243,7 +1243,7 @@ w=json.load(open('/tmp/cwVentaPage01.new.json'))
 open('/tmp/harness_popup/popup.html','w').write([n for n in w['nodes'] if n['name']=='HTML'][0]['parameters']['responseBody'])
 EOF
 ```
-Recargar `http://localhost:8765/ventas_asesores_popup.html` y leer `#log`. Esperado: **8 líneas `ok`**, ninguna `FALLA`. Además comprobar en la consola del iframe que no hay errores JS. Parar el `http.server` al terminar (`kill %1`).
+Recargar `http://localhost:8765/ventas_asesores_popup.html` y leer `#log`. Esperado: **12 líneas `ok` (11 checks + fetch-info)**, ninguna `FALLA`. Además comprobar en la consola del iframe que no hay errores JS. Parar el `http.server` al terminar (`kill %1`).
 
 - [ ] **Step 6: Commit**
 
@@ -1260,12 +1260,12 @@ git commit -m "feat(n8n): popup Venta lee el agente de Chatwoot, casilla 'venta 
 
 - [ ] **Step 2: Backup, import, publish, reactivar, verificar**
 
-Mismo bloque que Task 6 Step 2 sustituyendo `cwVentaApi01` → `cwVentaPage01`, `venta.new.json` → `page.new.json`, backup `cwVentaPage01_PRE_ASESORES_20260903.json`, y el check de nodos: `nodos 2 | HTML contiene es_bot: true` (`pub.find(n=>n.name==='HTML').parameters.responseBody.includes('id="es_bot"')`). Webhook esperado: `ccm-venta-page-565cf6f228b2dfbe`.
+Mismo bloque que Task 6 Step 2 sustituyendo `cwVentaApi01` → `cwVentaPage01`, `venta.new.json` → `page.new.json`, backup `cwVentaPage01_PRE_ASESORES_20260903.json`, y el check de nodos: `nodos 2 | HTML contiene es_bot: true` (`pub.find(n=>n.name==='HTML').parameters.responseBody.includes('id="es_bot"')`). Webhook esperado: `ccm-venta-page-<token>`.
 
 - [ ] **Step 3: Smoke**
 
 ```bash
-ssh root@2.24.202.75 "curl -s 'http://127.0.0.1:5678/webhook/ccm-venta-page-565cf6f228b2dfbe?conv=1' | grep -c 'id=\"es_bot\"\|chatwoot-dashboard-app:fetch-info\|— Elegir —'"
+ssh root@2.24.202.75 "curl -s 'http://127.0.0.1:5678/webhook/ccm-venta-page-<token>?conv=1' | grep -c 'id=\"es_bot\"\|chatwoot-dashboard-app:fetch-info\|— Elegir —'"
 ```
 Esperado: `4` (casilla, fetch-info, y dos «— Elegir —»).
 

@@ -13,3 +13,9 @@ Smokes tras el despliegue: `prefill` con el correo de Heider devolvió vendedor 
 Arnés: `docs/n8n/harness/ventas_asesores_api.js` (falla contra el export anterior — 10 fallos —, 15/15 verde contra el nuevo). Parche: `docs/n8n/patches/2026-09-03-ventas-asesores-api.py`.
 
 Hasta que se despliegue el popup nuevo (`cwVentaPage01`), el popup viejo sigue mandando `vendedor_alegra_id: "9"` (su `selected`), así que las ventas siguen atribuidas al bot; lo que ya está activo es el guard anti-fantasma.
+
+## Notas de la revisión final (2026-09-03)
+
+- `vendedores_en_rango()` del spec no se escribió: `resumen_por_vendedor()` alimenta el select y la tabla (una consulta en vez de dos).
+- `Agente → vendedor` está en el camino de las 5 acciones sin `onError`: es Code puro y total (`$json.body || {}`, no lanza), excepción prevista en el plan.
+- El fallback de centro de costo en `Order payload` (`id === 9 ? 10 : 3`) duplica el mapa del nodo — consolidar en el próximo despliegue de la API.
