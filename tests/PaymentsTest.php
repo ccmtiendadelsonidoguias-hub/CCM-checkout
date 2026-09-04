@@ -45,6 +45,28 @@ final class PaymentsTest extends TestCase {
         $this->assertSame( $html, CCMCK_Payments::fix_b_tags( $html ) );
     }
 
+    // --- marca_financiacion: que gateways llevan aviso de cuotas ---
+
+    public function test_addi_y_sistecredito_llevan_aviso_de_cuotas(): void {
+        $this->assertSame( 'Addi', CCMCK_Payments::marca_financiacion( 'addi' ) );
+        $this->assertSame( 'Sistecrédito', CCMCK_Payments::marca_financiacion( 'wcsistecredito' ) );
+    }
+
+    public function test_las_demas_pasarelas_no_llevan_aviso(): void {
+        // Si alguna de estas devolviera marca, el aviso saldria prometiendo unas
+        // cuotas que esa pasarela no ofrece.
+        foreach ( array( 'wompi', 'woo-mercado-pago-custom', 'woo-mercado-pago-ticket', 'bacs', 'cod', '' ) as $id ) {
+            $this->assertSame( '', CCMCK_Payments::marca_financiacion( $id ), $id . ' no deberia llevar aviso de cuotas' );
+        }
+    }
+
+    public function test_la_marca_se_reconoce_por_subcadena_del_id(): void {
+        // El id real de Sistecredito es `wcsistecredito`, no `sistecredito`: el
+        // aviso tiene que sobrevivir a que el plugin cambie el prefijo del slug.
+        $this->assertSame( 'Sistecrédito', CCMCK_Payments::marca_financiacion( 'sistecredito_v2' ) );
+        $this->assertSame( 'Addi', CCMCK_Payments::marca_financiacion( 'addi_gateway' ) );
+    }
+
     public function test_addi_requires_city_and_state_when_empty(): void {
         $errors = new WP_Error();
         CCMCK_Payments::require_address_for_addi(

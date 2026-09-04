@@ -1723,6 +1723,25 @@
 }
 .ccmck #place_order:hover { filter: brightness(0.92) !important; }
 
+/* --- Aviso de cuotas, justo debajo del botón de pagar ---
+   Solo sale con Addi o Sistecrédito (lo decide CCMCK_Payments en PHP). Dice
+   que el botón todavía no cierra la compra: las cuotas se eligen después, ya
+   en la financiera. Es texto de apoyo, no una alerta, así que va en gris y sin
+   caja: si compitiera con el botón le restaría clics al CTA.
+
+   Sin `margin-top` a proposito: `#place_order` es un <button>, o sea
+   inline-block, y los margenes de un inline-block NO colapsan con los del
+   hermano siguiente. Medido en dev: con `margin-top: 10px` la separacion salia
+   de 26px (16 del boton + 10 mios) y el aviso se leia despegado del boton. A 0
+   manda el `margin-bottom: 16px` del boton, que es el ritmo del resto. */
+.ccmck .ccmck-cuotas-aviso {
+  margin: 0;
+  text-align: center;
+  font-size: 13px;
+  line-height: 1.45;
+  color: #666;
+}
+
 /* Aire entre la sección de pago y el bloque de privacidad/términos/botón. */
 .ccmck .form-row.place-order { margin-top: 26px; }
 

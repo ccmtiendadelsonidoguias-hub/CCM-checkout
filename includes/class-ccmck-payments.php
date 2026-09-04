@@ -11,6 +11,87 @@ final class CCMCK_Payments {
         // pickup, para bloquear con un mensaje claro ANTES de llamar a Addi (en vez de
         // que Addi falle con un error genérico). El JS replica la obligatoriedad inline.
         add_action( 'woocommerce_after_checkout_validation', array( __CLASS__, 'require_address_for_addi' ), 10, 2 );
+        // Aviso de cuotas bajo el boton, solo para las pasarelas de financiacion.
+        add_action( 'woocommerce_review_order_after_submit', array( __CLASS__, 'render_aviso_cuotas' ) );
+    }
+
+    /**
+     * Pasarelas de financiacion: fragmento del id => nombre de la marca.
+     *
+     * Se busca por SUBCADENA del id (`addi`, `wcsistecredito`) igual que hace
+     * `require_address_for_addi`, para que un cambio de slug del plugin de la
+     * pasarela no deje el aviso mudo en silencio.
+     *
+     * El nombre NO sale de `$gateway->get_title()` a proposito: medido en el
+     * checkout el 4-sep-2026, Addi se titula «Paga a cuotas» y Sistecredito
+     * «Paga con» —el resto de su marca es un logo—, asi que la frase quedaria
+     * «...pagar con Paga con.». La marca se escribe aqui.
+     */
+    private const FINANCIACION = array(
+        'addi'         => 'Addi',
+        'sistecredito' => 'Sistecrédito',
+    );
+
+    /**
+     * Aviso bajo el boton de pagar: dice que el boton NO cierra la compra
+     * todavia, que despues se eligen las cuotas.
+     *
+     * Va colgado de `woocommerce_review_order_after_submit`, que la plantilla
+     * dispara justo despues del boton. NO necesita JavaScript: verificado en
+     * dev el 4-sep-2026 plantando tres marcadores dentro de `#payment` y
+     * cambiando de metodo de pago —los tres desaparecieron, o sea que
+     * WooCommerce re-renderiza el bloque entero en el servidor en cada cambio—.
+     * Por eso el aviso no puede desincronizarse del radio marcado, y funciona
+     * igual en la primera carga que tras un refresco AJAX.
+     */
+    public static function render_aviso_cuotas(): void {
+        $marca = self::marca_financiacion( self::pasarela_elegida() );
+        if ( '' === $marca ) {
+            return;
+        }
+        printf(
+            '<p class="ccmck-cuotas-aviso">%s</p>',
+            esc_html(
+                sprintf(
+                    /* translators: %s: nombre de la financiera (Addi, Sistecrédito). */
+                    __( 'Continúa para elegir en cuántas cuotas quieres pagar con %s.', 'ccm-checkout' ),
+                    $marca
+                )
+            )
+        );
+    }
+
+    /**
+     * Id de la pasarela marcada, leido de la MISMA fuente que usa la plantilla
+     * para pintar el `checked` del radio (`$gateway->chosen`). Cualquier otra
+     * fuente —la sesion, el POST— podria discrepar del radio que el cliente ve.
+     */
+    private static function pasarela_elegida(): string {
+        if ( ! function_exists( 'WC' ) || ! WC()->payment_gateways ) {
+            return '';
+        }
+        foreach ( WC()->payment_gateways->get_available_payment_gateways() as $gateway ) {
+            if ( ! empty( $gateway->chosen ) ) {
+                return (string) $gateway->id;
+            }
+        }
+        return '';
+    }
+
+    /**
+     * Nombre de marca para un id de pasarela, o '' si no es de financiacion.
+     * PURO.
+     */
+    public static function marca_financiacion( string $id ): string {
+        if ( '' === $id ) {
+            return '';
+        }
+        foreach ( self::FINANCIACION as $fragmento => $marca ) {
+            if ( false !== stripos( $id, $fragmento ) ) {
+                return $marca;
+            }
+        }
+        return '';
     }
 
     /**
