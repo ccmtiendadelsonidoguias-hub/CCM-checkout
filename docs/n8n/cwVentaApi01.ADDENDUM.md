@@ -43,3 +43,35 @@ Smoke en producción tras desplegar (popup abierto por Heider en las tres):
 `conv 22663 (Camilo) → 9/IA CCM` · `conv 53964 (Farid) → 4/Ventas Virtuales Personas` · `conv 35979 (sin asignar) → 9/IA CCM`.
 
 Backups: `/root/backups/cwVentaApi01_PRE_ASIGNADO_20260903.json`, `cwVentaPage01_PRE_ASIGNADO_20260903.json`.
+
+## Resolutor de productos del scan (2026-09-04, con GO)
+
+46 → 47 nodos. Backup: `/root/backups/cwVentaApi01_PRE_RESOLUTOR_20260904.json`.
+
+**El fallo:** `WC resolver scan` pedía `per_page=1` y se quedaba con el primer resultado del orden de relevancia de WooCommerce, que no es la coincidencia exacta.
+
+```
+LLM: "Tweeter MTE 1201 800W"   (nombre EXACTO de CCM1143)
+WC:  1) CCM1526 "Tweeter MTE 1201Bk 800W"   <- se llevaba este
+     2) CCM1143 "Tweeter MTE 1201 800W"
+```
+
+**Cambios:** `WC resolver scan` trae 5 candidatos y quita paréntesis del nombre. Nodo nuevo **`Elegir producto`** (Code puro y total) decide por niveles: nombre exacto normalizado → contenido sin espacios (`"PL 243 Washer"` dentro de `"Luz LED PRO DJ PL243 Washer"`) → más parecido con piso 0,40 y margen 0,10. Sin coincidencia clara devuelve **vacío**, y el popup obliga al asesor a poner el SKU. Guardia extra: si el LLM da un SKU cuyo producto no comparte ni el tipo con el nombre extraído, no se usa (dijo *"Tweeter MTE 1201 800W"* con sku **CCM270**, que es la **bobina** de ese tweeter). Va **antes** de `Alegra resolver scan`, que usaba el primer resultado de WC para el precio de transferencia. `Scan resolver` lee lo elegido.
+
+**Medición** (`docs/n8n/harness/elegir_producto_eval.js`, ejecuta el JS real del nodo contra WooCommerce en vivo, 94 pedidos en tres conjuntos):
+
+| Conjunto | exacto | SKU equivocado | vacíos | bajan |
+|---|---|---|---|---|
+| A (16, usados para diseñar) | 12 → 14 | 3 → 0 | 1 → 2 | ninguno |
+| B (40, iterado 3 veces) | 22 → 26 | 12 → 7 | 6 → 7 | ninguno |
+| **C (38, intacto, una pasada)** | 22 → 23 | **8 → 3** | 8 → 12 | **ninguno** |
+
+Lo defendible es la reducción de SKU equivocado (en C: 5 mejoras, 0 empeoramientos, p ≈ 0,03), no la precisión: el +1 exacto de C **no es significativo**. Coste: ~4 vacíos más de cada 38, que el asesor rellena a mano (la fila pierde también el precio).
+
+**Dos trampas del camino, para quien vuelva:** (1) el prototipo en Python hacía una segunda consulta por nombre que en n8n no cabe en un nodo HTTP — hay que medir el JS del nodo, no el prototipo; (2) el arnés cacheaba los fallos de WooCommerce como «cero resultados» e inventó tres regresiones que no se reproducían. Ahora reintenta 4 veces y aborta si no hay datos.
+
+**`temperature: 0` deliberadamente FUERA:** la evidencia de inconsistencia era n=1 y no está probado que la API de DeepSeek lo acepte con `thinking: disabled`. Se mide aparte.
+
+**El techo no es el resolutor.** En C, de los 15 fallos que quedan la mayoría son de extracción: cinco con el modelo devolviendo nada y varios con descripciones genéricas (*«Producto no especificado en el chat»*). Eso es el prompt, otro proyecto.
+
+Smoke tras desplegar: `conv 16685 → CCM1143+CCM1065` · `44780 → CCM1143` · `52214 → CCM931` (antes CCM1526 en los dos primeros). `35353` sale **vacío** a propósito: ahí el LLM adjunta el sku CCM270 y la guardia lo rechaza.
