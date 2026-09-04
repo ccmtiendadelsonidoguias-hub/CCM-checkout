@@ -1729,18 +1729,30 @@
    en la financiera. Es texto de apoyo, no una alerta, así que va en gris y sin
    caja: si compitiera con el botón le restaría clics al CTA.
 
-   Sin `margin-top` a proposito: `#place_order` es un <button>, o sea
-   inline-block, y los margenes de un inline-block NO colapsan con los del
-   hermano siguiente. Medido en dev: con `margin-top: 10px` la separacion salia
-   de 26px (16 del boton + 10 mios) y el aviso se leia despegado del boton. A 0
-   manda el `margin-bottom: 16px` del boton, que es el ritmo del resto. */
+   `margin-top` NEGATIVO y no un valor a secas: `#place_order` es un <button>,
+   o sea inline-block, y los margenes de un inline-block NO colapsan con los
+   del hermano siguiente. El boton ya empuja 16px con su propio
+   `margin-bottom`, asi que para dejar los 4px pedidos hay que restarle 12.
+   Medido en dev: 10px daban 26 de separacion, 0px daban 16, -12px dan 4.
+   Si algun dia cambia el `margin-bottom` del boton, este numero cambia con el
+   —son las dos mitades de la misma cuenta—. */
 .ccmck .ccmck-cuotas-aviso {
-  margin: 0;
+  margin: -12px 0 0;
   text-align: center;
   font-size: 13px;
   line-height: 1.45;
   color: #666;
 }
+
+/* La marca en negrita: es el dato que el cliente busca en la frase.
+   Lleva CLASE propia y no se estiliza como `strong` a secas porque mas abajo
+   hay un barrido que impone `font-weight: 400 !important` a todo el checkout
+   con una lista de excepciones. Ese selector mete `#place_order` dentro de un
+   `:not()`, asi que arrastra la especificidad de un ID y le gana a cualquier
+   regla de clases: la unica forma limpia de escapar es entrar en la lista,
+   que es justo para lo que existe. Un `!important` propio aqui seria una
+   segunda guerra sobre la misma propiedad. */
+.ccmck .ccmck-cuotas-marca { font-weight: 700; color: #333; }
 
 /* Aire entre la sección de pago y el bloque de privacidad/términos/botón. */
 .ccmck .form-row.place-order { margin-top: 26px; }
@@ -2351,8 +2363,8 @@ body.woocommerce-checkout .ccmck #payment div.form-row { padding: 0; }
    (h1–h4, que conservan su 500) y los elementos resaltados: montos (total y
    precios), el botón de pago y los nombres de producto del resumen. Es una
    regla de barrido con lista de excepciones (no toca los resaltados). */
-.ccmck .checkout-main *:not(h1):not(h2):not(h3):not(h4):not(.pay-button):not(#place_order):not(.ccmck-mos-total):not(.ccmck-mos-item-price):not(.ccmck-mos-grand):not(.ccmck-mos-grand span),
-.ccmck .checkout-sidebar *:not(h1):not(h2):not(h3):not(h4):not(.product-title):not(.product-line-total):not(.order-total):not(.order-total th):not(.order-total td):not(.order-total .amount):not(.toggle-price) {
+.ccmck .checkout-main *:not(h1):not(h2):not(h3):not(h4):not(.pay-button):not(#place_order):not(.ccmck-mos-total):not(.ccmck-mos-item-price):not(.ccmck-mos-grand):not(.ccmck-mos-grand span):not(.ccmck-cuotas-marca),
+.ccmck .checkout-sidebar *:not(h1):not(h2):not(h3):not(h4):not(.product-title):not(.product-line-total):not(.order-total):not(.order-total th):not(.order-total td):not(.order-total .amount):not(.toggle-price):not(.ccmck-cuotas-marca) {
   font-weight: 400 !important;
 }
 

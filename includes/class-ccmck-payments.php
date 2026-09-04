@@ -49,14 +49,17 @@ final class CCMCK_Payments {
         if ( '' === $marca ) {
             return;
         }
+        // La frase se escapa ENTERA antes de meterle nada, y la marca se escapa
+        // aparte: asi el unico HTML que sobrevive es el <strong> que ponemos
+        // aqui. Escapar el resultado ya montado imprimiria las etiquetas como
+        // texto; no escapar nada dejaria pasar lo que trajera la traduccion.
+        $marca_html = '<strong class="ccmck-cuotas-marca">' . esc_html( $marca ) . '</strong>';
         printf(
             '<p class="ccmck-cuotas-aviso">%s</p>',
-            esc_html(
-                sprintf(
-                    /* translators: %s: nombre de la financiera (Addi, Sistecrédito). */
-                    __( 'Continúa para elegir en cuántas cuotas quieres pagar con %s.', 'ccm-checkout' ),
-                    $marca
-                )
+            sprintf(
+                /* translators: %s: nombre de la financiera (Addi, Sistecrédito), ya en <strong>. */
+                esc_html__( 'Continúa para elegir en cuántas cuotas quieres pagar con %s.', 'ccm-checkout' ),
+                $marca_html // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
             )
         );
     }
