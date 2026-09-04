@@ -32,6 +32,13 @@ sub('var DKEY = "ccm_venta_draft_" + CONV;',
     '// 2026-09-03: agente de Chatwoot (appContext) -> vendedor precargado por la API\n'
     'var AGENTE = null, AGENTE_VEND = null;\n'
     'function aplicarVendedor(v){ if (!v) return; if (v.vendedor_id) document.getElementById("vendedor").value = String(v.vendedor_id); if (v.ccosto_id) document.getElementById("ccosto").value = String(v.ccosto_id); }\n'
+    # 2026-09-03 asignado_manda: el servidor decide por a quien esta ASIGNADA la conversacion
+    # (sin asignar o de Camilo -> bot). La casilla refleja esa decision; el asesor puede
+    # desmarcarla y elegir a mano, que sigue mandando.
+    'function aplicarDelServidor(d){ if (!d) return; if (d.vendedor_id || d.ccosto_id) { AGENTE_VEND = { vendedor_id: d.vendedor_id, ccosto_id: d.ccosto_id }; }\n'
+    '  var eb = document.getElementById("es_bot");\n'
+    '  if (typeof d.es_bot === "boolean" && eb.checked !== d.es_bot) { eb.checked = d.es_bot; toggleBot(); return; }\n'
+    '  if (!eb.checked) aplicarVendedor(AGENTE_VEND); }\n'
     'var __antesBot = null;\n'
     'function toggleBot(){ var on = document.getElementById("es_bot").checked; var vs = document.getElementById("vendedor"), cs = document.getElementById("ccosto");\n'
     '  if (on) { __antesBot = { vendedor: vs.value, ccosto: cs.value }; vs.value = "9"; cs.value = "10"; }\n'
@@ -44,13 +51,13 @@ sub('var DKEY = "ccm_venta_draft_" + CONV;',
     'window.parent.postMessage("chatwoot-dashboard-app:fetch-info", "*");\n'
     '// stub SOLO para el arnes local (?__stub=1): no toca la API real\n'
     'if (["localhost","127.0.0.1"].indexOf(location.hostname) !== -1 && new URLSearchParams(location.search).get("__stub") === "1") { var __f = window.fetch; window.fetch = function(u, o){ var b = {}; try { b = JSON.parse(o.body); } catch(e){}\n'
-    '  if (b.action === "prefill") { window.__ultimoPrefill = b; return Promise.resolve({ json: function(){ return { ok: true, cliente: {}, items: [{ sku: "CCM1119", nombre: "Parlante de prueba", qty: 1, precio: 100000, product_id: 4601 }], vendedor_id: 3, vendedor_nombre: "Heider Arrieta", ccosto_id: 3, ccosto_nombre: "Ventas Virtuales Personas CCM" }; } }); }\n'
+    '  if (b.action === "prefill") { window.__ultimoPrefill = b; return Promise.resolve({ json: function(){ return { ok: true, cliente: {}, items: [{ sku: "CCM1119", nombre: "Parlante de prueba", qty: 1, precio: 100000, product_id: 4601 }], vendedor_id: 3, vendedor_nombre: "Heider Arrieta", ccosto_id: 3, ccosto_nombre: "Ventas Virtuales Personas CCM", es_bot: false }; } }); }\n'
     '  return Promise.resolve({ json: function(){ return { ok: false }; } }); }; }', 'estado agente')
 
 # 3. fill(): precarga vendedor/ccosto de la respuesta
 sub('  if (c.tipo_documento) document.getElementById("tipodoc").value = c.tipo_documento;',
     '  if (c.tipo_documento) document.getElementById("tipodoc").value = c.tipo_documento;\n'
-    '  if (d.vendedor_id || d.ccosto_id) { AGENTE_VEND = { vendedor_id: d.vendedor_id, ccosto_id: d.ccosto_id }; if (!document.getElementById("es_bot").checked) aplicarVendedor(AGENTE_VEND); }', 'fill vendedor')
+    '  aplicarDelServidor(d);', 'fill vendedor')
 
 # 4. arranque: esperar el appContext (max 1,5 s) y mandar agente en prefill
 sub('if (!draftRaw) {\n  fetch(API, {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({action:"prefill", conv:CONV})})',
@@ -74,7 +81,7 @@ sub('    applyDraft(JSON.parse(draftRaw));\n'
     '        if (AGENTE || __esperasD >= 15) {\n'
     '          fetch(API, {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({action:"prefill", conv:CONV, agente: AGENTE})})\n'
     '            .then(function(r){ return r.json(); })\n'
-    '            .then(function(d){ AGENTE_VEND = { vendedor_id: d.vendedor_id, ccosto_id: d.ccosto_id }; if (!document.getElementById("es_bot").checked) aplicarVendedor(AGENTE_VEND); })\n'
+    '            .then(function(d){ aplicarDelServidor(d); })\n'
     '            .catch(function(){});\n'
     '          return;\n'
     '        }\n'

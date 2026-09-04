@@ -28,7 +28,11 @@ try {
   ag = (email) => run(agentSrc, { body: { action: 'prefill', conv: '99001', agente: { email, name: 'X' } }, query: {} }, {})[0].json.agente_resuelto;
   chk(ag('heider@ccmtiendadelsonido.com').vendedor_id === 3 && ag('heider@ccmtiendadelsonido.com').ccosto_id === 3, 'heider -> vendedor 3, ccosto 3');
   chk(ag('FARID@ccmtiendadelsonido.com').vendedor_id === 4, 'farid (mayusculas) -> 4');
-  chk(ag('gerencia@ccmtiendadelsonido.com').vendedor_id === 6, 'gerencia -> 6 (nunca el 5)');
+  // 2026-09-03 (regla "manda el asignado"): Camilo sale del mapa de ASESORES — sus chats se
+  // facturan por el bot. Sigue siendo agente conocido para no disparar el aviso de Resultado.
+  chk(ag('gerencia@ccmtiendadelsonido.com').vendedor_id === null && ag('gerencia@ccmtiendadelsonido.com').conocido === true,
+      'gerencia: fuera del mapa de asesores pero conocido (sus ventas van al bot)');
+  chk(Object.keys(ag('heider@ccmtiendadelsonido.com').mapa || {}).length === 2, 'el mapa de asesores tiene exactamente 2 (Heider, Farid)');
   chk(ag('nadie@otro.com').vendedor_id === null && ag('nadie@otro.com').conocido === false, 'desconocido -> null, conocido=false');
 } catch (e) { chk(false, 'nodo Agente → vendedor existe (' + e.message + ')'); ag = () => ({}); }
 
@@ -45,11 +49,16 @@ chk(meta(outAsesor, '_ccm_origen') === 'chatwoot_venta', '_ccm_origen intacto');
 const outBot = op(Object.assign({}, FORM_BASE, { es_bot: true, vendedor_alegra_id: '3', vendedor_nombre: 'Heider Arrieta' }), ag('heider@ccmtiendadelsonido.com'));
 chk(meta(outBot, '_ccm_canal_venta') === 'bot' && meta(outBot, '_ccm_alegra_seller_id') === '9' && meta(outBot, '_ccm_alegra_cost_center_id') === '10', 'casilla es_bot gana: 9 / IA CCM / canal bot');
 
+// 2026-09-03: sin vendedor explicito la venta es del BOT (antes: error sin_vendedor).
 const outSinVend = op(Object.assign({}, FORM_BASE, { vendedor_alegra_id: '', centro_costo_id: '' }), ag('nadie@otro.com'));
-chk(!!outSinVend.error && /sin_vendedor/.test(outSinVend.error), 'sin vendedor ni agente -> error sin_vendedor (ANTES: pedido al bot en silencio)');
+chk(!outSinVend.error && meta(outSinVend, '_ccm_alegra_seller_id') === '9' && meta(outSinVend, '_ccm_canal_venta') === 'bot',
+    'sin vendedor ni agente -> BOT sin error');
 
+// 2026-09-03: quien ABRE el popup ya no decide; decide a quien esta ASIGNADA la conversacion
+// (ver docs/n8n/harness/asignado_manda.js). Con el popup vacio, respaldo = BOT.
 const outSoloAgente = op(Object.assign({}, FORM_BASE, { vendedor_alegra_id: '', centro_costo_id: '' }), ag('farid@ccmtiendadelsonido.com'));
-chk(meta(outSoloAgente, '_ccm_alegra_seller_id') === '4' && meta(outSoloAgente, '_ccm_alegra_seller_nombre') === 'Farid Sanchez', 'popup vacio + agente conocido -> vendedor del agente');
+chk(meta(outSoloAgente, '_ccm_alegra_seller_id') === '9' && meta(outSoloAgente, '_ccm_canal_venta') === 'bot',
+    'popup vacio aunque lo abra un asesor -> BOT (manda el asignado, no quien abre)');
 
 // ---- Resultado en rama de error debe llevar conv ----
 const resSrc = code('Resultado');
