@@ -1,0 +1,11 @@
+# Los ficheros de este directorio son tests DEV-ONLY y no deben ser
+# alcanzables por HTTP. El 4-sep-2026 se comprobó que dos de ellos
+# respondían 200 en producción desde el 14-jul: se retiraron a mano, y este
+# fichero existe para que, si alguien vuelve a copiar la carpeta completa al
+# webroot, el servidor los rechace en vez de ejecutarlos.
+#
+# No contenían secretos ni aceptaban input; el riesgo era ejecución pública
+# innecesaria de PHP. Clasificado MEDIO.
+
+Options -Indexes
+Deny from all
